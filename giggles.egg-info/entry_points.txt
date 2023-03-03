@@ -1,0 +1,2 @@
+[console_scripts]
+giggles = giggles.__main__:main

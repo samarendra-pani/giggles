@@ -1,0 +1,19 @@
+Metadata-Version: 2.1
+Name: giggles
+Version: 0.1.dev1+g44acfe7
+Summary: Genotype Variants using Long Reads and Reference Genome Graph
+Home-page: https://github.com/samarendra-pani/giggles
+Author: Samarendra Pani
+Author-email: Samarendra.Pani@hhu.de
+License: MIT
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Environment :: Console
+Classifier: Intended Audience :: Science/Research
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Cython
+Classifier: Programming Language :: Python :: 3
+Classifier: Topic :: Scientific/Engineering :: Bio-Informatics
+Requires-Python: >=3.7
+Description-Content-Type: text/x-rst
+Provides-Extra: dev
+License-File: LICENSE

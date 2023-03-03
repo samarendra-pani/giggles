@@ -1,0 +1,14 @@
+include doc/conf.py
+include doc/Makefile
+include doc/*.rst
+
+include tests/test*.py
+
+include giggles/*.pyx
+include giggles/*.pxd
+include giggles/core.cpp
+include giggles/priorityqueue.cpp
+include giggles/align.cpp
+include giggles/_variants.cpp
+
+include src/*.h
