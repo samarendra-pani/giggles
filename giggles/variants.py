@@ -2,9 +2,9 @@
 Detect variants in reads.
 """
 import logging
-import numpy as np
-from collections import defaultdict, Counter
+from collections import defaultdict, Counter, namedtuple
 from typing import Iterable, Iterator, List, Optional
+import re
 
 from numpy.core.fromnumeric import shape
 
@@ -80,10 +80,14 @@ class GAFReader:
             pos, count = varposc.most_common()[0]
             assert count == 1, "Position {} occurs more than once in variant list.".format(pos)
 
+        logger.debug("Extracting Usable Alignments")
         alignments = self._usable_alignments(chromosome, variants)
+        logger.debug("Converting Alignments to Read Objects")
         reads = self._alignments_to_reads(alignments, variants, sample, reference)
-        grouped_reads = self._group_paired_reads(reads)
+        grouped_reads = self._remove_duplicate_reads(reads)
+        logger.debug("Grouping Reads into ReadSet Object")
         readset = self._make_readset_from_grouped_reads(grouped_reads)
+        logger.debug("ReadSet Object Successfully Created")
         return readset      
 
     @staticmethod
@@ -94,25 +98,42 @@ class GAFReader:
         return read_set
 
     @staticmethod
-    def _group_paired_reads(reads: Iterable[Read]) -> Iterator[List[Read]]:
+    def _remove_duplicate_reads(reads: Iterable[Read]) -> Iterator[List[Read]]:
         """
-        Group reads into paired-end read pairs. Uses name, source_id and sample_id
-        as grouping key.
-
-        TODO
-        Grouping by name should be sufficient since the SAM spec states:
-        "Reads/segments having identical QNAME are regarded to come from the same template."
+        remove reads which have been mapped multiple times and select one best read
         """
         groups = defaultdict(list)
         for read in reads:
-            groups[(read.source_id, read.name, read.sample_id)].append(read)
+            if groups[(read.source_id, read.name, read.sample_id)] == []:
+                groups[(read.source_id, read.name, read.sample_id)] = [read]       # Keeping this as a list so that I dont need to change _make_readset_from_grouped_reads()
+            else:
+                old_read = groups[(read.source_id, read.name, read.sample_id)][0]
+
+                # Check the number of variants it covers
+                if len(old_read) < len(read):
+                    groups[(read.source_id, read.name, read.sample_id)] = [read]
+                
+                # Check the mapping quality
+                if old_read.mapqs < read.mapqs:
+                    groups[(read.source_id, read.name, read.sample_id)] = [read]
+
         for group in groups.values():
-            if len(group) > 2:
+            if len(group) > 1:
                 raise ReadSetError(
                     "Read name {!r} occurs more than twice in the input file".format(group[0].name)
                 )
             yield group
     
+    @staticmethod
+    def reverse_complement(seq):
+        seq = seq.replace("A", "t").replace(
+            "C", "g").replace("T", "a").replace("G", "c")
+        seq = seq.upper()
+        
+        seq = seq[::-1]
+        return seq
+
+
     def _usable_alignments(self, chromosome, variants):
         """
         Retrieve usable (suficient mapping quality, not secondary etc.)
@@ -133,53 +154,113 @@ class GAFReader:
 
         Yield Read objects.
         """
-        # FIXME hard-coded zero
         numeric_sample_id = 0 if sample is None else self._numeric_sample_ids[sample]
         if reference is not None:
             # Copy the pyfaidx.FastaRecord into a str for faster access
             reference = reference[:]
-            normalized_variants = variants
-        else:
-            normalized_variants = variants
-
+        
+        rgfa = self._reader._reference
+        id_to_index = {}
+        for i, v in enumerate(variants):
+            id = v.id.split('>')
+            start = id[1]
+            end = id[-1]
+            id_to_index[start] = [end, i] # Creating a look up table to find bubble end and index of variant from bubble start
+        
+        cg_letter_to_op = {'M': 0, 'I': 1, 'D': 2, 'N': 3, 'S': 4, 'H': 5, 'P': 6, 'X': 7, '=': 8}
+        Alignment = namedtuple('Alignment', ['cigartuples', 'reference_start', 'query_sequence'])        # Class created to maintain compatibility with old code
         for alignment in alignments:
-            # Skip variants that are to the left of this read
+            print(alignment.read_id)
+            # Checking if the alignment is in reverse direction.
             
-            """
-            TODO: Find the first variant that alignment has and then change how alleles are detected.
-            """
             reverse = False
-            start_clipped = False
-            end_clipped = False
-            end = None
-            start = None
-            print("Working on Alignment")
-            for i, var in enumerate(normalized_variants):
-                print(var.start_node)
-                if var.start_node in alignment.path:
-                    start = i
-                    break
-                if var.end_node in alignment.path:
-                    start_clipped = True
-            exit()
-            if start == None:
-                print("Failed!")
-                continue
-            
-            for i, var in enumerate(normalized_variants[start:]):
-                if var.start_node not in alignment.path:
-                    end = i-1
-                    break
-                if var.end_node not in alignment.path:
-                    end_clipped = True
-                    end = i
+            orient  = None
+            for n in alignment.path:
+                if n in ['>', '<']:
+                    orient = n
+                    continue
+                if rgfa.get_node(n).tags["NO"] == 0:
+                    reverse = orient == '<'
                     break
             
-            print("Worked!")
+            # Reversing path and updating other variables if required
+            if reverse:
+                reverse_orient = {'>': '<', '<': '>'}
+                new_alignment = []
+                for n in alignment.path[::-1]:
+                    if n in ['>', '<']:
+                        new_alignment.insert(-1, reverse_orient[n])
+                    else:
+                        new_alignment.append(n)
+                qs = alignment.q_start
+                qe = alignment.q_end
+                ql = alignment.q_len
+                ps = alignment.p_start
+                pe = alignment.p_end
+                pl = alignment.p_len
+                
+                alignment.q_start = ql - qe
+                alignment.q_end = ql - qs
+                alignment.orient = '+'
+                alignment.p_start = pl - pe
+                alignment.p_end = pl - ps
+                alignment.sequence = self.reverse_complement(alignment.sequence)
+                alignment.path = new_alignment
 
-            if start_clipped:
-                print(alignment.get_tag("cg"))
-                exit()
+            # Process the alignment path and change variant positions (which are now based on the paths).
+            # The new definition of variant position is only useful for CIGAR processing. For all the downstream processing (especially for sorting), we need the actual position in the reference backbone.
+            # Also output the reference sequence (which the sequence of the path)
+            reference = ""
+            variants_in_alignment = []
+            end_found = False
+            end = None
+            for n in alignment.path:
+                if n in ['>', '<']:
+                    orient = n
+                    continue
+                node = rgfa.get_node(n)
+                # Reference updated
+                if orient == '<':
+                    reference += self.reverse_complement(node.sequence)
+                else:
+                    reference += node.sequence
+                # Finding variants and variant positions
+                
+                if node.tags['NO'] == 0:
+                    try:
+                        index = id_to_index[n][1]
+                        if end != None:
+                            end_found = end == n
+                        end = id_to_index[n][0]
+                    except KeyError:
+                        continue
+                    v = variants[index]
+                    v.position = len(reference)
+                    variants_in_alignment.append(v)
+            
+            if (len(variants_in_alignment) == 0) or (len(variants_in_alignment) == 1 and not end_found):
+                continue
+
+            if not end_found:
+                variants_in_alignment.pop(-1)
+
+
+            # Extract the aligned segement from the complete read sequence and create a new object.
+            # Need cigartuples, and reference_start (where it starts in the reference. So the path start in this case.)
+
+
+            gaf_aligned_segment = alignment.sequence[alignment.q_start:alignment.q_end]
+            cg_tuples = []
+            cg = list(filter(None, re.split("([MIDNSHP=X])", alignment.cigar)))
+            for i in range(0,len(cg),2):
+                l = int(cg[i])
+                op = cg_letter_to_op[cg[i+1]]
+                cg_tuples.append((op,l))
+            
+            # This new variable is created to make the gaf alignments compatible with the old code.
+            processed_alignment = Alignment(cigartuples=cg_tuples, reference_start=alignment.p_start, query_sequence=gaf_aligned_segment)
+            
+            start_on_ref = rgfa.get_node(alignment.path[1]).start + alignment.p_start
 
             barcode = ""
             if alignment.has_tag("BX"):
@@ -190,29 +271,252 @@ class GAFReader:
                 alignment.mapping_quality,
                 alignment.source_id,
                 numeric_sample_id,
-                alignment.bam_alignment.reference_start,
+                start_on_ref,
                 barcode,
             )
 
-            if reference is None:
-                detected = self.detect_alleles(normalized_variants, i, alignment.bam_alignment)
-            else:
-                detected = self.detect_alleles_by_alignment(
-                    variants,
-                    i,
-                    alignment.bam_alignment,
-                    reference,
-                    self._overhang,
-                    self._use_affine,
-                    self._gap_start,
-                    self._gap_extend,
-                    self._default_mismatch,
-                )
+            detected = self.detect_alleles_by_alignment(
+                variants_in_alignment,
+                0,                              # Here this has been hardcoded to 0. In original code, this was the index of the first variant (index in the big list of variants) in the read. But now we have new list of variants just for this alignment.
+                processed_alignment,
+                reference,
+                self._overhang,
+                self._use_affine,
+                self._gap_start,
+                self._gap_extend,
+                self._default_mismatch)
+        
             for j, allele, em, quality in detected:
-                read.add_variant(variants[j].position, allele, em, quality)
+                read.add_variant(variants_in_alignment[j].position_on_ref, allele, em, quality)
             if read:  # At least one variant covered and detected
-                pass
+                yield read
+    
+    @staticmethod
+    def split_cigar(cigar, i, consumed):
+        """
+        Split a CIGAR into two parts. i and consumed describe the split position.
+        i is the element of the cigar list that should be split, and consumed says
+        at how many operations to split within that element.
 
+        The CIGAR is given as a list of (operation, length) pairs.
+
+        i -- split at this index in cigar list
+        consumed -- how many cigar ops at cigar[i] are to the *left* of the
+            split position
+
+        Return a tuple (left, right).
+
+        Example:
+        Assume the cigar is 3M 1D 6M 2I 4M.
+        With i == 2 and consumed == 5, the cigar is split into
+        3M 1D 5M and 1M 2I 4M.
+        """
+        middle_op, middle_length = cigar[i]
+        assert consumed <= middle_length
+        if consumed > 0:
+            left = cigar[:i] + [(middle_op, consumed)]
+        else:
+            left = cigar[:i]
+        if consumed < middle_length:
+            right = [(middle_op, middle_length - consumed)] + cigar[i + 1 :]
+        else:
+            right = cigar[i + 1 :]
+        return left, right
+
+    
+    @staticmethod
+    def cigar_prefix_length(cigar, reference_bases):
+        """
+        Given a prefix of length reference_bases relative to the reference, how
+        long is the prefix of the read? In other words: If reference_bases on
+        the reference are consumed, how many bases on the query does that
+        correspond to?
+
+        If the position is within or at the end of an insertion (which do not
+        consume bases on the reference), then the number of bases up to the
+        beginning of the insertion is reported.
+
+        Return a pair (reference_bases, query_bases) where the value for
+        reference_bases may be smaller than the requested one if the CIGAR does
+        not cover enough reference bases.
+
+        Reference skips (N operators) are treated as the end of the read. That
+        is, no positions beyond a reference skip are reported.
+        """
+        ref_pos = 0
+        query_pos = 0
+        for op, length in cigar:
+            if op in (0, 7, 8):  # M, X, =
+                ref_pos += length
+                query_pos += length
+                if ref_pos >= reference_bases:
+                    return (reference_bases, query_pos + reference_bases - ref_pos)
+            elif op == 2:  # D
+                ref_pos += length
+                if ref_pos >= reference_bases:
+                    return (reference_bases, query_pos)
+            elif op == 1:  # I
+                query_pos += length
+            elif op == 4 or op == 5:  # soft or hard clipping
+                pass
+            elif op == 3:  # N
+                # Always stop at reference skips
+                return (reference_bases, query_pos)
+            else:
+                assert False, "unknown CIGAR operator"
+        assert ref_pos < reference_bases
+        return (ref_pos, query_pos)
+
+    @staticmethod
+    def realign(
+        variant,
+        bam_read,
+        cigartuples,
+        i,
+        consumed,
+        query_pos,
+        reference,
+        overhang,
+        use_affine,
+        gap_start,
+        gap_extend,
+        default_mismatch,
+    ):
+        """
+        Realign a read to the two alleles of a single variant.
+        i and consumed describe where to split the cigar into a part before the
+        variant position and into a part starting at the variant position, see split_cigar().
+
+        variant -- VcfVariant
+        bam_read -- the AlignedSegment
+        cigartuples -- the AlignedSegment.cigartuples property (accessing it is expensive, so re-use it)
+        i, consumed -- see split_cigar method
+        query_pos -- index of the query base that is at the variant position
+        reference -- the reference as a str-like object (unlike original implementation, this is only the sequence of the alignment path and not the whole chromosome)
+        overhang -- extend alignment by this many bases to left and right
+        use_affine -- if true, use affine gap costs for realignment
+        gap_start, gap_extend -- if affine_gap=true, use these parameters for affine gap cost alignment
+        default_mismatch -- if affine_gap=true, use this as mismatch cost in case no base qualities are in bam
+        """
+        # Do not process symbolic alleles like <DEL>, <DUP>, etc.
+        if any([alt.startswith("<") for alt in variant.alternative_allele]):
+            return None, None
+
+        # There is a big difference between the previous implementation and what is needed.
+        # In the previous code, the CIGAR is against the reference always and hence we need to realign only for the alternate alleles.
+        # With GAF, the CIGAR is not always against the reference (sometimes it is not against ref or any of the alt and can be with a path that is not an allele traversal)
+        # So we need to generalize the process to realign using the variant record and the cigar tuples.
+
+        left_cigar, right_cigar = GAFReader.split_cigar(cigartuples, i, consumed)
+
+        left_ref_bases, left_query_bases = GAFReader.cigar_prefix_length(
+            left_cigar[::-1], overhang
+        )
+        right_ref_bases, right_query_bases = GAFReader.cigar_prefix_length(
+            right_cigar, len(variant.reference_allele) + overhang
+        )
+
+        assert variant.position - left_ref_bases >= 0
+        assert variant.position + right_ref_bases <= len(reference)
+
+        query = bam_read.query_sequence[
+            query_pos - left_query_bases : query_pos + right_query_bases
+        ]
+        
+        left_overhang = reference[variant.position - left_ref_bases : variant.position]
+        right_overhang = reference[variant.position + right_ref_bases - overhang : variant.position + right_ref_bases]
+        
+        if variant.reference_allele != "*":
+            ref = left_overhang + variant.reference_allele + right_overhang
+        else:
+            ref = left_overhang + right_overhang
+        
+        alts = []
+        for alt_allele in variant.alternative_allele:
+            if alt_allele != "*":
+                alt = left_overhang + alt_allele + right_overhang
+            else:
+                alt = left_overhang + right_overhang
+            alts.append(alt)
+        
+        if use_affine:
+            assert gap_start is not None
+            assert gap_extend is not None
+            assert default_mismatch is not None
+
+            # get base qualities if present (to be used as mismatch costs)
+            base_qualities = [default_mismatch] * len(query)
+            # if bam_read.query_qualities != None:
+            #    base_qualities = bam_read.query_qualities[query_pos-left_query_bases:query_pos+right_query_bases]
+
+            # compute edit dist. with affine gap costs using base qual. as mismatch cost
+            distance_ref = int(edit_distance_affine_gap(query, ref, base_qualities, gap_start, gap_extend))
+            distance_alts = []
+            for alt in alts:
+                distance_alt = int(edit_distance_affine_gap(query, alt, base_qualities, gap_start, gap_extend))
+                distance_alts.append(distance_alt) 
+        else:
+            distance_ref = int(edit_distance(query, ref))
+            distance_alts = []
+            for alt in alts:
+                distance_alts.append(int(edit_distance(query, alt)))
+        base_qual_score = 30
+        distances = [distance_ref] + distance_alts
+        sorted_distance = sorted(distances)
+        if sorted_distance[0] == sorted_distance[1]:
+            return None, None, None # Can't decide
+        if distance_ref == sorted_distance[0]:
+            return 0, distances, base_qual_score  # detected REF
+        else:
+            return distance_alts.index(min(distance_alts))+1, distances, base_qual_score  # detected ALT
+        
+    @staticmethod
+    def detect_alleles_by_alignment(
+        variants,
+        j,
+        bam_read,
+        reference,
+        overhang=10,
+        use_affine=False,
+        gap_start=None,
+        gap_extend=None,
+        default_mismatch=None,
+    ):
+        """
+        Detect which alleles the given bam_read covers. Detect the correct
+        alleles of the variants that are covered by the given bam_read.
+
+        Yield tuples (position, allele, quality).
+
+        variants -- list of variants (VcfVariant objects)
+        j -- index of the first variant (in the variants list) to check
+        """
+        # Accessing bam_read.cigartuples is expensive, do it only once
+        cigartuples = bam_read.cigartuples
+
+        # For the same reason, the following check is here instad of
+        # in the _usable_alignments method
+        if not cigartuples:
+            return
+        for index, i, consumed, query_pos in _iterate_cigar(variants, j, bam_read, cigartuples):
+            allele, emission, quality = GAFReader.realign(
+                variants[index],
+                bam_read,
+                cigartuples,
+                i,
+                consumed,
+                query_pos,
+                reference,
+                overhang,
+                use_affine,
+                gap_start,
+                gap_extend,
+                default_mismatch,
+            )
+            
+            if allele is not None:
+                yield (index, allele, emission, quality)
+        
 
 class ReadSetReader:
     """

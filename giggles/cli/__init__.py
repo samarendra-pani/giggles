@@ -154,7 +154,7 @@ class PhasedInputReader:
                     )
                 )
         elif self._type == "GAF":
-            reference = self._readset_reader._reader._reference.get_sequence(chromosome)
+            reference = self._readset_reader._reader._reference.get_backbone_sequence(chromosome)
 
         if reference == None:
             CommandLineError("No reference sequence found for Chromosomes {!r}. Please provide the reference file with the chromosomes.".format(chromosome))

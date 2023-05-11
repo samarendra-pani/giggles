@@ -9,6 +9,7 @@ import logging
 import gzip
 from collections import defaultdict, namedtuple
 from dataclasses import dataclass
+import pickle as pkl
 
 logger = logging.getLogger(__name__)
 
@@ -50,47 +51,47 @@ class GafAlignment:
     """
     Class to describe and work with GAF alignments
     """
-    def __init__(self, line, offset, source_id):
-        self.read_id, self.q_len, self.q_start, self.q_end, self.orient, self.path, self.p_len, self.p_start, self.p_end, self.mapping_quality = self.parseGafLine(line)
+    def __init__(self, line, source_id, fasta):
+        self.read_id, self.q_len, self.q_start, self.q_end, self.orient, self.path, self.p_len, self.p_start, self.p_end, self.mapping_quality, self.tags, self.sequence = self.parseGafLine(line, fasta)
+        if 'cg' in self.tags:
+            self.cigar = self.tags['cg']
+        else:
+            self.cigar = self.tags['CG']
         self.path = list(filter(None, re.split('(>)|(<)', self.path)))
-        self.offset = offset
         self.source_id = source_id
-        self.sequence = None
-        self.tags = None
         self.clip_start = False
         self.clip_end = False
         pass
     
     @staticmethod
-    def parseGafLine(line):
+    def parseGafLine(line, fasta):
         line = line.rstrip().split("\t")
-        return line[0], int(line[1]), int(line[2]), int(line[3]), line[4], line[5], int(line[6]), int(line[7]), int(line[8]), int(line[11])
+        read_id = line[0]
+        tags = {}
+        for f in line[12:]:
+            f = f.split(":")
+            assert len(f) ==  3, "The tag provided in read %s is not in correct format."%(read_id)
+            if f[1] == "i":
+                f[2] = int(f[2])
+            elif f[1] == "f":
+                f[2] = float(f[2])
+            tags[f[0]] = f[2]
+        assert "cg" in tags or "CG" in tags, "No CIGAR string in read %s. Provide the CIGAR string with 'CG' or 'cg' tag."%(read_id)
+        assert "sn" in tags, "No 'sn' tag to indicate contig it is aligned to. Use gaftools scaffold-sort to sort it and automatically add tag."
+        assert "iv" in tags, "No 'iv' tag to indicate presence of inversion. Use gaftools scaffold-sort to sort it and automatically add tag."
+        assert "tp" in tags, "No 'tp' tag to indicate primary alignment."
+        # The sequence will be searched in the RS tag or rs tag
+        if fasta == None:
+            assert "rs" in tags or "RS" in tags, "No Read Sequence in read %s. Provide the CIGAR string with 'RS' or 'rs' tag."%(read_id)
+            if "rs" in tags:
+                seq = tags.pop("rs")
+            else:
+                seq = tags.pop("RS")
+        else:
+            seq = fasta.fetch(region=read_id)
+        return line[0], int(line[1]), int(line[2]), int(line[3]), line[4], line[5], int(line[6]), int(line[7]), int(line[8]), int(line[11]), tags, seq
 
-    def detect_chromosome(self, gfa_ref):
-        """
-        Take a dictionary as input. The dictionary is SampleGafParser._reference._nodes
-        """
-        primary_contigs = gfa_ref._primary_contigs
-        path = self.path
-        chr = None
-        for n, i in enumerate(path):
-            if i == "<" or i == ">":
-                continue
-            found = False
-            for contig in primary_contigs:
-                if i in gfa_ref._nodes[contig][0]:
-                    if chr != None:
-                        assert contig == chr, "Read has been mapped to two reference contigs."
-                    chr = contig
-                    found = True
-                    break
-            if (n == 2) and not found:
-                self.clip_start = True
-            if (n == len(path)) and not found:    
-                self.clip_end = True
-        
-        return chr
-
+    
     def compare(self, alignment):
         """
         Compare this alignment to another alignment object
@@ -128,9 +129,6 @@ class GafAlignment:
         pass
 
 
-
-
-
 class SampleGafParser(GafParser):
     """
     Parsing the GAF file and extracting the alignment informartion.
@@ -150,6 +148,7 @@ class SampleGafParser(GafParser):
         """
         reference = os.path.abspath(reference)
         self.source_id: int = source_id
+        self._mapq = mapq
         path = os.path.abspath(path)
         logger.info("Reading GFA File.")
         self._reference = rGFA(reference_path=reference)
@@ -165,89 +164,47 @@ class SampleGafParser(GafParser):
         else:
             self._file = open(path, "r")
         logger.info("Parsing GAF File.")
-        self._alignments = self.parseGAF(mapq)
-        
-    def parseGAF(self, mapq):
-        
-        file = self._file
-        gfa_ref = self._reference
-        alignments = {}
-        while True:
-            offset = file.tell()
-            line = file.readline()
-            if not line:
-                break
-            fields = line.split("\t")
-            read_id = fields[0]
-            a = GafAlignment(line, offset, self.source_id)
-            if a.mapping_quality < mapq:
-                continue
-            chr = a.detect_chromosome(gfa_ref)
-            # This filters out reads not mapped to any primary reference contigs
-            if chr == None:
-                continue
-            tp = None
-            for f in fields[12:]:
-                if not f.startswith("tp:A:"):
-                    continue
-                tp = f[5]
-            if tp != "P":
-                continue
-            if chr not in alignments:
-                alignments[chr] = {}
-                alignments[chr][read_id] = a
-                continue
-            # This compares alignments with same read ids and selects one based on mapping quality or number of nodes.
-            if read_id in alignments[chr]:
-                keep = a.compare(alignments[chr][read_id])
-                if keep:
-                    alignments[chr][read_id] = a
-                continue
-            alignments[chr][read_id] = a
-            
-        return alignments
+        self._index = self.process_index_file(path)
+
+    def process_index_file(self, path):
+        try:
+            with open(path+".gai", 'rb') as f:
+                return pkl.load(f)
+        except FileNotFoundError:
+            raise AlignmentFileNotIndexedError("No index file found for GAF file. Run gaftools scaffold-sort and create index.")
 
     def __call__(self, contig):
         self._contig_iter = contig
-        assert self._reference.is_primary(contig), "The contig specified is not a primary reference contig."
+        assert self._reference.is_backbone(contig), "The contig specified is not a primary reference contig."
         return self
 
     def __iter__(self) -> Iterator[GafAlignment]:
         """
         Fetch GafAlignment from specified contig
         """
-        for read_id, alignment in self._alignments[self._contig_iter].items():
-            assert read_id == alignment.read_id
-            off = alignment.offset
-            self._file.seek(off)
-            line = self._file.readline()
-            tags = {}
-            seq = None
-            for f in line.split("\t")[12:]:
-                f = f.split(":")
-                assert len(f) ==  3, "The tag provided in read %s is not in correct format."%(read_id)
-                if f[1] == "i":
-                    f[2] = int(f[2])
-                elif f[1] == "f":
-                    f[2] = float(f[2])
-                tags[f[0]] = f[2]
-            assert "cg" in tags or "CG" in tags, "No CIGAR string in read %s. Provide the CIGAR string with 'CG' or 'cg' tag."%(read_id)
-            # The sequence will be searched in the RS tag or rs tag
-            if self._read_sequences == None:
-                assert "rs" in tags or "RS" in tags, "No Read Sequence in read %s. Provide the CIGAR string with 'RS' or 'rs' tag."%(read_id)
-                if "rs" in tags:
-                    seq = tags.pop("rs")
-                else:
-                    seq = tags.pop("RS")
-            else:
-                seq = self._read_sequences.fetch(read_id)
-            alignment.set_tags(tags)
-            alignment.set_sequence(seq)
-            yield alignment
-
-
-
-
+        offsets = self._index[self._contig_iter]    # Contains offset of first line of alignment and last line of alignment for a particular contig
+        it = True
+        file = self._file
+        file.seek(offsets[0])
+        while it == True:
+            line = file.readline()
+            if not line:
+                break
+            a = GafAlignment(line, self.source_id, self._read_sequences)
+            if a.mapping_quality < self._mapq:
+                continue
+            if a.tags['tp'] != "P":
+                continue
+            if a.tags['sn'] != self._contig_iter:
+                assert a.tags['sn'] == 'unknown', "GAF is not properly sorted."
+                continue
+            if a.tags['iv'] == 1:
+                continue
+            # TODO: Multiple alignments with same read ids have to be checked later and one selected.
+            if file.tell() == offsets[1]:
+                it = False
+            
+            yield a
 
 
 
@@ -266,16 +223,14 @@ class rGFA:
             file = gzip.open(reference_path, "rt")
         else:
             file = open(reference_path, "r")
-        self._nodes = self.parse_gfa_file(file)
+        self.parse_gfa_file(file)
         file.close()
-        self._contigs = list(self._nodes.keys())
-        self._primary_contigs = [x for x in self._contigs if self._nodes[x][1] == 0]
+        
 
-
-    @staticmethod
-    def parse_gfa_file(file):
-        Node = namedtuple("Node", ['sequence', 'start'])
+    def parse_gfa_file(self, file):
+        Node = namedtuple("Node", ['sequence', 'start', 'contig', 'tags'])
         node_dict = {}
+        ref_contig_nodes = {}   # Node IDs (sequential) for reference backbone contigs 
         for line in file:
             if line[0] != "S":
                 continue
@@ -292,40 +247,44 @@ class rGFA:
                 else:
                     tags[i[0]] = i[2]
             # Assuming that these three tags are present
-            node_contig = tags["SN"]
-            node_start = tags["SO"]
-            node_rank = tags["SR"]
-            try:
-                node_dict[node_contig][0][node_id] = Node(node_seq, node_start)
-                assert (node_rank == node_dict[node_contig][1])
-            except:
-                node_dict[node_contig] = [{}, node_rank]
-                node_dict[node_contig][0][node_id] = Node(node_seq, node_start)
-        
+            node_contig = tags.pop("SN")
+            node_start = tags.pop("SO")
+            node_rank = tags.pop("SR")
+            node_dict[node_id] = Node(node_seq, node_start, node_contig, tags)
+            if node_rank == 0:
+                try:
+                    ref_contig_nodes[node_contig].append(node_id)
+                except KeyError:
+                    ref_contig_nodes[node_contig] = [node_id]
+
         #Sorting the nodes.
         #TODO: Put a check if sorting is required
-        for contig in node_dict.keys():
-            node_dict[contig][0] = dict(sorted(node_dict[contig][0].items(), key=lambda x: x[1].start))
-            
-        return node_dict
+        for contig in ref_contig_nodes.keys():
+            ref_contig_nodes[contig] = sorted(ref_contig_nodes[contig], key=lambda x: node_dict[x].start)
+             
+        self._nodes = node_dict
+        self._ref_contig_nodes = ref_contig_nodes
+
+    def is_backbone(self, contig):
+        return contig in self._ref_contig_nodes.keys()
     
-    def is_primary(self, contig):
-        assert (contig in self._contigs)
-        return self._nodes[contig][1] == 0
-    
-    def get_sequence(self, contig):
-        if self._nodes[contig][1] != 0:
+    def get_backbone_sequence(self, contig):
+        if contig not in self._ref_contig_nodes.keys():
             error = "The chromosome specified is not in the reference. The reference contigs are: "
-            for i in self._nodes.keys():
+            for i in self._ref_contig_nodes.keys():
                 error += "\n%s"%(str(i))
             raise Exception(error)
-        nodes = self._nodes[contig][0]
+        nodes = self._ref_contig_nodes[contig]
         sequence = ""
         pos = 0
-        for _, value in nodes.items():
-            if value.start != pos:
+        for node in nodes:
+            node = self._nodes[node]
+            if node.start != pos:
                 raise Exception('The reference nodes either have overlap or have empty space. Cannot reconstruct reference sequence for chromosome %s'%(contig))
-            sequence += value.sequence
-            pos += len(value.sequence)
+            sequence += node.sequence
+            pos += len(node.sequence)
         
         return sequence
+    
+    def get_node(self, node_id):
+        return self._nodes[node_id]

@@ -12,7 +12,7 @@ from giggles.utils import plural_s, warn_once
 
 logger = logging.getLogger(__name__)
 
-def select_reads(readset, max_coverage, preferred_source_ids):
+def select_reads(readset, max_coverage, preferred_source_ids=None):
     logger.info(
         "Reducing coverage to at most %dX by selecting most informative reads ...", max_coverage
     )

@@ -54,48 +54,36 @@ class VariantCallPhase:
 class VcfVariant:
     """A variant in a VCF file (not to be confused with core.Variant)"""
 
-    __slots__ = ("position", "reference_allele", "alternative_allele", "allele_origin", "allele_traversal", "start_node", "end_node")
+    __slots__ = ("id", "position", "position_on_ref", "reference_allele", "alternative_allele", "allele_origin", "allele_traversal")
 
-    def __init__(self, position: int, reference_allele: str, alternative_allele: tuple, allele_origin: list, allele_traversal: tuple):
-        """
-        Multi-ALT sites are not modelled.
-        """
-        self.position = position
+    def __init__(self, id: str, position: int, reference_allele: str, alternative_allele: tuple, allele_origin: list, allele_traversal: tuple):
+        
+        self.id = id
+        self.position_on_ref = position     # This is the position on the backbone reference (the position given in the VCF)
+        self.position = position            # This is the position on the paths (the position used to find the variant locations on paths). This changes for every new alignment path.
         self.reference_allele = reference_allele
         self.alternative_allele = alternative_allele
         self.allele_origin = allele_origin
         self.allele_traversal = allele_traversal
-        self.start_node = None
-        self.end_node = None
-        self.extract_edge_nodes()
-    
-    def extract_edge_nodes(self):
-        for path in self.allele_traversal:
-            p = list(filter(None, re.split('(>)|(<)', path)))
-            if p[0] == ">" and p[-2] == ">":
-                self.start_node = p[1]
-                self.end_node = p[-1]
-            else:
-                raise Exception("Found Bubble with incorrect orientaion for the start and end node.")
-
+        
     def __repr__(self):
-        return "VcfVariant({}, {!r}, {!r}, {!r})".format(
-            self.position, self.reference_allele, self.alternative_allele, self.allele_origin
+        return "VcfVariant({}, {}, {!r}, {!r}, {!r})".format(
+            self.id, self.position_on_ref, self.reference_allele, self.alternative_allele, self.allele_origin
         )
 
     def __hash__(self):
-        return hash((self.position, self.reference_allele, self.alternative_allele))
+        return hash((self.position_on_ref, self.reference_allele, self.alternative_allele))
 
     def __eq__(self, other):
         return (
-            (self.position == other.position)
+            (self.position_on_ref == other.position_on_ref)
             and (self.reference_allele == other.reference_allele)
             and (self.alternative_allele == other.alternative_allele)
         )
 
     def __lt__(self, other):
-        return (self.position, self.reference_allele, self.alternative_allele) < (
-            other.position,
+        return (self.position_on_ref, self.reference_allele, self.alternative_allele) < (
+            other.position_on_ref,
             other.reference_allele,
             other.alternative_allele,
         )
@@ -337,6 +325,7 @@ class VcfReader:
         for record in records:
             if not record.alts:
                 continue
+            id = record.id
             if len(record.alts) > 1:
                 n_multi += 1
                 
@@ -379,7 +368,7 @@ class VcfReader:
             genotypes = [Genotype([]) for i in range(len(self.samples))]
             phases = [None] * len(self.samples)
             
-            variant = VcfVariant(position=pos, reference_allele=ref, alternative_allele=alts, allele_origin=allele_origin, allele_traversal=allele_traversal)
+            variant = VcfVariant(id = id, position=pos, reference_allele=ref, alternative_allele=alts, allele_origin=allele_origin, allele_traversal=allele_traversal)
             table.add_variant(variant, genotypes, phases, genotype_likelihoods)
 
         logger.info("Processed Chromosome %s. Parsed %s SNVs, %s non-SNVs and %s multi-ALTs. Also skipped %s records exceeding max allele caparacity.", chromosome, n_snvs, n_other, n_multi, n_skip)

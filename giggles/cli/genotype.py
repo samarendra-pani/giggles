@@ -126,7 +126,6 @@ def run_genotype(
         command_line = "(giggles {}) {}".format(__version__, " ".join(sys.argv[1:]))
     else:
         command_line = None
-    print(chromosomes)
     with ExitStack() as stack:
         # read the given input files (BAMs, VCFs, ref...)
         numeric_sample_ids = NumericSampleIds()
@@ -186,29 +185,28 @@ def run_genotype(
         # Iterating over chromosomes present in the multisample reference graph vcf file
         for variant_table in timers.iterate("parse_vcf", vcf_reader):
 
-            # create a mapping of genome positions to indices
-            var_pos_to_ind = dict()
-            for i in range(len(variant_table.variants)):
-                var_pos_to_ind[variant_table.variants[i].position] = i
-
             chromosome = variant_table.chromosome
             if (not chromosomes) or (chromosome in chromosomes):
                 logger.info("======== Working on chromosome %r", chromosome)
             else:
                 continue
             
-            positions = []
+            # create a mapping of genome positions to indices
+            var_pos_to_ind = dict()
             n_allele_position = dict()
             allele_references = dict()
-            for v in variant_table.variants:
-                positions.append(v.position)    ##Contains the positions of the variants in the variant table
+            ids = dict()
+            for i in range(len(variant_table.variants)):
+                var_pos_to_ind[variant_table.variants[i].position] = i
+                v = variant_table.variants[i]
                 n_allele_position[v.position] = len(v.alternative_allele)+1      ##Contains the number of alleles at every variant position
                 allele_references[v.position] = v.allele_origin
-            
+                ids[v.position] = v.id            
+                
             #Prior genotyping with equal probabilities
             for sample in samples:
                 variant_table.set_genotype_likelihoods_of(
-                    sample, [PhredGenotypeLikelihoods([1/(bin_coeff(n_allele_position[pos] + 1, n_allele_position[pos] - 1))] * (bin_coeff(n_allele_position[pos] + 1, n_allele_position[pos] - 1)) , 2, n_allele_position[pos]) for pos in positions]
+                    sample, [PhredGenotypeLikelihoods([1/(bin_coeff(n_allele_position[pos] + 1, n_allele_position[pos] - 1))] * (bin_coeff(n_allele_position[pos] + 1, n_allele_position[pos] - 1)) , 2, n_allele_position[pos]) for pos in list(var_pos_to_ind.keys())]
                 )
             
             # Iterate over all families to process, i.e. a separate DP table is created
@@ -248,7 +246,8 @@ def run_genotype(
                 all_reads = ReadSet()
                 for sample, readset in readsets.items():
                     for read in readset:
-                        assert read.is_sorted(), "Add a read.sort() here"
+                        if not read.is_sorted():
+                            read.sort()
                         all_reads.add(read)
 
                 all_reads.sort()
@@ -356,7 +355,7 @@ def add_arguments(parser):
     arg = parser.add_argument
     # Positional arguments
     arg('variant_file', metavar='VCF', help='VCF file with variants to be genotyped (can be gzip-compressed)')
-    arg('mapped_read_files', nargs='*', metavar='READS', help='BAM or GAF file')
+    arg('mapped_read_files', nargs='*', metavar='READS', help='BAM or GAF file. For GAF file, it expects an index created by scaffold-sort.py with .gai extension.')
 
     arg('-o', '--output', default=sys.stdout,
         help='Output VCF file. Add .gz to the file name to get compressed output. '
