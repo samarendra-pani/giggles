@@ -160,7 +160,7 @@ class SampleGafParser(GafParser):
             self._read_sequences = None
         gzipped = detect_gzip(path)
         if gzipped:
-            self._file = pysam.libcbgzf.BGZFile(path, "rt")
+            self._file = pysam.libcbgzf.BGZFile(path, "rb")
         else:
             self._file = open(path, "r")
         logger.info("Parsing GAF File.")
