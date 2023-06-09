@@ -170,7 +170,6 @@ class GAFReader:
         cg_letter_to_op = {'M': 0, 'I': 1, 'D': 2, 'N': 3, 'S': 4, 'H': 5, 'P': 6, 'X': 7, '=': 8}
         Alignment = namedtuple('Alignment', ['cigartuples', 'reference_start', 'query_sequence'])        # Class created to maintain compatibility with old code
         for alignment in alignments:
-            print(alignment.read_id)
             # Checking if the alignment is in reverse direction.
             
             reverse = False
