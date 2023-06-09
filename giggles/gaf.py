@@ -67,6 +67,8 @@ class GafAlignment:
     def parseGafLine(line, fasta):
         try:
             line = line.rstrip().split("\t")
+        except TypeError:
+            line = line.decode('utf8').rstrip().split("\t")
         read_id = line[0]
         tags = {}
         for f in line[12:]:
