@@ -193,6 +193,8 @@ class SampleGafParser(GafParser):
             line = file.readline()
             if not line:
                 break
+            if file.tell() == offsets[1]:
+                it = False
             a = GafAlignment(line, self.source_id, self._read_sequences)
             if a.mapping_quality < self._mapq:
                 continue
@@ -203,9 +205,6 @@ class SampleGafParser(GafParser):
                 continue
             if a.tags['iv'] == 1:
                 continue
-            # TODO: Multiple alignments with same read ids have to be checked later and one selected.
-            if file.tell() == offsets[1]:
-                it = False
             
             yield a
 
