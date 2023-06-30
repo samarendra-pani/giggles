@@ -258,7 +258,7 @@ void GenotypeHMM::compute_backward_column(size_t column_index, unique_ptr<vector
     unsigned int index;
     // iterate over all bipartitions of the column on the right. So we are calculating the values in column current_index - 1
     if (column_index > 0) {
-        unique_ptr<ColumnIndexingIterator> iterator = current_indexer->get_iterator();
+        unique_ptr<ColumnIndexingIterator> iterator = current_indexer->get_iterator(*read_set);
         while (iterator->has_next()){
             int bit_changed = -1;
             iterator->advance(&bit_changed);
@@ -387,7 +387,7 @@ void GenotypeHMM::compute_forward_column(size_t column_index, unique_ptr<vector<
     vector<unsigned int>* reordering_map = nullptr;
     vector<long double> result;
     // iterate over all bipartitions
-    unique_ptr<ColumnIndexingIterator> iterator = current_indexer->get_iterator();
+    unique_ptr<ColumnIndexingIterator> iterator = current_indexer->get_iterator(*read_set);
     while (iterator->has_next()) {
         int bit_changed = -1;
         iterator->advance(&bit_changed);
@@ -485,6 +485,10 @@ vector<long double> GenotypeHMM::get_genotype_likelihoods(unsigned int individua
 
 void GenotypeHMM::update_emission_probability(Vector2D<long double>* em_prob, const int bit_changed, const ColumnIndexingIterator& iterator, vector<const Entry *>& entries) {
     int n_alleles = em_prob->get_size0();
+    // These lines for when a bipartition is specified through haplotag tsv file.
+
+
+    // These lines are applicable for cases when all the bipartitions have to be searched for.
     if (bit_changed >= 0) {
         int newBit = iterator.get_binary_vector()[bit_changed];
         if (entries.at(bit_changed)->get_allele_type() == -1) {

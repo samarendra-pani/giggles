@@ -12,6 +12,11 @@ public:
 	Read(const std::string& name, int mapq, int source_id, int sample_id, int reference_start = -1, const std::string& BX_tag = "");
 	virtual ~Read() {}
 	std::string toString();
+	void addHaplotag(std::string hp, int ps);
+    int getHaplotag() const;
+    int getPhaseSet() const;
+	bool hasHaplotag() const;
+	bool hasPhaseSet() const;
 	void addVariant(int position, int allele, std::vector<unsigned int> em, int quality);
 	void sortVariants();
 	/** Returns the position of the first variant. **/
@@ -41,6 +46,8 @@ public:
 	const std::string& getBXTag() const;
 	bool isSorted() const;
 	bool hasBXTag() const;
+	
+	
 private:
 	typedef struct enriched_entry_t {
 		Entry entry;
@@ -64,6 +71,8 @@ private:
 	int reference_start;
 	std::string BX_tag;
 	std::vector<enriched_entry_t> variants;
+	int hp;
+	int ps;
 };
 
 #endif

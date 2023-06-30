@@ -3,6 +3,7 @@
 
 #include "graycodes.h"
 #include "column.h"
+#include "readset.h"
 
 class Column;
 
@@ -12,10 +13,14 @@ private:
 	GrayCodes* graycodes;
 	unsigned int r_index;
 	unsigned int b_index;
+	// This contains the bipartition information for all the reads (0/1/-1)
 	std::vector<int> binaryVector;
+	bool hasBipartition;
+	// This contains the position of reads whose haplotypes are unknown
+	std::vector<int> freePositions;
 	
 public:
-	ColumnIndexingIterator(Column* parent);
+	ColumnIndexingIterator(Column* parent, const ReadSet& set);
 	virtual ~ColumnIndexingIterator();
 
 	bool has_next();

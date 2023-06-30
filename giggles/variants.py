@@ -6,8 +6,6 @@ from collections import defaultdict, Counter, namedtuple
 from typing import Iterable, Iterator, List, Optional
 import re
 
-from numpy.core.fromnumeric import shape
-
 from giggles.core import Read, ReadSet, NumericSampleIds
 from giggles.bam import SampleBamReader, MultiBamReader, BamReader
 from giggles.gaf import GafParser, SampleGafParser
@@ -83,7 +81,7 @@ class GAFReader:
         logger.debug("Extracting Usable Alignments")
         alignments = self._usable_alignments(chromosome, variants)
         logger.debug("Converting Alignments to Read Objects")
-        reads = self._alignments_to_reads(alignments, variants, sample, reference)
+        reads = self._alignments_to_reads(alignments, variants, sample)
         grouped_reads = self._remove_duplicate_reads(reads)
         logger.debug("Grouping Reads into ReadSet Object")
         readset = self._make_readset_from_grouped_reads(grouped_reads)
@@ -146,7 +144,7 @@ class GAFReader:
     def has_reference(self, chromosome):
         return self._reader.has_reference(chromosome)
 
-    def _alignments_to_reads(self, alignments, variants, sample, reference):
+    def _alignments_to_reads(self, alignments, variants, sample):
         """
         Convert GAF alignments to Read objects.
 
@@ -155,10 +153,6 @@ class GAFReader:
         Yield Read objects.
         """
         numeric_sample_id = 0 if sample is None else self._numeric_sample_ids[sample]
-        if reference is not None:
-            # Copy the pyfaidx.FastaRecord into a str for faster access
-            reference = reference[:]
-        
         rgfa = self._reader._reference
         id_to_index = {}
         for i, v in enumerate(variants):

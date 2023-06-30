@@ -10,6 +10,8 @@ using namespace std;
 
 Read::Read(const std::string& name, int mapq, int source_id, int sample_id, int reference_start, const std::string& BX_tag) : name(name), mapqs(1, mapq), source_id(source_id), sample_id(sample_id), reference_start(reference_start), BX_tag(BX_tag) {
 	this->id = -1;
+	hp = -1;
+	ps = -1;
 }
 
 
@@ -29,6 +31,29 @@ string Read::toString() {
 	return oss.str();
 }
 
+
+void Read::addHaplotag(std::string hp, int ps) {
+	if (hp == "H1") {this->hp = 0;}
+	if (hp == "H2") {this->hp = 1;}
+	if (hp == "none") {throw std::runtime_error("Read with 'none' haplotag found. These should be filtered.");}
+	this->ps = ps;
+}
+
+int Read::getHaplotag() const {
+	return hp;
+}
+
+int Read::getPhaseSet() const {
+	return ps;
+}
+
+bool Read::hasHaplotag() const {
+	return hp != -1;
+}
+
+bool Read::hasPhaseSet() const {
+	return ps != -1;
+}
 
 void Read::addVariant(int position, int allele, vector<unsigned int> em, int quality) {
 	variants.push_back(enriched_entry_t(position, allele, em, quality));

@@ -200,6 +200,11 @@ cdef class Read:
 		for i in range(len(em)):
 			emProb[i] = em[i]
 		self.thisptr.addVariant(position, allele, emProb, quality)
+	
+	def add_haplotag(self, str hp, int ps):
+		cdef string _hp = b''
+		_hp = hp.encode('UTF-8')
+		self.thisptr.addHaplotag(_hp, ps)
 
 	def add_mapq(self, int mapq):
 		assert self.thisptr != NULL

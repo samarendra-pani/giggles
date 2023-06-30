@@ -28,7 +28,7 @@ from giggles.pedigree import (
 from giggles.timer import StageTimer
 from giggles.cli import log_memory_usage
 from giggles.phase import select_reads, setup_families
-from giggles.cli import CommandLineError, PhasedInputReader
+from giggles.cli import CommandLineError, PhasedInputReader, read_haplotags
 
 
 logger = logging.getLogger(__name__)
@@ -97,6 +97,7 @@ def run_genotype(
     reference_fasta=None,
     rgfa=None,
     read_fasta=None,
+    haplotag_tsv=None,
     output=sys.stdout,
     samples=None,
     chromosomes=None,
@@ -145,30 +146,28 @@ def run_genotype(
             )
         )
 
+        haplotags = None
+        if haplotag_tsv:
+            haplotags = read_haplotags(haplotag_tsv)
+
         logger.debug("Initial Parsing of Alignments Done. PhasedInputReader object successfully created.")
 
         if phased_input_reader._type == "GAF" and len(samples) > 1:
             raise CommandLineError("More than one sample given. Provide only the sample whose GAF file has been given.")
 
-        print("vcf_writer")
         # vcf writer for final genotype likelihoods
-        """ vcf_writer = stack.enter_context(
-            GenotypeVcfWriter(command_line=command_line, in_path=variant_file, out_file=output, bam_samples = samples)
-        ) """
+        vcf_writer = stack.enter_context(GenotypeVcfWriter(command_line=command_line, in_path=variant_file, out_file=output, bam_samples = samples))
         
-        print("vcf_reader")
         # The samples in the gaf or bam is given as input since it will be used to make variant tables with those samples.
         # The variant tables are then simply just updated after the HMM is run.
         vcf_reader = stack.enter_context(
             VcfReader(
-                variant_file, bam_samples=samples, indels=True, genotype_likelihoods=False, ignore_genotypes=True
+                variant_file, bam_samples=samples, indels=True, genotype_likelihoods=False, phases=False
             )
         )
 
-        print("recomb_cost_computer")
         recombination_cost_computer = UniformRecombinationCostComputer(recombrate, eff_pop_size)
 
-        print("setup family")
         samples = frozenset(samples)
         families, family_trios = setup_families(samples, max_coverage)
         for trios in family_trios.values():
@@ -205,7 +204,7 @@ def run_genotype(
                 
             #Prior genotyping with equal probabilities
             for sample in samples:
-                variant_table.set_genotype_likelihoods_of(
+                variant_table.query_set_genotype_likelihoods_of(
                     sample, [PhredGenotypeLikelihoods([1/(bin_coeff(n_allele_position[pos] + 1, n_allele_position[pos] - 1))] * (bin_coeff(n_allele_position[pos] + 1, n_allele_position[pos] - 1)) , 2, n_allele_position[pos]) for pos in list(var_pos_to_ind.keys())]
                 )
             
@@ -226,7 +225,7 @@ def run_genotype(
                 for sample in family:
                     with timers("read_alignment"):
                         readset = phased_input_reader.read(
-                            chromosome, variant_table.variants, sample
+                            chromosome, variant_table.variants, sample, haplotags
                         )
 
                     with timers("select"):
@@ -277,7 +276,7 @@ def run_genotype(
                 for sample in family:
                     # genotypes are assumed to be unknown, so ignore information that
                     # might already be present in the input vcf
-                    all_genotype_likelihoods = variant_table.genotype_likelihoods_of(sample)
+                    all_genotype_likelihoods = variant_table.query_genotype_likelihoods_of(sample)
                     genotype_l = [
                         all_genotype_likelihoods[var_pos_to_ind[a_p]] for a_p in accessible_positions
                     ]
@@ -299,6 +298,8 @@ def run_genotype(
                         "s" if len(family) > 1 else "",
                         problem_name,
                     )
+                    print(accessible_positions_allele_references[0])
+                    exit()
                     # MAKE SURE THAT THE NUMBER OF REFERENCES PASSED IS 2 X NUMBER OF SAMPLES SINCE EACH SAMPLE HAS 2 HAPLOTYPES    
                     forward_backward_table = GenotypeHMM(
                         numeric_sample_ids,
@@ -313,8 +314,8 @@ def run_genotype(
                     
                     # store results
                     for s in family:
-                        likelihood_list = variant_table.genotype_likelihoods_of(s)
-                        genotypes_list = variant_table.genotypes_of(s)
+                        likelihood_list = variant_table.query_genotype_likelihoods_of(s)
+                        genotypes_list = variant_table.query_genotypes_of(s)
 
                         for pos in range(len(accessible_positions)):
                             likelihoods = forward_backward_table.get_genotype_likelihoods(s, pos, accessible_positions_n_allele[pos])
@@ -325,8 +326,8 @@ def run_genotype(
                             genotypes_list[var_pos_to_ind[accessible_positions[pos]]] = geno
                             likelihood_list[var_pos_to_ind[accessible_positions[pos]]] = likelihoods
 
-                        variant_table.set_genotypes_of(s, genotypes_list)
-                        variant_table.set_genotype_likelihoods_of(s, likelihood_list)
+                        variant_table.query_set_genotypes_of(s, genotypes_list)
+                        variant_table.query_set_genotype_likelihoods_of(s, likelihood_list)
 
             with timers("write_vcf"):
                 logger.info("======== Writing VCF")
@@ -368,6 +369,7 @@ def add_arguments(parser):
     arg('--read-fasta', '-f', metavar='FASTA',
         help='FASTA file with the reads used in GAF file. Provide this with the GAF file unless the read sequences are given in the GAF file with RS or rs tag. '
         'If no index (.fai) exists, it will be created')
+    arg('--haplotag-tsv', metavar='HAPLOTAG', help='TSV file containing the haplotag and phaseset information.')
 
     arg = parser.add_argument_group('Input pre-processing, selection and filtering').add_argument
     arg('--max-coverage', '-H', metavar='MAXCOV', default=15, type=int,

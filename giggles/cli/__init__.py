@@ -1,6 +1,7 @@
 import sys
 import resource
 import logging
+from collections import defaultdict, namedtuple
 
 from giggles.bam import (
     AlignmentFileNotIndexedError,
@@ -134,7 +135,7 @@ class PhasedInputReader:
             )
         return indexed_fasta
 
-    def read(self, chromosome, variants, sample, *, regions=None):
+    def read(self, chromosome, variants, sample, haplotags, *, regions=None):
         """
         Return a pair (readset, vcf_source_ids) where readset is a sorted ReadSet.
 
@@ -153,11 +154,9 @@ class PhasedInputReader:
                         chromosome, self._fasta.filename
                     )
                 )
-        elif self._type == "GAF":
-            reference = self._readset_reader._reader._reference.get_backbone_sequence(chromosome)
-
-        if reference == None:
-            CommandLineError("No reference sequence found for Chromosomes {!r}. Please provide the reference file with the chromosomes.".format(chromosome))
+            if reference == None:
+                CommandLineError("No reference sequence found for Chromosomes {!r}. Please provide the reference file with the chromosomes.".format(chromosome))
+        
         bam_sample = sample
         try:
             readset = readset_reader.read(chromosome, variants, bam_sample, reference, regions)
@@ -178,12 +177,46 @@ class PhasedInputReader:
 
         for read in readset:
             read.sort()
+            if haplotags[read.name] != None:
+                read.add_haplotag(haplotags[read.name].hp, haplotags[read.name].ps)
         readset.sort()
 
         logger.info(
             "Found %d reads covering %d variants", len(readset), len(readset.get_positions())
         )
         return readset
+
+def read_haplotags(file):
+    """
+    Function to read the haplotag file.
+    The file should be tab-separated with the following column information:
+    Column 1 - readname
+    Column 2 - haplotype (H1 or H2 or none)
+    Column 3 - phaseset (check whatshap documentation for information on PS)
+    Column 4 - chromosome
+    Assuming that any title or comment lines start with '#'.
+
+    This is the standard output for `whatshap haplotag`. Check documentation for more information.
+    """
+
+    logger.info("Reading Haplotag TSV File")
+    out = defaultdict(lambda: None)
+    Haplotag = namedtuple('Haplotag', ['hp', 'ps', 'chr'])
+    with open(file, 'r') as f:
+        while True:
+            line = f.readline()
+            if not line:
+                break
+            if line[0] == "#":
+                continue
+            rn, hp, ps, chr = line.rstrip().split('\t')[0:4]
+            if ps == 'none':
+                ps = -1
+            assert hp in ['H1', 'H2', 'none']
+            out[rn] = Haplotag(hp=hp, ps=int(ps), chr=chr)
+    return out
+
+
 
 def log_memory_usage(include_children=False):
     if sys.platform == "linux":

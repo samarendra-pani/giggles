@@ -19,3 +19,5 @@ giggles.egg-info/
 giggles/_version.py
 giggles/__pycache__/*.pyc
 giggles/cli/__pycache__/*.pyc
+.vscode/
+test/

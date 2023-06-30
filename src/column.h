@@ -4,6 +4,7 @@
 #include <vector>
 #include <memory>
 #include "columnindexingiterator.h"
+#include "readset.h"
 
 class ColumnIndexingIterator;
 
@@ -35,7 +36,7 @@ public:
 	std::vector<unsigned int> * get_next_read_ids();
 
 	// returns a pointer to the bipartition iterator which uses graycode.
-	std::unique_ptr<ColumnIndexingIterator> get_iterator();
+	std::unique_ptr<ColumnIndexingIterator> get_iterator(const ReadSet& set);
 
 	// return the bipartition defined by the index
 	std::vector<std::vector<unsigned int>> index_to_bipartition(unsigned int& index, int column_type);

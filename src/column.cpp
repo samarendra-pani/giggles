@@ -1,6 +1,7 @@
 #include <cassert>
 #include "columnindexingiterator.h"
 #include "column.h"
+#include "readset.h"
 #include <math.h>
 #include <cmath>
 
@@ -41,8 +42,8 @@ unsigned int Column::get_index(unsigned int b_index, unsigned int r_index) {
 	return index;
 }
 
-unique_ptr<ColumnIndexingIterator> Column::get_iterator() {
-	return unique_ptr<ColumnIndexingIterator>(new ColumnIndexingIterator(this));
+unique_ptr<ColumnIndexingIterator> Column::get_iterator(const ReadSet& set) {
+	return unique_ptr<ColumnIndexingIterator>(new ColumnIndexingIterator(this, set));
 }
 
 unsigned int Column::get_column_size() {

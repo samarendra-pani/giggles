@@ -18,6 +18,7 @@ from .core import (
     PhredGenotypeLikelihoods,
     Genotype,
     binomial_coefficient,
+    get_max_genotype_ploidy,
 )
 from .utils import warn_once
 
@@ -146,14 +147,21 @@ class VariantTable:
     samples -- list of sample names
     """
 
-    def __init__(self, chromosome: str, samples: List[str]):
+    def __init__(self, chromosome: str, query_samples: List[str], samples: List[str]):
         self.chromosome = chromosome
         self.samples = samples
+        self.query_samples = query_samples
+        self.variants: List[VcfVariant] = []
+        
+        # Separate lists for VCF samples and GAF/BAM sample
         self.genotypes: List[List[Genotype]] = [[] for _ in samples]
         self.phases: List[List[Optional[VariantCallPhase]]] = [[] for _ in samples]
         self.genotype_likelihoods: List[List[Optional[GenotypeLikelihoods]]] = [[] for _ in samples]
-        self.variants: List[VcfVariant] = []
         self._sample_to_index = {sample: index for index, sample in enumerate(samples)}
+
+        self._query_sample_to_index = {sample: index for index, sample in enumerate(query_samples)}
+        self.query_genotypes: List[List[Genotype]] = [[] for _ in query_samples]
+        self.query_genotype_likelihoods: List[List[Optional[GenotypeLikelihoods]]] = [[] for _ in query_samples]
 
     def __len__(self) -> int:
         return len(self.variants)
@@ -171,6 +179,8 @@ class VariantTable:
         if len(phases) != len(self.phases):
             raise ValueError("Expecting as many phases as there are samples")
         self.variants.append(variant)
+        
+        # Adding info for the vcf samples
         for i, genotype in enumerate(genotypes):
             assert isinstance(genotype, Genotype)
             self.genotypes[i].append(genotype)
@@ -178,6 +188,12 @@ class VariantTable:
             self.phases[i].append(phase)
         for i, gl in enumerate(genotype_likelihoods):
             self.genotype_likelihoods[i].append(gl)
+        
+        # Adding empty Genotype object for the GAF/BAM sample
+        for i in range(len(self.query_samples)):
+            self.query_genotypes[i].append(Genotype([]))
+        for i in range(len(self.query_samples)):
+            self.query_genotype_likelihoods[i].append(None)
 
     def genotypes_of(self, sample: str) -> List[Genotype]:
         """Retrieve genotypes by sample name"""
@@ -212,6 +228,32 @@ class VariantTable:
     def id_of(self, sample: str) -> int:
         """Return a unique int id of a sample given by name"""
         return self._sample_to_index[sample]
+    
+
+    # Making a copy of all the functions to include GAF/BAM sample functions separately.
+    def query_genotypes_of(self, sample: str) -> List[Genotype]:
+        """Retrieve genotypes by sample name"""
+        return self.query_genotypes[self._query_sample_to_index[sample]]
+
+    def query_set_genotypes_of(self, sample: str, genotypes: List[Genotype]) -> None:
+        """Set genotypes by sample name"""
+        assert len(genotypes) == len(self.variants)
+        self.query_genotypes[self._query_sample_to_index[sample]] = genotypes
+
+    def query_genotype_likelihoods_of(self, sample: str) -> List[Optional[GenotypeLikelihoods]]:
+        """Retrieve genotype likelihoods by sample name"""
+        return self.query_genotype_likelihoods[self._query_sample_to_index[sample]]
+
+    def query_set_genotype_likelihoods_of(
+        self, sample: str, genotype_likelihoods: List[Optional[GenotypeLikelihoods]]
+    ) -> None:
+        """Set genotype likelihoods by sample name"""
+        assert len(genotype_likelihoods) == len(self.variants)
+        self.query_genotype_likelihoods[self._query_sample_to_index[sample]] = genotype_likelihoods
+
+    def query_id_of(self, sample: str) -> int:
+        """Return a unique int id of a sample given by name"""
+        return self._query_sample_to_index[sample]
 
 
 class MixedPhasingError(Exception):
@@ -248,7 +290,8 @@ class VcfReader:
         self._phases = phases
         self._genotype_likelihoods = genotype_likelihoods
         self._ignore_genotypes = ignore_genotypes
-        self.samples = bam_samples  # intentionally public   # Make them into BAM File samples
+        self.samples = bam_samples 
+        self.vcf_samples = list(self._vcf_reader.header.samples)
         self.ploidy = ploidy
         logger.debug("Found %d sample(s) in the BAM file.", len(self.samples))      # BAM File samples
 
@@ -313,12 +356,38 @@ class VcfReader:
         for chromosome, records in itertools.groupby(self._vcf_reader, lambda record: record.chrom):
             yield self._process_single_chromosome(chromosome, records)
 
+    @staticmethod
+    def _extract_HP_phase(call) -> Optional[VariantCallPhase]:
+        hp = call.get("HP")
+        if hp is None or hp == (".",):
+            return None
+        fields = [[int(x) for x in s.split("-")] for s in hp]
+        for i in range(len(fields)):
+            assert fields[0][0] == fields[i][0]
+        block_id = fields[0][0]
+        order = [field[1] - 1 for field in fields]
+        phase = call["GT"]
+        phase = tuple(phase[order.index(i)] for i in range(len(order)))
+        return VariantCallPhase(block_id=block_id, phase=phase, quality=call.get("PQ", None))
+
+    @staticmethod
+    def _extract_GT_PS_phase(call) -> Optional[VariantCallPhase]:
+        if not call.phased:
+            return None
+        is_het = not all(x == call["GT"][0] for x in call["GT"])
+        if not is_het:
+            return None
+        block_id = call.get("PS", 0)
+        phase = call["GT"]
+        return VariantCallPhase(block_id=block_id, phase=phase, quality=call.get("PQ", None))
+
     def _process_single_chromosome(self, chromosome: str, records) -> VariantTable:
+        phase_detected = None
         n_snvs = 0
         n_other = 0
         n_multi = 0
         n_skip = 0  #To count the number of records that need to be skipped since they have more alleles than can be handled by Giggles
-        table = VariantTable(chromosome, self.samples)
+        table = VariantTable(chromosome, self.samples, self.vcf_samples)
         prev_position = None
         ## records is a list of VariantRecord objects
         logger.info("Processing variants from Chromosome %s."%(chromosome))
@@ -359,14 +428,81 @@ class VcfReader:
             prev_position = pos
 
             """
+            For Genotyping:
             Not reading phase, genotype or genotype quality information from the input vcf.
             Since this is not re-genotyping, the samples in the input vcf are not the ones
             we care about. We need info about the samples in the BAM/GAF file.
             Hence we are storing only None values for the number of samples (which is 1).
+
+            For Haplotagging:
+            Need the phase and genotype information since the haplotagging needs that.
             """
-            genotype_likelihoods = [None] * len(self.samples)
-            genotypes = [Genotype([]) for i in range(len(self.samples))]
-            phases = [None] * len(self.samples)
+            # Read phasing information (allow GT/PS or HP phase information, but not both),
+            # if requested
+            if self._phases:
+                phases = []
+                for call in record.samples.values():
+                    phase = None
+                    for extract_phase, phase_name in [
+                        (self._extract_HP_phase, "HP"),
+                        (self._extract_GT_PS_phase, "GT_PS"),
+                    ]:
+                        p = extract_phase(call)
+                        if p is not None:
+                            if phase_detected is None:
+                                phase_detected = phase_name
+                            elif phase_detected != phase_name:
+                                raise MixedPhasingError(
+                                    "Mixed phasing information in input VCF (e.g. mixing PS "
+                                    "and HP fields)"
+                                )
+                            phase = p
+                            # check for ploidy consistency and limits
+                            phase_ploidy = len(p.phase)
+                            if phase_ploidy > get_max_genotype_ploidy():
+                                raise PloidyError(
+                                    "Ploidies higher than {} are not supported."
+                                    "".format(get_max_genotype_ploidy())
+                                )
+                            elif p is None or p.block_id is None or p.phase is None:
+                                pass
+                            elif self.ploidy is None:
+                                self.ploidy = phase_ploidy
+                            elif phase_ploidy != self.ploidy:
+                                print(f"phase= {phase}")
+                                raise PloidyError(
+                                    "Phasing information contains inconsistent ploidy ({} and "
+                                    "{})".format(self.ploidy, phase_ploidy)
+                                )
+                    phases.append(phase)
+            else:
+                phases = [None] * len(record.samples)
+            
+            if not self._ignore_genotypes:
+                # check for ploidy consistency and limits
+                genotype_lists = [call.get("GT", None) for call in record.samples.values()]
+                for geno in genotype_lists:
+                    if geno is None or None in geno:
+                        continue
+                    geno_ploidy = len(geno)
+                    if geno_ploidy > get_max_genotype_ploidy():
+                        raise PloidyError(
+                            "Ploidies higher than {} are not supported."
+                            "".format(get_max_genotype_ploidy())
+                        )
+                    elif self.ploidy is None:
+                        self.ploidy = geno_ploidy
+                    elif geno_ploidy != self.ploidy:
+                        raise PloidyError(
+                            "Inconsistent ploidy ({} and " "{})".format(self.ploidy, geno_ploidy)
+                        )
+
+                genotypes = [genotype_code(geno_list) for geno_list in genotype_lists]
+            else:
+                genotypes = [Genotype([]) for _ in self.vcf_samples]
+                phases = [None] * len(self.vcf_samples)
+            
+            genotype_likelihoods = [None] * len(self.vcf_samples)
             
             variant = VcfVariant(id = id, position=pos, reference_allele=ref, alternative_allele=alts, allele_origin=allele_origin, allele_traversal=allele_traversal)
             table.add_variant(variant, genotypes, phases, genotype_likelihoods)
@@ -707,13 +843,13 @@ class GenotypeVcfWriter(VcfAugmenter):
 
                 # for genotyped variants, get computed likelihoods/genotypes (for all others, give uniform likelihoods)
                 if pos in genotyped_variants:
-                    likelihoods = variant_table.genotype_likelihoods_of(sample)[
+                    likelihoods = variant_table.query_genotype_likelihoods_of(sample)[
                         genotyped_variants[pos]
                     ]
                     # likelihoods can be 'None' if position was not accessible
                     if likelihoods is not None:
                         geno_l = [l for l in likelihoods]  # type: ignore
-                        geno = variant_table.genotypes_of(sample)[genotyped_variants[pos]]
+                        geno = variant_table.query_genotypes_of(sample)[genotyped_variants[pos]]
 
                 # Compute GQ
                 geno_index = geno.get_index()
