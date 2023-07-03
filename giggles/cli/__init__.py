@@ -135,7 +135,7 @@ class PhasedInputReader:
             )
         return indexed_fasta
 
-    def read(self, chromosome, variants, sample, haplotags, *, regions=None):
+    def read(self, chromosome, variants, sample, haplotags, keep_untagged, *, regions=None):
         """
         Return a pair (readset, vcf_source_ids) where readset is a sorted ReadSet.
 
@@ -175,16 +175,24 @@ class PhasedInputReader:
                 message += " Found {!r} instead".format(alternative)
             raise CommandLineError(message)
 
+        new_readset = ReadSet()
         for read in readset:
-            read.sort()
-            if haplotags[read.name] != None:
+            if not keep_untagged:
+                if haplotags[read.name].hp != "none":
+                    assert haplotags[read.name].hp == "H1" or haplotags[read.name].hp == "H2"
+                    read.sort()
+                    read.add_haplotag(haplotags[read.name].hp, haplotags[read.name].ps)
+                    new_readset.add(read)
+            else:
+                read.sort()
                 read.add_haplotag(haplotags[read.name].hp, haplotags[read.name].ps)
-        readset.sort()
+                new_readset.add(read)
+        new_readset.sort()
 
         logger.info(
-            "Found %d reads covering %d variants", len(readset), len(readset.get_positions())
+            "Found %d reads covering %d variants", len(new_readset), len(new_readset.get_positions())
         )
-        return readset
+        return new_readset
 
 def read_haplotags(file):
     """
@@ -200,8 +208,10 @@ def read_haplotags(file):
     """
 
     logger.info("Reading Haplotag TSV File")
-    out = defaultdict(lambda: None)
     Haplotag = namedtuple('Haplotag', ['hp', 'ps', 'chr'])
+    out = defaultdict(lambda: Haplotag(hp="none", ps=-1, chr="none"))
+    if file == None:
+        return out
     with open(file, 'r') as f:
         while True:
             line = f.readline()

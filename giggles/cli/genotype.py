@@ -8,6 +8,7 @@ import logging
 import sys
 import platform
 from typing import Sequence
+from collections import defaultdict
 
 from contextlib import ExitStack
 
@@ -98,6 +99,7 @@ def run_genotype(
     rgfa=None,
     read_fasta=None,
     haplotag_tsv=None,
+    keep_untagged=False,
     output=sys.stdout,
     samples=None,
     chromosomes=None,
@@ -146,10 +148,7 @@ def run_genotype(
             )
         )
 
-        haplotags = None
-        if haplotag_tsv:
-            haplotags = read_haplotags(haplotag_tsv)
-
+        haplotags = read_haplotags(haplotag_tsv)
         logger.debug("Initial Parsing of Alignments Done. PhasedInputReader object successfully created.")
 
         if phased_input_reader._type == "GAF" and len(samples) > 1:
@@ -225,7 +224,7 @@ def run_genotype(
                 for sample in family:
                     with timers("read_alignment"):
                         readset = phased_input_reader.read(
-                            chromosome, variant_table.variants, sample, haplotags
+                            chromosome, variant_table.variants, sample, haplotags, keep_untagged
                         )
 
                     with timers("select"):
@@ -250,7 +249,7 @@ def run_genotype(
                         all_reads.add(read)
 
                 all_reads.sort()
-
+                exit()
                 # Determine which variants can (in principle) be phased
                 accessible_positions = sorted(all_reads.get_positions())
                 accessible_positions_n_allele = []
@@ -298,8 +297,6 @@ def run_genotype(
                         "s" if len(family) > 1 else "",
                         problem_name,
                     )
-                    print(accessible_positions_allele_references[0])
-                    exit()
                     # MAKE SURE THAT THE NUMBER OF REFERENCES PASSED IS 2 X NUMBER OF SAMPLES SINCE EACH SAMPLE HAS 2 HAPLOTYPES    
                     forward_backward_table = GenotypeHMM(
                         numeric_sample_ids,
@@ -372,19 +369,20 @@ def add_arguments(parser):
     arg('--haplotag-tsv', metavar='HAPLOTAG', help='TSV file containing the haplotag and phaseset information.')
 
     arg = parser.add_argument_group('Input pre-processing, selection and filtering').add_argument
-    arg('--max-coverage', '-H', metavar='MAXCOV', default=15, type=int,
-        help='Reduce coverage to at most MAXCOV (default: %(default)s).')
+    arg('--max-coverage', '-H', metavar='MAX_COV', default=15, type=int,
+        help='Reduce coverage to at most MAX_COV (default: %(default)s).')
     arg('--mapping-quality', '--mapq', metavar='QUAL',
         default=20, type=int, help='Minimum mapping quality (default: %(default)s)')
     arg('--sample', dest='samples', metavar='SAMPLE', default=[], action='append',
-        help='Name of a sample to genotype. If not given, all samples in the '
-        'input VCF are genotyped. Can be used multiple times.')
+        help='Name of a sample to genotype. Has to be given.')
     arg('--chromosome', dest='chromosomes', metavar='CHROMOSOME', default=[], action='append',
         help='Name of chromosome to genotyped. If not given, all chromosomes in the '
         'input VCF are genotyped. Can be used multiple times.')
-    arg('--gt-qual-threshold', metavar='GTQUALTHRESHOLD', type=float, default=0,
+    arg('--gt-qual-threshold', metavar='GT_QUAL_THRESHOLD', type=float, default=0,
         help='Phred scaled error probability threshold used for genotyping (default: %(default)s). Must be at least 0. '
         'If error probability of genotype is higher, genotype ./. is output.')
+    arg('--keep-untagged', action='store_true', 
+        help='Consider the untagged reads (reads without a haplotag) in the genotyping. (default: False)')
     
 
     arg = parser.add_argument_group('Genotyping parameters').add_argument
@@ -408,7 +406,7 @@ def add_arguments(parser):
 
 def validate(args, parser):
     if len(args.mapped_read_files) == 0:
-        parser.error("Not providing any BAM or GAF files not allowed for genotyping.")
+        parser.error("No BAM or GAF files found.")
     if args.gt_qual_threshold < 0:
         parser.error("Genotype quality threshold (gt-qual-threshold) must be at least 0.")
     if args.affine_gap and not args.reference:
