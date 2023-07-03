@@ -35,7 +35,8 @@ string Read::toString() {
 void Read::addHaplotag(std::string hp, int ps) {
 	if (hp == "H1") {this->hp = 0;}
 	if (hp == "H2") {this->hp = 1;}
-	if (hp == "none") {throw std::runtime_error("Read with 'none' haplotag found. These should be filtered.");}
+	//if (hp == "none") {throw std::runtime_error("Read with 'none' haplotag found. These should be filtered.");}
+	if (hp == "none") {this->hp = -1;}
 	this->ps = ps;
 }
 

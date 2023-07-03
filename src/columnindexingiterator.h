@@ -20,7 +20,7 @@ private:
 	std::vector<int> freePositions;
 	
 public:
-	ColumnIndexingIterator(Column* parent, const ReadSet& set);
+	ColumnIndexingIterator(Column* parent, ReadSet* set);
 	virtual ~ColumnIndexingIterator();
 
 	bool has_next();

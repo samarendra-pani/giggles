@@ -16,11 +16,9 @@ private:
     std::vector<std::vector<unsigned int> > reordering_map;
 
 public:
-    TransitionProbabilityComputer(const float& recombcost, Column& column, const std::vector<int>& current_allele_reference, const std::vector<int>& next_allele_reference);
-
-    Vector2D<long double> * get_transition_matrix(unsigned int a1, unsigned int a2);
-
-    std::vector<unsigned int> * get_reordering_map(unsigned int a1, unsigned int a2);
+    TransitionProbabilityComputer(const float& recombcost, const std::vector<int>& next_allele_reference);
+    double pr;
+    double qr;
 };
 
 #endif // TRANSITIONPROBABILITYCOMPUTER_H

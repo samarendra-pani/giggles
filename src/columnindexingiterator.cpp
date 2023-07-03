@@ -6,14 +6,14 @@
 
 using namespace std;
 
-ColumnIndexingIterator::ColumnIndexingIterator(Column* parent, const ReadSet& set) {
+ColumnIndexingIterator::ColumnIndexingIterator(Column* parent, ReadSet* set) {
 	assert(parent != 0);
 	this->parent = parent;
 	
 	int l = 0;
 	for (int i = 0; i < parent->get_read_ids()->size(); i++) {
-		binaryVector.push_back(set.get(i)->getHaplotag());
-		if ( !set.get(parent->get_read_ids()->at(0))->hasHaplotag() ) {
+		binaryVector.push_back(set->get(i)->getHaplotag());
+		if ( !set->get(parent->get_read_ids()->at(0))->hasHaplotag() ) {
 			freePositions.push_back(i);
 		}
 	}

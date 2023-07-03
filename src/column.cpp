@@ -42,7 +42,7 @@ unsigned int Column::get_index(unsigned int b_index, unsigned int r_index) {
 	return index;
 }
 
-unique_ptr<ColumnIndexingIterator> Column::get_iterator(const ReadSet& set) {
+unique_ptr<ColumnIndexingIterator> Column::get_iterator(ReadSet* set) {
 	return unique_ptr<ColumnIndexingIterator>(new ColumnIndexingIterator(this, set));
 }
 
@@ -137,9 +137,8 @@ unsigned int Column::reference_allele_to_index(unsigned int& r1, unsigned int& r
 // Gives the compatible bipartitions in the left column (at position index) given the bipartition index of a bipartition of the right column (at position index + 1)
 
 // TODO: You can precompute the free positions and use it somehow?
-vector<unsigned int> Column::get_backward_compatible_bipartitions(int b_index) {
-	vector<int> free_positions;
-    vector<unsigned int> compatible_bipartition = {0};
+vector<unsigned int> Column::get_backward_compatible_bipartitions(int b_index, ReadSet* set) {
+	vector<unsigned int> compatible_bipartition = {0};
 	int base = 0;
     int count = 0;
     for (int i = 0; i < next_read_ids.size(); i++) {
@@ -147,11 +146,15 @@ vector<unsigned int> Column::get_backward_compatible_bipartitions(int b_index) {
 		// This break statement if the last count++ step happened outside the while loop
 		if (count >= read_ids.size()) break;
         while (ri > read_ids.at(count)) {
-            free_positions.push_back(count);
-            compatible_bipartition.resize(2*compatible_bipartition.size());
-            for (int j = 0; j < compatible_bipartition.size()/2; j++) {
-                compatible_bipartition.at((compatible_bipartition.size()/2)+j) = compatible_bipartition.at(j) + pow(2, count);
-            }
+            if (set->get(read_ids.at(count))->getHaplotag() == -1) {
+				compatible_bipartition.resize(2*compatible_bipartition.size());
+				for (int j = 0; j < compatible_bipartition.size()/2; j++) {
+					compatible_bipartition.at((compatible_bipartition.size()/2)+j) = compatible_bipartition.at(j) + pow(2, count);
+				}
+			}
+			else {
+				base += pow(2, count)*set->get(read_ids.at(count))->getHaplotag();
+			}		
             count++;
 			// Break out of while loop (otherwise read_ids.at(count) is not defined)
 			if (count >= read_ids.size()) break;

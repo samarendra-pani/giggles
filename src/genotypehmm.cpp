@@ -147,7 +147,7 @@ void GenotypeHMM::compute_backward_prob()
         }
         // compute the backward probabilities
         if (column_index > 0) {
-            transition_probability_table[column_index - 1] = new TransitionProbabilityComputer(recombcost[column_index-1], *hmm_columns[column_index-1], allele_references->at(column_index-1), allele_references->at(column_index));
+            transition_probability_table[column_index - 1] = new TransitionProbabilityComputer(recombcost[column_index-1], allele_references->at(column_index));
         }
         compute_backward_column(column_index,std::move(current_input_column));
         if (column_index > 0) {
@@ -196,7 +196,7 @@ void GenotypeHMM::compute_forward_prob()
         }
         // compute forward probabilities for the current column
         if (column_index > 0 && transition_probability_table[column_index - 1] == nullptr) {
-            transition_probability_table[column_index - 1] = new TransitionProbabilityComputer(recombcost[column_index-1], *hmm_columns[column_index-1], allele_references->at(column_index-1), allele_references->at(column_index));
+            transition_probability_table[column_index - 1] = new TransitionProbabilityComputer(recombcost[column_index-1], allele_references->at(column_index));
         }
         compute_forward_column(column_index,std::move(current_input_column));
         if (column_index > 0) {
@@ -247,18 +247,13 @@ void GenotypeHMM::compute_backward_column(size_t column_index, unique_ptr<vector
     Vector2D<long double> emission_probability_computer = Vector2D<long double>(n_alleles, n_alleles);
     // for scaled version of forward backward alg, keep track of the sum of backward
     long double scaling_sum = 0.0L;
-    Vector2D<long double>* transition_matrix;
-    vector<unsigned int>* reordering_map;
     vector<unsigned int> compatible_bipartitions;
-    vector<long double> result;
-    unsigned int allele_1;
-    unsigned int allele_2;
     unsigned int b_index;
     unsigned int r_index;
     unsigned int index;
     // iterate over all bipartitions of the column on the right. So we are calculating the values in column current_index - 1
     if (column_index > 0) {
-        unique_ptr<ColumnIndexingIterator> iterator = current_indexer->get_iterator(*read_set);
+        unique_ptr<ColumnIndexingIterator> iterator = current_indexer->get_iterator(read_set);
         while (iterator->has_next()){
             int bit_changed = -1;
             iterator->advance(&bit_changed);
@@ -266,36 +261,56 @@ void GenotypeHMM::compute_backward_column(size_t column_index, unique_ptr<vector
             update_emission_probability(&emission_probability_computer, bit_changed, *iterator, *current_input_column);
             // Determine the indices that are compatible with with the bipartition at position column_index
             b_index = iterator->get_b_index();
-            compatible_bipartitions = hmm_columns[column_index-1]->get_backward_compatible_bipartitions(b_index);
-            // UPDATING THE BETA VALUES
-            // Iterating over the allele pairs
-            for (allele_1 = 0; allele_1 < n_alleles; allele_1++) {
-                for (allele_2 = 0; allele_2 < n_alleles; allele_2++) {
-                    // Extract the beta values having (allele_1, allele_2) pair in proper ordering (based on the transition probability matrix)
-                    vector<long double> beta_values;
-                    transition_matrix = current_transition_table->get_transition_matrix(allele_1, allele_2);
-                    reordering_map = current_transition_table->get_reordering_map(allele_1, allele_2);
-                    for (int i = 0; i < reordering_map->size(); i++) {
-                        r_index = reordering_map->at(i);
-                        index = current_indexer->get_index(b_index, r_index);
-                        if (column_index + 1 < backward_input_column_iterator.get_column_count()) {
-                            beta_values.push_back(previous_projection_column->at(index));
-                            scaling_sum += previous_projection_column->at(index);
-                        }
-                        else {
-                            previous_projection_column->at(index) = 1.0L;
-                            beta_values.push_back(1.0L);
-                            scaling_sum += 1.0L;
-                        }
+            compatible_bipartitions = hmm_columns[column_index-1]->get_backward_compatible_bipartitions(b_index, read_set);
+            
+            long double beta_helper_1 = 0.0L;       // This helper value is the beta(*,*) value.
+            vector<long double> beta_helper_2(n_references, 0.0L);      // This helper value is the beta(R1,*) value.
+            vector<long double> beta_helper_3(n_references, 0.0L);      // This helper value is the beta(*,R2) value.
+            
+            vector<int> haplotype_to_allele_prev = allele_references->at(column_index);     // This contains the haplotype-to-allele mapping for the position column_index
+            vector<int> haplotype_to_allele_curr = allele_references->at(column_index-1);     // This contains the haplotype-to-allele mapping for the position column_index-1
+            for (int r_index = 0; r_index < pow(n_references,2); r_index++) {
+                // Extract the ref haplotype paths and alleles from r_index
+                int r = r_index;    // Making a copy of r_index to extract R1, R2.
+                vector<unsigned int> ref;
+                vector<int> allele;
+                ref.resize(2);
+                allele.resize(2);
+                for (int i = 0; i < 2; i++) {
+                    ref[1-i] = r%n_references;
+                    allele[1-i] = haplotype_to_allele_prev[ref[1-i]];
+                    r = r / n_references;
+                }
+                if ((allele[0] == -1) || (allele[1] == -1)) {continue;}     // Skipping nodes where the allele is not defined.
+                // Calculating beta x emission for the helper variables.
+                index = current_indexer->get_index(b_index, r_index);
+                long double b = previous_projection_column->at(index) * emission_probability_computer.at(allele[0],allele[1]);
+                // Updating the helper variables
+                beta_helper_1 += b;
+                beta_helper_2[ref[0]] += b;
+                beta_helper_3[ref[1]] += b;
+            }
+            // Looping through the compatible bipartitions in column_index - 1
+            for (int i = 0; i < compatible_bipartitions.size(); i++) {
+                index = compatible_bipartitions[i] * pow(n_references,2);   // This is the index for column in column_index - 1. So this index corresponds to the (0,0) ref haplotype of the bipartition. So to access the rest of the indices, we need to sum index and r_index.
+                // Remember that b_index is the index for column_index
+                for (int r_index = 0; r_index < pow(n_references,2); r_index++) {
+                    // Extract the ref haplotype paths and alleles from r_index
+                    int r = r_index;    // Making a copy of r_index to extract R1, R2.
+                    vector<unsigned int> ref;
+                    vector<int> allele;
+                    ref.resize(2);
+                    allele.resize(2);
+                    for (int i = 0; i < 2; i++) {
+                        ref[1-i] = r%n_references;
+                        allele[1-i] = haplotype_to_allele_curr[ref[1-i]];
+                        r = r / n_references;
                     }
-                    result = MatMul(beta_values, *transition_matrix, true);
-                    // Update the beta values in the current_projection_matrix
-                    for (int i = 0; i < compatible_bipartitions.size(); i++) {
-                        index = compatible_bipartitions[i] * pow(n_references,2);
-                        for (unsigned int j = 0; j < pow(n_references, 2); j++) {
-                            current_projection_column->at(index+j) = current_projection_column->at(index+j) + result[j]*emission_probability_computer.at(allele_1, allele_2);   
-                        }
-                    }
+                    if ((allele[0] == -1) || (allele[1] == -1)) {continue;}     // Skipping nodes where the allele is not defined.
+                    unsigned int index_prev = current_indexer->get_index(b_index, r_index);     // Getting the index of the node from the column column_index. This is needed for the beta value update.
+                    long double beta_helper_0 = previous_projection_column->at(index_prev) * emission_probability_computer.at(allele[0],allele[1]);     // Calculating the beta(v,R1,R2).em(A1,A2) value from the notes. Since this value is used multiple times, just calculating it once here as a helper variable.
+                    // Updating the beta value
+                    current_projection_column->at(index+r_index) += pow(current_transition_table->qr,2)*beta_helper_0 + current_transition_table->qr*current_transition_table->pr*(beta_helper_2[ref[0]]+beta_helper_3[ref[1]]-(2*beta_helper_0)) + pow(current_transition_table->pr,2)*(beta_helper_1-beta_helper_2[ref[0]]-beta_helper_3[ref[1]]+beta_helper_0);
                 }
             }
         }
@@ -348,7 +363,7 @@ void GenotypeHMM::compute_forward_column(size_t column_index, unique_ptr<vector<
         // compute index of next column that has been stored
         size_t next = std::min((unsigned int) ( ((column_index + k) / k) * k ), input_column_iterator.get_column_count()-1);
         for(size_t i = next; i > column_index; --i){
-            transition_probability_table[i-1] = new TransitionProbabilityComputer(recombcost[i-1], *hmm_columns[i-1], allele_references->at(i-1), allele_references->at(i));
+            transition_probability_table[i-1] = new TransitionProbabilityComputer(recombcost[i-1], allele_references->at(i));
             compute_backward_column(i);
         }
         if (backward_pass_column_table[column_index] ==  nullptr) {
@@ -383,11 +398,8 @@ void GenotypeHMM::compute_forward_column(size_t column_index, unique_ptr<vector<
     unsigned int r_index;
     unsigned int index;
     vector<unsigned int> compatible_bipartitions;
-    Vector2D<long double>* transition_matrix = nullptr;
-    vector<unsigned int>* reordering_map = nullptr;
-    vector<long double> result;
     // iterate over all bipartitions
-    unique_ptr<ColumnIndexingIterator> iterator = current_indexer->get_iterator(*read_set);
+    unique_ptr<ColumnIndexingIterator> iterator = current_indexer->get_iterator(read_set);
     while (iterator->has_next()) {
         int bit_changed = -1;
         iterator->advance(&bit_changed);
@@ -413,25 +425,56 @@ void GenotypeHMM::compute_forward_column(size_t column_index, unique_ptr<vector<
             }
         }
         else {
-            compatible_bipartitions = hmm_columns[column_index-1]->get_backward_compatible_bipartitions(b_index);
+            vector<int> haplotype_to_allele_curr = allele_references->at(column_index);     // This contains the haplotype-to-allele mapping for the position column_index
+            vector<int> haplotype_to_allele_prev = allele_references->at(column_index-1);     // This contains the haplotype-to-allele mapping for the position column_index-1
+            compatible_bipartitions = hmm_columns[column_index-1]->get_backward_compatible_bipartitions(b_index, read_set);
+            // Looping through all the compatible bipartitions in column column_index - 1.
+            // Here b is the bipartition index of the previous column!
+            // The bipartition index of the current column is stored in b_index.
             for (unsigned int b : compatible_bipartitions) {
-                // Get the alpha values from the compatible bipartition b
-                vector<long double> alpha_values;
-                for (r_index = 0; r_index < pow(n_references, 2); r_index++) {
-                    alpha_values.push_back(previous_projection_column->at((n_references*n_references*b)+r_index));
-                }
-                // Iterating over the groups to calculate the alpha values.
-                for (allele_1 = 0; allele_1 < n_alleles; allele_1++) {
-                    for (allele_2 = 0; allele_2 < n_alleles; allele_2++) {
-                        transition_matrix = current_transition_table->get_transition_matrix(allele_1, allele_2);
-                        reordering_map = current_transition_table->get_reordering_map(allele_1, allele_2);
-                        result = MatMul(alpha_values, *transition_matrix, false);
-                        // Taking the alpha values from the result array and then mapping them to the current_projection_column based on reordering_map.
-                        for (unsigned int pos_index = 0; pos_index < reordering_map->size(); pos_index++) {
-                            r_index = reordering_map->at(pos_index);
-                            current_projection_column->at((n_references * n_references * b_index) + r_index) += result.at(pos_index)*emission_probability_computer.at(allele_1, allele_2);                            
-                        }
+                long double alpha_helper_1 = 0.0L;       // This helper value is the alpha(*,*) value.
+                vector<long double> alpha_helper_2(n_references, 0.0L);      // This helper value is the alpha(R1,*) value.
+                vector<long double> alpha_helper_3(n_references, 0.0L);      // This helper value is the alpha(*,R2) value.
+                // Looping through all the nodes in bipartition b of column_index - 1 to calculate helper variables.
+                for (int r_index = 0; r_index < pow(n_references, 2); r_index++) {
+                    // Extract the ref haplotype paths and alleles from r_index
+                    int r = r_index;    // Making a copy of r_index to extract R1, R2.
+                    vector<unsigned int> ref;
+                    vector<int> allele;
+                    ref.resize(2);
+                    allele.resize(2);
+                    for (int i = 0; i < 2; i++) {
+                        ref[1-i] = r%n_references;
+                        allele[1-i] = haplotype_to_allele_prev[ref[1-i]];
+                        r = r / n_references;
                     }
+                    if ((allele[0] == -1) || (allele[1] == -1)) {continue;}     // Skipping nodes where the allele is not defined.
+                    index = (n_references*n_references*b)+r_index;
+                    long double a = previous_projection_column->at(index);
+                    // Updating the helper variables
+                    alpha_helper_1 += a;
+                    alpha_helper_2[ref[0]] += a;
+                    alpha_helper_3[ref[1]] += a;
+                }
+                // Looping through all the nodes in bipartition b_index in column_index. Will add all the alpha values in the bipartition coming from bipartition b of column_index -1.
+                unsigned int index_prev = b * pow(n_references,2);      // Base index for the previous bipartition. So this index corresponds to the (0,0) ref haplotype of the bipartition. So to access the rest of the indices, we need to sum index_prev and r_index.
+                for (int r_index = 0; r_index < pow(n_references, 2); r_index++) {
+                    // Extract the ref haplotype paths and alleles from r_index
+                    int r = r_index;    // Making a copy of r_index to extract R1, R2.
+                    vector<unsigned int> ref;
+                    vector<int> allele;
+                    ref.resize(2);
+                    allele.resize(2);
+                    for (int i = 0; i < 2; i++) {
+                        ref[1-i] = r%n_references;
+                        allele[1-i] = haplotype_to_allele_prev[ref[1-i]];
+                        r = r / n_references;
+                    }
+                    if ((allele[0] == -1) || (allele[1] == -1)) {continue;}     // Skipping nodes where the allele is not defined.
+                    index = current_indexer->get_index(b_index, r_index); // Here I am using ->get_index() since I want to find the index in the current column. In the previous for loop, I did not use this since current_indexer is not defined for column_index - 1.
+                    long double alpha_helper_0 = previous_projection_column->at(index_prev+r_index);        // Storing alpha value of the compatible biparition of column_index - 1 having the same r_index as the bipartition in column_index. (Strictly speaking, we dont need this variable but this makes the expression very similar to backward algorithm)
+                    // Updating the alpha value
+                    current_projection_column->at(index) += emission_probability_computer.at(allele[0], allele[1])*(pow(current_transition_table->qr,2)*alpha_helper_0 + current_transition_table->qr*current_transition_table->pr*(alpha_helper_2[ref[0]]+alpha_helper_3[ref[1]]-(2*alpha_helper_0)) + pow(current_transition_table->pr,2)*(alpha_helper_1-alpha_helper_2[ref[0]]-alpha_helper_3[ref[1]]+alpha_helper_0));
                 }
             }
         }

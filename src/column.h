@@ -36,7 +36,7 @@ public:
 	std::vector<unsigned int> * get_next_read_ids();
 
 	// returns a pointer to the bipartition iterator which uses graycode.
-	std::unique_ptr<ColumnIndexingIterator> get_iterator(const ReadSet& set);
+	std::unique_ptr<ColumnIndexingIterator> get_iterator(ReadSet* set);
 
 	// return the bipartition defined by the index
 	std::vector<std::vector<unsigned int>> index_to_bipartition(unsigned int& index, int column_type);
@@ -56,8 +56,8 @@ public:
 	// returns the index from reference alleles
 	unsigned int reference_allele_to_index(unsigned int& r1, unsigned int& r2);
 
-	// returns the compatible bipartitions in backward pass
-	std::vector<unsigned int> get_backward_compatible_bipartitions(int b_index);
+	// returns the compatible bipartitions of bipartition b_index (of pos v+1) in column v
+	std::vector<unsigned int> get_backward_compatible_bipartitions(int b_index, ReadSet* set);
 
 };
 
