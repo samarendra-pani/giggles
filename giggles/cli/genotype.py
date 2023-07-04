@@ -249,7 +249,7 @@ def run_genotype(
                         all_reads.add(read)
 
                 all_reads.sort()
-                
+                exit()
                 # Determine which variants can (in principle) be phased
                 accessible_positions = sorted(all_reads.get_positions())
                 accessible_positions_n_allele = []
