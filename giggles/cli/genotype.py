@@ -195,11 +195,11 @@ def run_genotype(
             allele_references = dict()
             ids = dict()
             for i in range(len(variant_table.variants)):
-                var_pos_to_ind[variant_table.variants[i].position] = i
+                var_pos_to_ind[variant_table.variants[i].position_on_ref] = i
                 v = variant_table.variants[i]
-                n_allele_position[v.position] = len(v.alternative_allele)+1      ##Contains the number of alleles at every variant position
-                allele_references[v.position] = v.allele_origin
-                ids[v.position] = v.id            
+                n_allele_position[v.position_on_ref] = len(v.alternative_allele)+1      ##Contains the number of alleles at every variant position
+                allele_references[v.position_on_ref] = v.allele_origin
+                ids[v.position_on_ref] = v.id            
                 
             #Prior genotyping with equal probabilities
             for sample in samples:
@@ -234,11 +234,9 @@ def run_genotype(
                         logger.info(
                             "Kept %d reads that cover at least two variants each", len(readset)
                         )
-                        selected_reads = select_reads(
-                            readset, max_coverage_per_sample
-                        )
+                        selected_reads = select_reads(readset, max_coverage_per_sample)
                     readsets[sample] = selected_reads
-
+                    
                 # Merge reads into one ReadSet (note that each Read object
                 # knows the sample it originated from).
                 all_reads = ReadSet()
@@ -297,7 +295,6 @@ def run_genotype(
                         "s" if len(family) > 1 else "",
                         problem_name,
                     )
-                    # MAKE SURE THAT THE NUMBER OF REFERENCES PASSED IS 2 X NUMBER OF SAMPLES SINCE EACH SAMPLE HAS 2 HAPLOTYPES    
                     forward_backward_table = GenotypeHMM(
                         numeric_sample_ids,
                         all_reads,
@@ -316,9 +313,10 @@ def run_genotype(
 
                         for pos in range(len(accessible_positions)):
                             likelihoods = forward_backward_table.get_genotype_likelihoods(s, pos, accessible_positions_n_allele[pos])
-
+                            #print(likelihoods)
                             # compute genotypes from likelihoods and store information
                             geno = determine_genotype(likelihoods, gt_prob, accessible_positions_n_allele[pos])
+                            #print(geno)
                             assert isinstance(geno, Genotype)
                             genotypes_list[var_pos_to_ind[accessible_positions[pos]]] = geno
                             likelihood_list[var_pos_to_ind[accessible_positions[pos]]] = likelihoods
@@ -328,7 +326,7 @@ def run_genotype(
 
             with timers("write_vcf"):
                 logger.info("======== Writing VCF")
-                #vcf_writer.write_genotypes(chromosome, variant_table, indels=True)
+                vcf_writer.write_genotypes(chromosome, variant_table, indels=True)
                 logger.info("Done writing VCF")
 
             logger.debug("Chromosome %r finished", chromosome)
@@ -336,7 +334,7 @@ def run_genotype(
     logger.info("\n== SUMMARY ==")
     total_time = timers.total()
     log_memory_usage()
-    logger.info("Time spent reading BAM:                      %9.2f s", timers.elapsed("read_bam"))
+    logger.info("Time spent reading alignments:               %9.2f s", timers.elapsed("read_alignment"))
     logger.info("Time spent parsing VCF:                      %9.2f s", timers.elapsed("parse_vcf"))
     logger.info("Time spent selecting reads:                  %9.2f s", timers.elapsed("select"))
     logger.info(

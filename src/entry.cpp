@@ -52,14 +52,15 @@ void Entry::set_emission_score(std::vector<unsigned int> e) {
 	long double normalization = 0.0L;
 	int i = 0;
 	for (auto it = e.begin(); it != e.end(); it++, i++) {
-		// emission_score[i] = (long double)max((long double)pow(0.1, (*it - d_min)) * pow (0.9, (d_max - *it)), 10e-10L);
-		emission_score[i] = (long double)pow(0.1L, (long double)(*it - d_min)) * (long double)pow(0.9L, (long double)(d_max - *it));
-		normalization += emission_score[i];
+		//emission_score[i] = (long double)pow(0.1L, (long double)(*it - d_min)) * (long double)pow(0.9L, (long double)(d_max - *it));
+		long double em = 1.0L/(long double)(*it+1);
+		if (isnan(em) || (em < 10e-10L)) {
+			em = 10e-10L;
+		}
+		normalization += em;
+		emission_score[i] = em;
 	}
 	transform((emission_score).begin(), (emission_score).end(), (emission_score).begin(), std::bind2nd(std::divides<long double>(), normalization));
-	for (auto it = emission_score.begin(); it != emission_score.end(); it++) {
-		if (*it < 10e-10L) *it = 10e-10L;
-	}
 }
 
 void Entry::set_quality(int q) {

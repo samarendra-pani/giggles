@@ -9,7 +9,7 @@ class Column;
 
 class ColumnIndexingIterator {
 private:
-	const Column* parent;
+	Column* parent;
 	GrayCodes* graycodes;
 	unsigned int r_index;
 	unsigned int b_index;

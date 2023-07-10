@@ -721,9 +721,7 @@ class VcfAugmenter(ABC):
         self.setup_header(self._writer.header)
         for sample in bam_samples:
             self._writer.header.add_sample(sample)
-        self._unprocessed_record: Optional[VariantRecord] = None
-        self._reader_iter = iter(self._reader)
-
+        
     @abstractmethod
     def setup_header(self, header):
         pass
@@ -743,24 +741,20 @@ class VcfAugmenter(ABC):
 
     def _record_modifier(self, chromosome: str):
         for record in self._iterrecords(chromosome):
-            new_record = self._writer.new_record(contig = record.contig, start = record.start, alleles = record.alleles, id = record.id, qual = record.qual, filter = record.filter, info = record.info)
+            new_record = self._writer.new_record(contig = record.contig, 
+                                                 start = record.start, 
+                                                 alleles = record.alleles, 
+                                                 id = record.id, 
+                                                 qual = record.qual, 
+                                                 filter = record.filter, 
+                                                 info = record.info)
             yield new_record
             self._writer.write(new_record)
 
     def _iterrecords(self, chromosome: str) -> Iterable[VariantRecord]:
         """Yield all records for the target chromosome"""
         n = 0
-        if self._unprocessed_record is not None:
-            assert self._unprocessed_record.chrom == chromosome
-            yield self._unprocessed_record
-            n += 1
-        for record in self._reader_iter:
-            n += 1
-            if record.chrom != chromosome:
-                # save it for later
-                self._unprocessed_record = record
-                assert n != 1
-                return
+        for record in self._reader.fetch(contig=chromosome):
             yield record
 
 
@@ -826,7 +820,7 @@ class GenotypeVcfWriter(VcfAugmenter):
         # map positions to index
         genotyped_variants = dict()
         for i in range(len(variant_table)):
-            genotyped_variants[variant_table.variants[i].position] = i
+            genotyped_variants[variant_table.variants[i].position_on_ref] = i
 
         # INT_TO_UNPHASED_GT = {0: (0, 0), 1: (0, 1), 2: (1, 1), -1: None}
         GT_GL_GQ = frozenset(["GT", "GL", "GQ"])
@@ -840,7 +834,6 @@ class GenotypeVcfWriter(VcfAugmenter):
                 n_genotypes = binomial_coefficient(ploidy + n_alleles - 1, n_alleles - 1)
                 geno_l = [1 / n_genotypes] * int(n_genotypes)
                 geno_q = None
-
                 # for genotyped variants, get computed likelihoods/genotypes (for all others, give uniform likelihoods)
                 if pos in genotyped_variants:
                     likelihoods = variant_table.query_genotype_likelihoods_of(sample)[
@@ -864,7 +857,6 @@ class GenotypeVcfWriter(VcfAugmenter):
 
                 call["GL"] = [max(math.log10(j), -1000) if j > 0 else -1000 for j in geno_l]
                 call["GT"] = tuple(geno.as_vector())
-
                 # store quality as phred score
                 if not geno.is_none():
                     # TODO default value ok?

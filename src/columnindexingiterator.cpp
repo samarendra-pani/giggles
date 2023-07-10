@@ -12,8 +12,8 @@ ColumnIndexingIterator::ColumnIndexingIterator(Column* parent, ReadSet* set) {
 	
 	int l = 0;
 	for (int i = 0; i < parent->get_read_ids()->size(); i++) {
-		binaryVector.push_back(set->get(i)->getHaplotag());
-		if ( !set->get(parent->get_read_ids()->at(0))->hasHaplotag() ) {
+		binaryVector.push_back(set->get(parent->get_read_ids()->at(i))->getHaplotag());
+		if ( !set->get(parent->get_read_ids()->at(i))->hasHaplotag() ) {
 			freePositions.push_back(i);
 		}
 	}
@@ -43,7 +43,12 @@ void ColumnIndexingIterator::advance(int* bit_changed) {
 	// Since Gray Code is made on read subsets, this `graycode_bit_changed` has to be
 	// translated to what bit has been changed in the entire set of active reads.
 	if (bit_changed != 0) {
-		*bit_changed = this->freePositions[graycode_bit_changed];
+		if (graycode_bit_changed == -1) {
+			*bit_changed = -1;
+		}
+		else {
+			*bit_changed = this->freePositions[graycode_bit_changed];
+		}
 	}
 	
 	assert (graycode_binaryvector.size() == this->freePositions.size());

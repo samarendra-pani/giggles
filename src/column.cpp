@@ -3,7 +3,6 @@
 #include "column.h"
 #include "readset.h"
 #include <math.h>
-#include <cmath>
 
 using namespace std;
 
@@ -141,7 +140,10 @@ vector<unsigned int> Column::get_backward_compatible_bipartitions(int b_index, R
 	vector<unsigned int> compatible_bipartition = {0};
 	int base = 0;
     int count = 0;
-    for (int i = 0; i < next_read_ids.size(); i++) {
+	// This for loop deals with all the reads in read_ids that are less than max(next_read_ids)
+	// Example: Let read_ids = {1,2,3,4,5,6,7,8,9,10} and next_read_ids = {2,3,5,6,8}
+	// So this for loop creates the necessary bipartitions by processing read_ids till Read 8.
+	for (int i = 0; i < next_read_ids.size(); i++) {
         int ri = next_read_ids.at(i);
 		// This break statement if the last count++ step happened outside the while loop
 		if (count >= read_ids.size()) break;
@@ -165,7 +167,20 @@ vector<unsigned int> Column::get_backward_compatible_bipartitions(int b_index, R
         b_index = b_index/2;
         count++;
     }
-    for (int i = 0; i < compatible_bipartition.size(); i++) {
+	// Continuing the example from above.
+	// The rest of the reads in read_ids which are 9 and 10 are processed here and these reads automatically lead to an increase in number of compatible bipartitions.
+	for (int i = count; i < read_ids.size(); i++) {
+		if (set->get(read_ids.at(i))->getHaplotag() == -1) {
+			compatible_bipartition.resize(2*compatible_bipartition.size());
+			for (int j = 0; j < compatible_bipartition.size()/2; j++) {
+				compatible_bipartition.at((compatible_bipartition.size()/2)+j) = compatible_bipartition.at(j) + pow(2, i);
+			}
+		}
+		else {
+			base += pow(2, i)*set->get(read_ids.at(i))->getHaplotag();
+		}
+	}
+	for (int i = 0; i < compatible_bipartition.size(); i++) {
         compatible_bipartition.at(i) += base;
     }
 	return compatible_bipartition;

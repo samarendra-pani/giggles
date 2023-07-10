@@ -41,6 +41,7 @@ unsigned int GrayCodes::get_next(int* changed_bit) {
 }
 
 vector<int> GrayCodes::toBinary(int n) {
+	// This returns the Binary vector in opposite direction (as compared to binary representation). index 0 contains bip for the first read.
     vector<int> binaryVector;
 	binaryVector.resize(length);
 	for (int index = 0; index < length; index++) {

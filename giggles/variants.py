@@ -280,6 +280,8 @@ class GAFReader:
                 self._default_mismatch)
         
             for j, allele, em, quality in detected:
+                #if alignment.read_id in ['4cefcf54-6646-4995-beac-5aef1ddbbea4', 'be8d65f9-05ae-4593-bdfa-62c14a7f4d73', '259853ba-f421-4c7c-8fc4-a8e5f287aabe']:
+                #    print(alignment.read_id, variants_in_alignment[j].position_on_ref, em, sep="\t")
                 read.add_variant(variants_in_alignment[j].position_on_ref, allele, em, quality)
             if read:  # At least one variant covered and detected
                 yield read
