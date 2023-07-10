@@ -34,6 +34,15 @@ bool ColumnIndexingIterator::has_next() {
 
 
 void ColumnIndexingIterator::advance(int* bit_changed) {
+	/*
+	The following values/variables are used for emission probability update (so need all read info):
+		1. binaryVector
+		2. bit_changed
+	
+	The following values/variables are used for accessing forward/backward columns (so need untagged read info only):
+		1. b_index
+	*/
+	
 	assert(graycodes->has_next());
 	int graycode_bit_changed = -1;
 	unsigned int graycode_binaryindex = graycodes->get_next(&graycode_bit_changed);
@@ -58,11 +67,13 @@ void ColumnIndexingIterator::advance(int* bit_changed) {
 	if (this->b_index == -1) {
 		// Initially it is update element-wise and b-index accordingly calculated.
 		this->b_index = 0;
+		// This is used to initialize binaryVector (which is all-read-based)
 		for (int i = 0; i < this->freePositions.size(); i++) {
 			this->binaryVector[this->freePositions[i]] = graycode_binaryvector[i];
 		}
-		for (int i = 0; i < this->binaryVector.size(); i++) {
-			this->b_index = this->b_index + this->binaryVector[i]*(pow(2,i));
+		// This is used to initialize b_index (which is untagged-read-based)
+		for (int i = 0; i < graycode_binaryvector.size(); i++) {
+			this->b_index = this->b_index + graycode_binaryvector[i]*(pow(2,i));
 		}
 	}
 	else {
@@ -70,7 +81,7 @@ void ColumnIndexingIterator::advance(int* bit_changed) {
 		int new_bit = graycode_binaryvector[graycode_bit_changed];
 		this-> binaryVector[*bit_changed] = new_bit;
 		// Updating b_index using masks.
-		int mask = 1 << *bit_changed;
+		int mask = 1 << graycode_bit_changed;
 		this->b_index ^= mask;
 	}
 }

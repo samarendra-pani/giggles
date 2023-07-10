@@ -34,8 +34,10 @@ public:
 	  */
 	void advance(int* bit_changed = 0);
 
+	// Returns the index for the current bipartition of untagged active reads IDs that the iterator has processed
 	unsigned int get_b_index();
 
+	// Returns the binary vector of all the active reads at the position indicating the bipartitions they are in.
 	std::vector<int> get_binary_vector() const;
 };
 

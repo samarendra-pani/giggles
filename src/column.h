@@ -10,15 +10,23 @@ class ColumnIndexingIterator;
 
 class Column {
 private:
+	// read IDs of active reads at the variant position
 	std::vector<unsigned int> read_ids;
+	// read IDS of untagged active reads at the variant position
+	std::vector<unsigned int> untagged_read_ids;
+	// read IDs of active reads at the next variant position
 	std::vector<unsigned int> next_read_ids;
+	// read IDS of untagged active reads at the next variant position
+	std::vector<unsigned int> untagged_next_read_ids;
+	// read IDs of active, non terminating reads at the variant position
 	std::vector<unsigned int> act_nonterminating_read_ids;
+	// read IDs of active, terminating reads at the variant position
 	std::vector<unsigned int> act_terminating_read_ids;
 	unsigned int n_references;
 	
 public:
 
-	Column(const unsigned int index, const unsigned int* n_ref, const std::vector<unsigned int>& read_ids, const std::vector<unsigned int>& next_read_ids);
+	Column(const unsigned int index, const unsigned int* n_ref, const std::vector<unsigned int>& read_ids, const std::vector<unsigned int>& next_read_ids, ReadSet* set);
 	
 	// returns the column size
 	unsigned int get_column_size();
@@ -38,23 +46,8 @@ public:
 	// returns a pointer to the bipartition iterator which uses graycode.
 	std::unique_ptr<ColumnIndexingIterator> get_iterator(ReadSet* set);
 
-	// return the bipartition defined by the index
-	std::vector<std::vector<unsigned int>> index_to_bipartition(unsigned int& index, int column_type);
-
-	// return the reference alleles defined by the index
-	std::vector<unsigned int> index_to_reference_allele(unsigned int& index, int column_type);
-
-	// gets the index value using the bipartition and the reference alleles given.
-	unsigned int get_index(std::vector<unsigned int>& b1, std::vector<unsigned int>& b2, unsigned int& r1, unsigned int& r2);
-
 	// gets the index value using the bipartition index and reference index;
 	unsigned int get_index(unsigned int b_index, unsigned int r_index);
-
-	// returns the index from bipartition
-	unsigned int bipartition_to_index(std::vector<unsigned int>& b1, std::vector<unsigned int>& b2);
-
-	// returns the index from reference alleles
-	unsigned int reference_allele_to_index(unsigned int& r1, unsigned int& r2);
 
 	// returns the compatible bipartitions of bipartition b_index (of pos v+1) in column v
 	std::vector<unsigned int> get_backward_compatible_bipartitions(int b_index, ReadSet* set);

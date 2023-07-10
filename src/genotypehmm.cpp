@@ -99,12 +99,12 @@ void GenotypeHMM::compute_index(){
         if (input_column_iterator.has_next()) {
             next_input_column = input_column_iterator.get_next();
             next_read_ids = extract_read_ids(*next_input_column);
-            current_column = new Column(column_index, &n_references, *current_read_ids, *next_read_ids);
+            current_column = new Column(column_index, &n_references, *current_read_ids, *next_read_ids, read_set);
             hmm_columns[column_index] = current_column;
         } 
         else {
             assert (column_index == input_column_iterator.get_column_count() - 1);
-            current_column = new Column(column_index, &n_references, *current_read_ids, vector<unsigned int>{}); 
+            current_column = new Column(column_index, &n_references, *current_read_ids, vector<unsigned int>{}, read_set); 
             hmm_columns[column_index] = current_column;
         }
     }
@@ -506,7 +506,13 @@ void GenotypeHMM::compute_forward_column(size_t column_index, unique_ptr<vector<
     
     assert (current_projection_column->size() == backward_probabilities->size());
     for (unsigned int i = 0; i < backward_probabilities->size(); i++) {
-        vector<unsigned int> ref = current_indexer->index_to_reference_allele(i, 0);
+        vector<unsigned int> ref;
+        ref.resize(2);
+        unsigned int r_index = (unsigned int)(i%(int)pow(n_references,2));
+        for (int j = 0; j < 2; j++) {
+            ref[1-j] = r_index%n_references;
+            r_index = r_index / n_references;
+        }
         vector<unsigned int> alleles;
         alleles.push_back(allele_references->at(column_index).at(ref.at(0)));
         alleles.push_back(allele_references->at(column_index).at(ref.at(1)));
