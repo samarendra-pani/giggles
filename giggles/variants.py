@@ -210,11 +210,8 @@ class AlignmentReader:
         min_prob = 0
         min_allele = None
         for index, allele in enumerate([ref]+alts):
-            print("1")
             cg = aligner(query, allele).cigartuples
-            print("2")
             prob.append(AlignmentReader.calculate_emission_log_probability(cg, emission_parameters))
-            print("3")
             if prob[index] < min_prob:
                 min_prob = prob[index]
                 min_allele = index
