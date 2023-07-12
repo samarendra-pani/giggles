@@ -108,10 +108,13 @@ def run_genotype(
     recombrate=1.26,
     gt_qual_threshold=0,
     overhang=10,
-    affine_gap=False,
     gap_start=10,
     gap_extend=7,
     mismatch=15,
+    match_probability=0.85,
+    mismatch_probability=0.05,
+    insertion_probability=0.05,
+    deletion_probability=0.05,
     write_command_line_header=True,
     eff_pop_size = 10
 ):
@@ -141,18 +144,15 @@ def run_genotype(
                 numeric_sample_ids,
                 mapq_threshold=mapping_quality,
                 overhang=overhang,
-                affine=affine_gap,
                 gap_start=gap_start,
                 gap_extend=gap_extend,
                 default_mismatch=mismatch,
+                em_prob_params=[match_probability, mismatch_probability, insertion_probability, deletion_probability]
             )
         )
 
         haplotags = read_haplotags(haplotag_tsv)
         logger.debug("Initial Parsing of Alignments Done. PhasedInputReader object successfully created.")
-
-        if phased_input_reader._type == "GAF" and len(samples) > 1:
-            raise CommandLineError("More than one sample given. Provide only the sample whose GAF file has been given.")
 
         # vcf writer for final genotype likelihoods
         vcf_writer = stack.enter_context(GenotypeVcfWriter(command_line=command_line, in_path=variant_file, out_file=output, bam_samples = samples))
@@ -383,20 +383,30 @@ def add_arguments(parser):
         help='Consider the untagged reads (reads without a haplotag) in the genotyping. (default: False)')
     
 
-    arg = parser.add_argument_group('Genotyping parameters').add_argument
-    arg('--recombrate', metavar='RECOMBRATE', type=float, default=1.26,
-        help='Recombination rate in cM/Mb (used with --ped). If given, a constant recombination '
-        'rate is assumed (default: %(default)gcM/Mb).')
+    arg = parser.add_argument_group('Realignment parameters').add_argument
     arg('--overhang', metavar='OVERHANG', default=10, type=int,
         help='When --reference is used, extend alignment by this many bases to left and right when realigning (default: %(default)s).')
-    arg('--affine-gap', default=False, action='store_true',
-        help='When detecting alleles through re-alignment, use affine gap costs (EXPERIMENTAL).')
     arg('--gap-start', metavar='GAPSTART', default=10, type=float,
         help='gap starting penalty in case affine gap costs are used (default: %(default)s).')
     arg('--gap-extend', metavar='GAPEXTEND', default=7, type=float,
         help='gap extend penalty in case affine gap costs are used (default: %(default)s).')
     arg('--mismatch', metavar='MISMATCH', default=15, type=float,
         help='mismatch cost in case affine gap costs are used (default: %(default)s)')
+    
+    arg = parser.add_argument_group('Emission probability parameters (Parameters should add up to 1)').add_argument
+    arg('--match-probability', metavar='MATCH_PROBABILITY', default=0.85, type=float,
+        help='probability of match in alignment CIGAR (default: %(default)s)')
+    arg('--mismatch-probability', metavar='MISMATCH_PROBABILITY', default=0.05, type=float,
+        help='probability of mismatch in alignment CIGAR (default: %(default)s)')
+    arg('--insertion-probability', metavar='INSERTION_PROBABILITY', default=0.05, type=float,
+        help='probability of insertion in alignment CIGAR (default: %(default)s)')
+    arg('--deletion-probability', metavar='DELETION_PROBABILITY', default=0.05, type=float,
+        help='probability of deletion in alignment CIGAR (default: %(default)s)')
+    
+    arg = parser.add_argument_group('HMM parameters').add_argument
+    arg('--recombrate', metavar='RECOMBRATE', type=float, default=1.26,
+        help='Recombination rate in cM/Mb (used with --ped). If given, a constant recombination '
+        'rate is assumed (default: %(default)gcM/Mb).')
     arg('--eff-pop-size', metavar='EFFPOPSIZE', default = 10, type = int,
         help="Parameter for transition probability computing (default: %(default)s)")
 # fmt: on
@@ -407,10 +417,12 @@ def validate(args, parser):
         parser.error("No BAM or GAF files found.")
     if args.gt_qual_threshold < 0:
         parser.error("Genotype quality threshold (gt-qual-threshold) must be at least 0.")
-    if args.affine_gap and not args.reference:
-        parser.error("Option --affine-gap can only be used together with --reference.")
+    if not args.reference_fasta and not args.rgfa:
+        parser.error("No reference found. Please rGFA with GAF files or FASTA with BAM files.")
     if not args.samples:
         parser.error("The sample name has to be provided. Please enter sample name with --sample.")
+    if args.match_probability < 0 or args.mismatch_probability < 0 or args.insertion_probability < 0 or args.deletion_probability < 0:
+        parser.error("Emission probability parameters cannot be negative.")
     
 
 def main(args):

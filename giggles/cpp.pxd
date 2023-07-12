@@ -17,7 +17,7 @@ cdef extern from "../src/read.h":
 		Read(Read) except +
 		string toString() except +
 		void addHaplotag(string, int) except +
-		void addVariant(int, int, vector[unsigned int], int) except +
+		void addVariant(int, int, vector[double], int) except +
 		string getName() except +
 		vector[int] getMapqs() except +
 		void addMapq(int) except +
@@ -34,7 +34,7 @@ cdef extern from "../src/read.h":
 		string getBXTag() except +
 		bool hasBXTag() except +
 		vector[long double] getEmissionProbability(int) except +
-		void setEmissionProbability(int, vector[unsigned int]) except +
+		void setEmissionProbability(int, vector[double]) except +
 		int getQuality(int) except +
 		void setQuality(int, int) except +
 

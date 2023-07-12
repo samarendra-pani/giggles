@@ -26,9 +26,12 @@ class CommandLineError(Exception):
     """An anticipated command-line error occurred. This ends up as a user-visible error message"""
 
 
-def open_readset_reader(*args, **kwargs):
+def alignment_reader(type, paths, reference, read_fasta, numeric_sample_ids, **kwargs):
     try:
-        readset_reader = ReadSetReader(*args, **kwargs)
+        if type == "BAM":
+            readset_reader = ReadSetReader(paths, reference, numeric_sample_ids, **kwargs)
+        elif type == "GAF":
+            readset_reader = GAFReader(paths, reference, read_fasta, numeric_sample_ids, **kwargs)
     except OSError as e:
         raise CommandLineError(e)
     except AlignmentFileNotIndexedError as e:
@@ -44,23 +47,6 @@ def open_readset_reader(*args, **kwargs):
         )
     return readset_reader
 
-def open_gaf_reader(*args, **kwargs):
-    try:
-        readset_reader = GAFReader(*args, **kwargs)
-    except OSError as e:
-        raise CommandLineError(e)
-    except AlignmentFileNotIndexedError as e:
-        raise CommandLineError(
-            "The file '{}' is not indexed. Please create the appropriate BAM/CRAM "
-            'index with "samtools index"'.format(e.args[0])
-        )
-    except EmptyAlignmentFileError as e:
-        raise CommandLineError(
-            "No reads could be retrieved from '{}'. If this is a CRAM file, possibly the "
-            "reference could not be found. Try to use --reference=... or check your "
-            "$REF_PATH/$REF_CACHE settings".format(e.args[0])
-        )
-    return readset_reader
 
 class PhasedInputReader:
     def __init__(
@@ -77,16 +63,15 @@ class PhasedInputReader:
             raise CommandLineError("Unable to process both BAM and GAF files together. Please provide one.")
         if self._bam_paths:
             self._type="BAM"
+            reference = reference_fasta
         else:
             self._type="GAF"
+            reference = gfa
         logger.info("Detected %s file given as input..." %(self._type))
         self._numeric_sample_ids = numeric_sample_ids
         self._fasta = self._open_reference(reference_fasta) if reference_fasta else None
 
-        if self._type == "BAM":
-            self._readset_reader = open_readset_reader(self._bam_paths, reference_fasta, numeric_sample_ids, **kwargs)
-        else:
-            self._readset_reader = open_gaf_reader(self._gaf_paths, gfa, read_fasta, numeric_sample_ids, **kwargs)
+        self._readset_reader = alignment_reader(self._type, bam_or_gaf_paths, reference, read_fasta, numeric_sample_ids, **kwargs)
     
     def __enter__(self):
         return self
@@ -135,7 +120,7 @@ class PhasedInputReader:
             )
         return indexed_fasta
 
-    def read(self, chromosome, variants, sample, haplotags, keep_untagged, *, regions=None):
+    def read(self, chromosome, variants, sample, haplotags, keep_untagged):
         """
         Return a pair (readset, vcf_source_ids) where readset is a sorted ReadSet.
 
@@ -159,7 +144,7 @@ class PhasedInputReader:
         
         bam_sample = sample
         try:
-            readset = readset_reader.read(chromosome, variants, bam_sample, reference, regions)
+            readset = readset_reader.read(chromosome, variants, bam_sample, reference)
         except SampleNotFoundError:
             logger.warning("Sample %r not found in any BAM/CRAM file.", bam_sample)
             readset = ReadSet()

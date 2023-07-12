@@ -72,10 +72,9 @@ else:
     install_requires = [
         "pysam>=0.18.0",
         "pyfaidx>=0.5.5.2",
-        "networkx",
         "biopython>=1.73",  # pyfaidx needs this for reading bgzipped FASTA files
-        "scipy",
         "xopen>=1.2.0",
+        "pywfa"
     ]
 
 setup(

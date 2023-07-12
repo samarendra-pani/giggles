@@ -195,7 +195,7 @@ cdef class Read:
 
 	def add_variant(self, int position, int allele, em, int quality):
 		assert self.thisptr != NULL
-		cdef vector[unsigned int] emProb
+		cdef vector[double] emProb
 		emProb.resize(len(em))
 		for i in range(len(em)):
 			emProb[i] = em[i]

@@ -17,7 +17,7 @@ public:
     int getPhaseSet() const;
 	bool hasHaplotag() const;
 	bool hasPhaseSet() const;
-	void addVariant(int position, int allele, std::vector<unsigned int> em, int quality);
+	void addVariant(int position, int allele, std::vector<double> em, int quality);
 	void sortVariants();
 	/** Returns the position of the first variant. **/
 	int firstPosition() const;
@@ -32,7 +32,7 @@ public:
 	int getAllele(size_t variant_idx) const;
 	void setAllele(size_t variant_idx, int allele);
 	std::vector<long double> getEmissionProbability(size_t variant_idx) const;
-	void setEmissionProbability(size_t variant_idx, std::vector<unsigned int> emission);
+	void setEmissionProbability(size_t variant_idx, std::vector<double> emission);
 	int getQuality(size_t variant_idx) const;
 	void setQuality(size_t variant_idx, int quality);
 	const Entry* getEntry(size_t variant_idx) const;
@@ -52,7 +52,7 @@ private:
 	typedef struct enriched_entry_t {
 		Entry entry;
 		int position;
-		enriched_entry_t(int position, int allele, std::vector<unsigned int> em, int quality) :
+		enriched_entry_t(int position, int allele, std::vector<double> em, int quality) :
 			entry(0,allele,em,quality), position(position) {}
 	} enriched_entry_t;
 	

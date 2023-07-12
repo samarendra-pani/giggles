@@ -56,7 +56,7 @@ bool Read::hasPhaseSet() const {
 	return ps != -1;
 }
 
-void Read::addVariant(int position, int allele, vector<unsigned int> em, int quality) {
+void Read::addVariant(int position, int allele, vector<double> em, int quality) {
 	variants.push_back(enriched_entry_t(position, allele, em, quality));
 }
 
@@ -136,7 +136,7 @@ std::vector<long double> Read::getEmissionProbability(size_t variant_idx) const 
 }
 
 
-void Read::setEmissionProbability(size_t variant_idx, std::vector<unsigned int> emission) {
+void Read::setEmissionProbability(size_t variant_idx, std::vector<double> emission) {
 	assert(variant_idx < variants.size());
 	variants[variant_idx].entry.set_emission_score(emission);
 }
