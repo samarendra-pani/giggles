@@ -108,9 +108,9 @@ def run_genotype(
     recombrate=1.26,
     gt_qual_threshold=0,
     overhang=10,
-    gap_start=10,
-    gap_extend=7,
-    mismatch=15,
+    gap_start=6,
+    gap_extend=2,
+    mismatch=4,
     match_probability=0.85,
     mismatch_probability=0.05,
     insertion_probability=0.05,
@@ -386,11 +386,11 @@ def add_arguments(parser):
     arg = parser.add_argument_group('Realignment parameters').add_argument
     arg('--overhang', metavar='OVERHANG', default=10, type=int,
         help='When --reference is used, extend alignment by this many bases to left and right when realigning (default: %(default)s).')
-    arg('--gap-start', metavar='GAPSTART', default=10, type=float,
+    arg('--gap-start', metavar='GAPSTART', default=6, type=float,
         help='gap starting penalty in case affine gap costs are used (default: %(default)s).')
-    arg('--gap-extend', metavar='GAPEXTEND', default=7, type=float,
+    arg('--gap-extend', metavar='GAPEXTEND', default=2, type=float,
         help='gap extend penalty in case affine gap costs are used (default: %(default)s).')
-    arg('--mismatch', metavar='MISMATCH', default=15, type=float,
+    arg('--mismatch', metavar='MISMATCH', default=4, type=float,
         help='mismatch cost in case affine gap costs are used (default: %(default)s)')
     
     arg = parser.add_argument_group('Emission probability parameters (Parameters should add up to 1)').add_argument

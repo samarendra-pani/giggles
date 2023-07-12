@@ -43,8 +43,7 @@ class AlignmentReader:
         self._numeric_sample_ids = numeric_sample_ids
         self._aligner = WavefrontAligner(mismatch=default_mismatch, 
                                          gap_opening=gap_start,
-                                         gap_extension=gap_extend,
-                                         span="end-to-end")
+                                         gap_extension=gap_extend)
         self._gap_start = gap_start
         self._gap_extend = gap_extend
         self._default_mismatch = default_mismatch
@@ -179,8 +178,14 @@ class AlignmentReader:
         left_ref_bases, left_query_bases = AlignmentReader.cigar_prefix_length(
             left_cigar[::-1], overhang
         )
+        
+        if variant.reference_allele == "*":
+            ref_allele = ""
+        else:
+            ref_allele = variant.reference_allele
+
         right_ref_bases, right_query_bases = AlignmentReader.cigar_prefix_length(
-            right_cigar, len(variant.reference_allele) + overhang
+            right_cigar, len(ref_allele) + overhang
         )
 
         assert variant.position - left_ref_bases >= 0
@@ -193,10 +198,7 @@ class AlignmentReader:
         left_overhang = reference[variant.position - left_ref_bases : variant.position]
         right_overhang = reference[variant.position + right_ref_bases - overhang : variant.position + right_ref_bases]
         
-        if variant.reference_allele != "*":
-            ref = left_overhang + variant.reference_allele + right_overhang
-        else:
-            ref = left_overhang + right_overhang
+        ref = left_overhang + ref_allele + right_overhang
         
         alts = []
         for alt_allele in variant.alternative_allele:
@@ -308,9 +310,9 @@ class GAFReader(AlignmentReader):
         numeric_sample_ids: NumericSampleIds,
         mapq_threshold: int = 20,
         overhang: int = 10,
-        gap_start: int = 10,
-        gap_extend: int = 7,
-        default_mismatch: int = 15,
+        gap_start: int = 6,
+        gap_extend: int = 2,
+        default_mismatch: int = 4,
         em_prob_params: List[float] = [0.85, 0.05, 0.05, 0.05]
     ):
         super().__init__(paths, numeric_sample_ids, mapq_threshold, overhang, gap_start, gap_extend, default_mismatch, em_prob_params)
@@ -565,9 +567,9 @@ class ReadSetReader(AlignmentReader):
         numeric_sample_ids: NumericSampleIds,
         mapq_threshold: int = 20,
         overhang: int = 10,
-        gap_start: int = 10,
-        gap_extend: int = 7,
-        default_mismatch: int = 15,
+        gap_start: int = 6,
+        gap_extend: int = 2,
+        default_mismatch: int = 4,
         em_prob_params: List[float] = [0.85, 0.05, 0.05, 0.05]
     ):
         """
