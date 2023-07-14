@@ -32,6 +32,7 @@ class AlignmentReader:
             paths,
             numeric_sample_ids: NumericSampleIds,
             mapq_threshold: int,
+            realign_mode: str,
             overhang: int,
             gap_start: int,
             gap_extend: int,
@@ -41,9 +42,18 @@ class AlignmentReader:
         self._paths = paths
         self._mapq_threshold = mapq_threshold
         self._numeric_sample_ids = numeric_sample_ids
-        self._aligner = WavefrontAligner(mismatch=default_mismatch, 
+        self._realign_mode = realign_mode
+        if realign_mode == "ed":
+            self._aligner = edit_distance
+        elif realign_mode == "wfa_full":
+            self._aligner = WavefrontAligner(mismatch=default_mismatch, 
                                          gap_opening=gap_start,
                                          gap_extension=gap_extend)
+        elif realign_mode == "wfa_score":
+            self._aligner = WavefrontAligner(mismatch=default_mismatch, 
+                                         gap_opening=gap_start,
+                                         gap_extension=gap_extend,
+                                         scope='score')
         self._gap_start = gap_start
         self._gap_extend = gap_extend
         self._default_mismatch = default_mismatch
@@ -146,6 +156,7 @@ class AlignmentReader:
             consumed,
             query_pos,
             reference,
+            mode,
             overhang,
             emission_parameters):
         """
@@ -212,8 +223,12 @@ class AlignmentReader:
         min_prob = 0
         min_allele = None
         for index, allele in enumerate([ref]+alts):
-            cg = aligner(query, allele).cigartuples
-            prob.append(AlignmentReader.calculate_emission_log_probability(cg, emission_parameters))
+            if mode == "ed":
+                prob.append(-aligner(query, allele))    #edit distance is positive. Need to change to negative.
+            elif mode == "wfa_score":
+                prob.append(aligner(query, allele).score)
+            elif mode == "wfa_full":
+                prob.append(AlignmentReader.calculate_emission_log_probability(aligner(query, allele).cigartuples, emission_parameters))
             if prob[index] < min_prob:
                 min_prob = prob[index]
                 min_allele = index
@@ -260,6 +275,7 @@ class AlignmentReader:
         j,
         read,
         reference,
+        mode,
         overhang=10,
         emission_parameters=None
     ):
@@ -289,6 +305,7 @@ class AlignmentReader:
                 consumed,
                 query_pos,
                 reference,
+                mode,
                 overhang,
                 emission_parameters
             )
@@ -309,13 +326,14 @@ class GAFReader(AlignmentReader):
         read_fasta: str,
         numeric_sample_ids: NumericSampleIds,
         mapq_threshold: int = 20,
+        realign_mode: str = "ed",
         overhang: int = 10,
-        gap_start: int = 6,
-        gap_extend: int = 2,
-        default_mismatch: int = 4,
+        gap_start: int = 3,
+        gap_extend: int = 1,
+        default_mismatch: int = 2,
         em_prob_params: List[float] = [0.85, 0.05, 0.05, 0.05]
     ):
-        super().__init__(paths, numeric_sample_ids, mapq_threshold, overhang, gap_start, gap_extend, default_mismatch, em_prob_params)
+        super().__init__(paths, numeric_sample_ids, mapq_threshold, realign_mode, overhang, gap_start, gap_extend, default_mismatch, em_prob_params)
         self._reader: GafParser
         if len(paths) == 1:
             self._reader = SampleGafParser(paths[0], reference=reference, read_fasta=read_fasta, mapq=self._mapq_threshold)
@@ -532,6 +550,7 @@ class GAFReader(AlignmentReader):
                 0,                              # Here this has been hardcoded to 0. In original code, this was the index of the first variant (index in the big list of variants) in the read. But now we have new list of variants just for this alignment.
                 processed_alignment,
                 reference,
+                self._realign_mode,
                 self._overhang,
                 self._em_params)
         
@@ -566,10 +585,11 @@ class ReadSetReader(AlignmentReader):
         reference: Optional[str],
         numeric_sample_ids: NumericSampleIds,
         mapq_threshold: int = 20,
+        realign_mode: str = "ed",
         overhang: int = 10,
-        gap_start: int = 6,
-        gap_extend: int = 2,
-        default_mismatch: int = 4,
+        gap_start: int = 3,
+        gap_extend: int = 1,
+        default_mismatch: int = 2,
         em_prob_params: List[float] = [0.85, 0.05, 0.05, 0.05]
     ):
         """
@@ -580,7 +600,7 @@ class ReadSetReader(AlignmentReader):
         overhang -- extend alignment by this many bases to left and right
         gap_start, gap_extend, default_mismatch -- parameters for affine gap cost alignment
         """
-        super().__init__(paths, numeric_sample_ids, mapq_threshold, overhang, gap_start, gap_extend, default_mismatch, em_prob_params)
+        super().__init__(paths, numeric_sample_ids, mapq_threshold, realign_mode, overhang, gap_start, gap_extend, default_mismatch, em_prob_params)
         self._reader: BamReader
         if len(paths) == 1:
             self._reader = SampleBamReader(paths[0], reference=reference)
@@ -713,6 +733,7 @@ class ReadSetReader(AlignmentReader):
                 i,
                 alignment.bam_alignment,
                 reference,
+                self._realign_mode,
                 self._overhang,
                 self._em_params
             )

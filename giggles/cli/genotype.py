@@ -107,10 +107,11 @@ def run_genotype(
     max_coverage=15,
     recombrate=1.26,
     gt_qual_threshold=0,
+    realign_mode="ed",
     overhang=10,
-    gap_start=6,
-    gap_extend=2,
-    mismatch=4,
+    gap_start=3,
+    gap_extend=1,
+    mismatch=2,
     match_probability=0.85,
     mismatch_probability=0.05,
     insertion_probability=0.05,
@@ -143,6 +144,7 @@ def run_genotype(
                 read_fasta,
                 numeric_sample_ids,
                 mapq_threshold=mapping_quality,
+                realign_mode=realign_mode,
                 overhang=overhang,
                 gap_start=gap_start,
                 gap_extend=gap_extend,
@@ -384,16 +386,19 @@ def add_arguments(parser):
     
 
     arg = parser.add_argument_group('Realignment parameters').add_argument
+    arg('--realign-mode', metavar='MODE', default="ed",
+        help='Select method which will be used to calculate realignment scores. Available methods are: "wfa_full", "wfa_score", and "ed". (default: %(default)s).'
+        ' WARNING: "wfa_full" might require a lot of memory if vcf contains large alleles.')
     arg('--overhang', metavar='OVERHANG', default=10, type=int,
         help='When --reference is used, extend alignment by this many bases to left and right when realigning (default: %(default)s).')
-    arg('--gap-start', metavar='GAPSTART', default=6, type=float,
-        help='gap starting penalty in case affine gap costs are used (default: %(default)s).')
-    arg('--gap-extend', metavar='GAPEXTEND', default=2, type=float,
-        help='gap extend penalty in case affine gap costs are used (default: %(default)s).')
-    arg('--mismatch', metavar='MISMATCH', default=4, type=float,
-        help='mismatch cost in case affine gap costs are used (default: %(default)s)')
+    arg('--gap-start', metavar='GAPSTART', default=3, type=float,
+        help='gap starting penalty in case wfa is used (default: %(default)s).')
+    arg('--gap-extend', metavar='GAPEXTEND', default=1, type=float,
+        help='gap extend penalty in case wfa is used (default: %(default)s).')
+    arg('--mismatch', metavar='MISMATCH', default=2, type=float,
+        help='mismatch cost in case wfa is used (default: %(default)s)')
     
-    arg = parser.add_argument_group('Emission probability parameters (Parameters should add up to 1)').add_argument
+    arg = parser.add_argument_group('Emission probability parameters (Parameters should add up to 1). These are used when mode is "wfa_full"').add_argument
     arg('--match-probability', metavar='MATCH_PROBABILITY', default=0.85, type=float,
         help='probability of match in alignment CIGAR (default: %(default)s)')
     arg('--mismatch-probability', metavar='MISMATCH_PROBABILITY', default=0.05, type=float,
@@ -423,6 +428,8 @@ def validate(args, parser):
         parser.error("The sample name has to be provided. Please enter sample name with --sample.")
     if args.match_probability < 0 or args.mismatch_probability < 0 or args.insertion_probability < 0 or args.deletion_probability < 0:
         parser.error("Emission probability parameters cannot be negative.")
+    if args.realign_mode not in ["wfa_full", "wfa_score", "ed"]:
+        parser.error("Unknown realignment mode detected.")
     
 
 def main(args):
