@@ -315,10 +315,8 @@ def run_genotype(
 
                         for pos in range(len(accessible_positions)):
                             likelihoods = forward_backward_table.get_genotype_likelihoods(s, pos, accessible_positions_n_allele[pos])
-                            #print(likelihoods)
                             # compute genotypes from likelihoods and store information
                             geno = determine_genotype(likelihoods, gt_prob, accessible_positions_n_allele[pos])
-                            #print(geno)
                             assert isinstance(geno, Genotype)
                             genotypes_list[var_pos_to_ind[accessible_positions[pos]]] = geno
                             likelihood_list[var_pos_to_ind[accessible_positions[pos]]] = likelihoods
