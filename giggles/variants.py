@@ -11,7 +11,7 @@ from pywfa import WavefrontAligner
 from giggles.core import Read, ReadSet, NumericSampleIds
 from giggles.bam import SampleBamReader, MultiBamReader, BamReader
 from giggles.gaf import GafParser, SampleGafParser
-from giggles.align import edit_distance, edit_distance_affine_gap
+from giggles.align import edit_distance
 from giggles._variants import _iterate_cigar
 
 logger = logging.getLogger(__name__)
@@ -220,22 +220,26 @@ class AlignmentReader:
             alts.append(alt)
         
         prob = []
-        min_prob = 0
-        min_allele = None
+        max_prob = -1e15
+        max_allele = None
         for index, allele in enumerate([ref]+alts):
-            if mode == "ed":
-                prob.append(-aligner(query, allele))    #edit distance is positive. Need to change to negative.
-            elif mode == "wfa_score":
-                prob.append(aligner(query, allele).score)
-            elif mode == "wfa_full":
-                prob.append(AlignmentReader.calculate_emission_log_probability(aligner(query, allele).cigartuples, emission_parameters))
-            if prob[index] < min_prob:
-                min_prob = prob[index]
-                min_allele = index
+            if (abs(len(query) - len(allele)) > 5000 ) and (len(query)/len(allele) > 1.5 or len(query)/len(allele) < 1/1.5):
+                # If the distance between the allele and query is too much, add a known low value
+                prob.append(-1e10)
+            else:
+                if mode == "ed":
+                    prob.append(-aligner(query, allele))    #edit distance is positive. Need to change to negative.
+                elif mode == "wfa_score":
+                    prob.append(aligner(query, allele).score)
+                elif mode == "wfa_full":
+                    prob.append(AlignmentReader.calculate_emission_log_probability(aligner(query, allele).cigartuples, emission_parameters))
+            if prob[index] > max_prob:
+                max_prob = prob[index]
+                max_allele = index
         
         base_qual_score = 30
         
-        return min_allele, prob, base_qual_score
+        return max_allele, prob, base_qual_score
         
     @staticmethod
     def calculate_emission_log_probability(cg, params):
