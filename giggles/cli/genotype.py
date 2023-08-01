@@ -202,7 +202,6 @@ def run_genotype(
                 n_allele_position[v.position_on_ref] = len(v.alternative_allele)+1      ##Contains the number of alleles at every variant position
                 allele_references[v.position_on_ref] = v.allele_origin
                 ids[v.position_on_ref] = v.id            
-            print("Not found")
             #Prior genotyping with equal probabilities
             for sample in samples:
                 variant_table.query_set_genotype_likelihoods_of(
@@ -256,7 +255,6 @@ def run_genotype(
                 accessible_positions_allele_references = []
                 for index, position in enumerate(accessible_positions):
                     accessible_positions_n_allele.append(n_allele_position[position])
-                    print(index, position)
                     allele_reference_to_list = []
                     for ref_sample in allele_references[position]:
                         for hap in ref_sample:
@@ -270,9 +268,7 @@ def run_genotype(
                     "read in at least one individual after read selection: %d",
                     len(accessible_positions),
                 )
-                print("\n")
-                exit()
-
+                
                 # Create Pedigree
                 pedigree = Pedigree(numeric_sample_ids)
                 for sample in family:
