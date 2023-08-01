@@ -416,6 +416,11 @@ void GenotypeHMM::compute_forward_column(size_t column_index, unique_ptr<vector<
         iterator->advance(&bit_changed);
         // Update the emission probability based on the bipartition defined by the iterator
         update_emission_probability(&emission_probability_computer, bit_changed, *iterator, *current_input_column);
+        /* if (column_index == 33) cout << emission_probability_computer << endl;
+        cout << endl;
+        if (column_index == 33) {
+            for (auto e: *current_input_column) cout << *e << endl;
+        } */
         // Determine the indices that are compatible with with the bipartition at position column_index
         b_index = iterator->get_b_index();
         // Calculating the current_projection_column
@@ -524,11 +529,20 @@ void GenotypeHMM::compute_forward_column(size_t column_index, unique_ptr<vector<
         current_projection_column->at(i) = current_projection_column->at(i) / scaling_parameters[column_index];
         sum += current_projection_column->at(i);
         forward_backward = current_projection_column->at(i) * backward_probabilities->at(i);
+        // if (column_index == 33) cout << "Forward: " << current_projection_column->at(i) << "\tBackward: " << backward_probabilities->at(i) << "\tG Index: " << g_index << endl;
         normalization += forward_backward;
         
         // HARDCODED FOR A PEDIGREE SIZE OF 1.
         genotype_likelihood_table.at(0, column_index).likelihoods[g_index] += forward_backward;
     }
+    /* if (column_index == 33) {
+        cout << endl;
+        for (auto g: genotype_likelihood_table.at(0, column_index).likelihoods) {
+            cout << g << "\t";
+        }
+        cout << endl;
+        exit(0);
+    } */
     std::transform((*current_projection_column).begin(), (*current_projection_column).end(), (*current_projection_column).begin(), std::bind2nd(std::divides<long double>(), sum));
     // store the computed projection column (in case there is one)
     if(current_projection_column != 0){

@@ -49,38 +49,16 @@ void Entry::set_emission_score(std::vector<double> e) {
 	emission_score.resize(e.size());
 	int i = 0;
 	double normalization = 0.0L;
-	/* for (auto it = e.begin(); it != e.end(); it++, i++) {
-		emission_score[i] = 1e-10L;
+	for (auto it = e.begin(); it != e.end(); it++, i++) {
+		emission_score[i] = 1e-100L;
 		long double score = 0.0L;
 		for (auto it2 = e.begin(); it2 != e.end(); it2++) {
 			score += exp(*it2 - *it);
 		}
 		emission_score[i] += 1/score;
 		normalization += emission_score[i];
-	} */
-	for (auto it = e.begin(); it != e.end(); it++, i++) {
-		emission_score[i] = 1e-10L;
-		emission_score[i] += 1/(-(*it)+1);
-		normalization += emission_score[i];
 	}
-	/* cout << "Normalization: " << normalization << endl;;
-	for (auto it: emission_score){
-		cout << it << ' ';
-	}
-	cout << endl; */
 	transform((emission_score).begin(), (emission_score).end(), (emission_score).begin(), std::bind2nd(std::divides<long double>(), normalization));
-	/* for (auto it: e){
-		cout << it << ' ';
-	}
-	cout << endl;
-	for (auto it: emission_score){
-		cout << it << ' ';
-	}
-	cout << endl;
-	cout << endl;
-	auto max = *max_element(emission_score.begin(), emission_score.end());
-	cout << max << endl;
-	if (max != emission_score[0]) exit(0); */
 }
 		
 

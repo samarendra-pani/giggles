@@ -150,7 +150,7 @@ class AlignmentReader:
     def realign(
             aligner: WavefrontAligner,
             variant,
-            bam_read,
+            read,
             cigartuples,
             i,
             consumed,
@@ -195,14 +195,16 @@ class AlignmentReader:
         else:
             ref_allele = variant.reference_allele
 
+        # This should not be len(ref_allele)! This should be whatever path is followed in the node path!
+        # TODO: Make it BAM Compatible
         right_ref_bases, right_query_bases = AlignmentReader.cigar_prefix_length(
-            right_cigar, len(ref_allele) + overhang
+            right_cigar, variant.length_on_path + overhang
         )
 
         assert variant.position - left_ref_bases >= 0
         assert variant.position + right_ref_bases <= len(reference)
 
-        query = bam_read.query_sequence[
+        query = read.query_sequence[
             query_pos - left_query_bases : query_pos + right_query_bases
         ]
         
@@ -238,7 +240,7 @@ class AlignmentReader:
                 max_allele = index
         
         base_qual_score = 30
-        
+
         return max_allele, prob, base_qual_score
         
     @staticmethod
@@ -434,12 +436,14 @@ class GAFReader(AlignmentReader):
         """
         numeric_sample_id = 0 if sample is None else self._numeric_sample_ids[sample]
         rgfa = self._reader._reference
-        id_to_index = {}
+        bub_start_to_end = {}
+        bub_end_to_start = {}
         for i, v in enumerate(variants):
             id = v.id.split('>')
             start = id[1]
             end = id[-1]
-            id_to_index[start] = [end, i] # Creating a look up table to find bubble end and index of variant from bubble start
+            bub_start_to_end[start] = [end, i] # Creating a look up table to find bubble end and index of variant from bubble start
+            bub_end_to_start[end] = [start, i] # Creating a look up table to find bubble start and index of variant from bubble end
         
         cg_letter_to_op = {'M': 0, 'I': 1, 'D': 2, 'N': 3, 'S': 4, 'H': 5, 'P': 6, 'X': 7, '=': 8}
         Alignment = namedtuple('Alignment', ['cigartuples', 'reference_start', 'query_sequence'])        # Class created to maintain compatibility with old code
@@ -485,8 +489,9 @@ class GAFReader(AlignmentReader):
             # Also output the reference sequence (which the sequence of the path)
             reference = ""
             variants_in_alignment = []
-            end_found = False
-            end = None
+            start_reading = False
+            trim = False
+            len_on_path = 0     # This keeps track of the length of the allele in the alignment path for different bubbles
             for n in alignment.path:
                 if n in ['>', '<']:
                     orient = n
@@ -497,26 +502,29 @@ class GAFReader(AlignmentReader):
                     reference += GAFReader.reverse_complement(node.sequence)
                 else:
                     reference += node.sequence
+                
                 # Finding variants and variant positions
                 
-                if node.tags['NO'] == 0:
-                    try:
-                        index = id_to_index[n][1]
-                        if end != None:
-                            end_found = end == n
-                        end = id_to_index[n][0]
-                    except KeyError:
-                        continue
-                    v = variants[index]
-                    v.position = len(reference)
-                    variants_in_alignment.append(v)
-            
-            if (len(variants_in_alignment) == 0) or (len(variants_in_alignment) == 1 and not end_found):
-                continue
+                if not start_reading and (node.tags['NO'] == 0 and n in bub_start_to_end.keys()):
+                    start_reading = True
+                
+                if start_reading:
+                    if node.tags['NO'] == 0 and n in bub_end_to_start.keys():
+                        if len(variants_in_alignment) > 0:
+                            variants_in_alignment[-1].length_on_path = len_on_path
+                        len_on_path = 0
+                        trim = False
+                    if node.tags['NO'] == 0 and n in bub_start_to_end.keys():
+                        index = bub_start_to_end[n][1]
+                        v = variants[index]
+                        v.position = len(reference)
+                        variants_in_alignment.append(v)
+                        trim = True
+                    if node.tags['NO'] != 0:
+                        len_on_path += len(node.sequence)
 
-            if not end_found:
+            if trim:
                 variants_in_alignment.pop(-1)
-
 
             # Extract the aligned segement from the complete read sequence and create a new object.
             # Need cigartuples, and reference_start (where it starts in the reference. So the path start in this case.)
