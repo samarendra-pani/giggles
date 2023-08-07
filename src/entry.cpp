@@ -58,6 +58,12 @@ void Entry::set_emission_score(std::vector<double> e) {
 		emission_score[i] += 1/score;
 		normalization += emission_score[i];
 	}
+	/* for (auto it = e.begin(); it != e.end(); it++, i++) {
+		emission_score[i] = 1e-100L;
+		long double score = (-(*it)+1);
+		emission_score[i] += 1/score;
+		normalization += emission_score[i];
+	} */
 	transform((emission_score).begin(), (emission_score).end(), (emission_score).begin(), std::bind2nd(std::divides<long double>(), normalization));
 }
 		
