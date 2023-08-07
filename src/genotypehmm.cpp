@@ -529,19 +529,19 @@ void GenotypeHMM::compute_forward_column(size_t column_index, unique_ptr<vector<
         current_projection_column->at(i) = current_projection_column->at(i) / scaling_parameters[column_index];
         sum += current_projection_column->at(i);
         forward_backward = current_projection_column->at(i) * backward_probabilities->at(i);
-        // if (column_index == 33) cout << "Forward: " << current_projection_column->at(i) << "\tBackward: " << backward_probabilities->at(i) << "\tG Index: " << g_index << endl;
+        // if (column_index == 2047) cout << "Forward: " << current_projection_column->at(i) << "\tBackward: " << backward_probabilities->at(i) << "\tG Index: " << g_index << endl;
         normalization += forward_backward;
         
         // HARDCODED FOR A PEDIGREE SIZE OF 1.
         genotype_likelihood_table.at(0, column_index).likelihoods[g_index] += forward_backward;
     }
-    /* if (column_index == 33) {
+    /* if (column_index == 2047) {
         cout << endl;
+        cout << "Likelihoods: ";
         for (auto g: genotype_likelihood_table.at(0, column_index).likelihoods) {
             cout << g << "\t";
         }
         cout << endl;
-        exit(0);
     } */
     std::transform((*current_projection_column).begin(), (*current_projection_column).end(), (*current_projection_column).begin(), std::bind2nd(std::divides<long double>(), sum));
     // store the computed projection column (in case there is one)
@@ -564,7 +564,11 @@ vector<long double> GenotypeHMM::get_genotype_likelihoods(unsigned int individua
 {
     assert(pedigree->id_to_index(individual_id) < genotype_likelihood_table.get_size0());
     assert(position < input_column_iterator.get_column_count());
-
+    /* cout << "Normalized Likelihoods: ";
+        for (auto g: genotype_likelihood_table.at(0, position).likelihoods) {
+            cout << g << "\t";
+        }
+        cout << endl; */
     return genotype_likelihood_table.at(pedigree->id_to_index(individual_id),position).likelihoods;
 
 }
