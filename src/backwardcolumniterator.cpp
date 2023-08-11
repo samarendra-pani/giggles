@@ -38,8 +38,8 @@ BackwardColumnIterator::BackwardColumnIterator(const ReadSet& set, const std::ve
 		auto last_column_it = position_map.find(read->lastPosition());
 		assert(first_column_it != position_map.end());
 		assert(last_column_it != position_map.end());
-		assert(first_column_it->second < last_column_it->second);
-		assert(last_column_it->second < this->positions->size());
+		assert(first_column_it->second <= last_column_it->second);
+		assert(last_column_it->second <= this->positions->size());
 		for (size_t j=first_column_it->second; j<=last_column_it->second; ++j) {
 			if (first_reads[j] == numeric_limits<size_t>::max()) {
 				first_reads[j] = i;

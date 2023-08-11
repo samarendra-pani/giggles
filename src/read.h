@@ -9,7 +9,7 @@
 
 class Read {
 public:
-	Read(const std::string& name, int mapq, int source_id, int sample_id, int reference_start = -1, const std::string& BX_tag = "");
+	Read(const std::string& name, int mapq, int source_id, int sample_id, int reference_start = -1, const std::string& BX_tag = "", int reg_const = 10, double base_const = 2.718);
 	virtual ~Read() {}
 	std::string toString();
 	void addHaplotag(std::string hp, int ps);
@@ -44,6 +44,8 @@ public:
 	int getSampleID() const;
 	int getReferenceStart() const;
 	const std::string& getBXTag() const;
+	int getRegConst() const;
+	double getBaseConst() const;
 	bool isSorted() const;
 	bool hasBXTag() const;
 	
@@ -52,8 +54,8 @@ private:
 	typedef struct enriched_entry_t {
 		Entry entry;
 		int position;
-		enriched_entry_t(int position, int allele, std::vector<double> em, int quality) :
-			entry(0,allele,em,quality), position(position) {}
+		enriched_entry_t(int position, int allele, std::vector<double> em, int quality, int reg_const, double base_const) :
+			entry(0,allele,em,quality, reg_const, base_const), position(position) {}
 	} enriched_entry_t;
 	
 	typedef struct entry_comparator_t {
@@ -73,6 +75,8 @@ private:
 	std::vector<enriched_entry_t> variants;
 	int hp;
 	int ps;
+	int reg_const;
+	double base_const;
 };
 
 #endif

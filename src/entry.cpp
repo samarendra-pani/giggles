@@ -5,11 +5,11 @@ using namespace std;
 
 #include "entry.h"
 
-Entry::Entry(unsigned int r, int m, std::vector<double> e, int q) {
+Entry::Entry(unsigned int r, int m, std::vector<double> e, int q, int reg_const, double base_const) {
 	read_id = r;
 	allele = m;
-	set_emission_score(e);
-	quality = q;
+	set_emission_score(e, reg_const, base_const);
+	quality = q; 
 }
 
 Entry::Entry(unsigned int r, int m) {
@@ -45,25 +45,19 @@ void Entry::set_allele_type(int m) {
 }
 
 
-void Entry::set_emission_score(std::vector<double> e) {
+void Entry::set_emission_score(std::vector<double> e, int reg_const, double base_const) {
 	emission_score.resize(e.size());
 	int i = 0;
 	double normalization = 0.0L;
 	for (auto it = e.begin(); it != e.end(); it++, i++) {
-		emission_score[i] = 1e-100L;
+		emission_score[i] = pow(10, -reg_const);
 		long double score = 0.0L;
 		for (auto it2 = e.begin(); it2 != e.end(); it2++) {
-			score += exp(*it2 - *it);
+			score += pow(base_const, *it2 - *it);
 		}
 		emission_score[i] += 1/score;
 		normalization += emission_score[i];
 	}
-	/* for (auto it = e.begin(); it != e.end(); it++, i++) {
-		emission_score[i] = 1e-100L;
-		long double score = (-(*it)+1);
-		emission_score[i] += 1/score;
-		normalization += emission_score[i];
-	} */
 	transform((emission_score).begin(), (emission_score).end(), (emission_score).begin(), std::bind2nd(std::divides<long double>(), normalization));
 }
 		

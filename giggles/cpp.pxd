@@ -13,7 +13,7 @@ from libcpp.unordered_map cimport unordered_map
 
 cdef extern from "../src/read.h":
 	cdef cppclass Read:
-		Read(string, int, int, int, int, string) except +
+		Read(string, int, int, int, int, string, int, double) except +
 		Read(Read) except +
 		string toString() except +
 		void addHaplotag(string, int) except +
@@ -37,6 +37,8 @@ cdef extern from "../src/read.h":
 		void setEmissionProbability(int, vector[double]) except +
 		int getQuality(int) except +
 		void setQuality(int, int) except +
+		int getRegConst() except +
+		double getBaseConst() except +
 
 cdef extern from "../src/indexset.h":
 	cdef cppclass IndexSet:

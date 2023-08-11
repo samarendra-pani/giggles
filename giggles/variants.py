@@ -37,13 +37,15 @@ class AlignmentReader:
             gap_start: int,
             gap_extend: int,
             default_mismatch: int,
-            em_prob_params: List[float]):
+            em_prob_params: List[float],
+            reg_const: int,
+            base_const: float):
 
         self._paths = paths
         self._mapq_threshold = mapq_threshold
         self._numeric_sample_ids = numeric_sample_ids
         self._realign_mode = realign_mode
-        if realign_mode == "ed":
+        if realign_mode == "edit":
             self._aligner = edit_distance
         elif realign_mode == "wfa_full":
             self._aligner = WavefrontAligner(mismatch=default_mismatch, 
@@ -59,16 +61,18 @@ class AlignmentReader:
         self._default_mismatch = default_mismatch
         self._overhang = overhang
         self._em_params = em_prob_params
+        self._reg_const = reg_const
+        self._base_const = base_const
         
     @property
     def n_paths(self):
         return len(self._paths)
 
     @staticmethod
-    def _make_readset_from_grouped_reads(groups: Iterable[List[Read]]) -> ReadSet:
+    def _make_readset_from_grouped_reads(groups: Iterable[List[Read]], reg_const: int, base_const: float) -> ReadSet:
         read_set = ReadSet()
         for group in groups:
-            read_set.add(merge_reads(*group))
+            read_set.add(merge_reads(*group, reg_const = reg_const, base_const = base_const))
         return read_set
 
     @staticmethod
@@ -229,7 +233,7 @@ class AlignmentReader:
                 # If the distance between the allele and query is too much, add a known low value
                 prob.append(-1e10)
             else:
-                if mode == "ed":
+                if mode == "edit":
                     prob.append(-aligner(query, allele))    #edit distance is positive. Need to change to negative.
                 elif mode == "wfa_score":
                     prob.append(aligner(query, allele).score)
@@ -238,7 +242,6 @@ class AlignmentReader:
             if prob[index] > max_prob:
                 max_prob = prob[index]
                 max_allele = index
-        
         base_qual_score = 30
 
         return max_allele, prob, base_qual_score
@@ -315,7 +318,7 @@ class AlignmentReader:
                 overhang,
                 emission_parameters
             )
-            
+
             if allele is not None:
                 yield (index, allele, emission, quality)
 
@@ -332,14 +335,16 @@ class GAFReader(AlignmentReader):
         read_fasta: str,
         numeric_sample_ids: NumericSampleIds,
         mapq_threshold: int = 20,
-        realign_mode: str = "ed",
+        realign_mode: str = "wfa_full",
         overhang: int = 10,
         gap_start: int = 3,
         gap_extend: int = 1,
         default_mismatch: int = 2,
-        em_prob_params: List[float] = [0.85, 0.05, 0.05, 0.05]
+        em_prob_params: List[float] = [0.85, 0.05, 0.05, 0.05],
+        reg_const = 10,
+        base_const = math.e
     ):
-        super().__init__(paths, numeric_sample_ids, mapq_threshold, realign_mode, overhang, gap_start, gap_extend, default_mismatch, em_prob_params)
+        super().__init__(paths, numeric_sample_ids, mapq_threshold, realign_mode, overhang, gap_start, gap_extend, default_mismatch, em_prob_params, reg_const, base_const)
         self._reader: GafParser
         if len(paths) == 1:
             self._reader = SampleGafParser(paths[0], reference=reference, read_fasta=read_fasta, mapq=self._mapq_threshold)
@@ -377,7 +382,7 @@ class GAFReader(AlignmentReader):
         logger.debug("Grouping Reads into ReadSet Object")
         grouped_reads = self._remove_duplicate_reads(reads)
         logger.debug("ReadSet Object Successfully Created")
-        readset = self._make_readset_from_grouped_reads(grouped_reads)
+        readset = self._make_readset_from_grouped_reads(grouped_reads, self._reg_const, self._base_const)
         return readset      
 
     @staticmethod
@@ -399,7 +404,7 @@ class GAFReader(AlignmentReader):
                 # Check the mapping quality
                 if old_read.mapqs < read.mapqs:
                     groups[(read.source_id, read.name, read.sample_id)] = [read]
-
+        
         for group in groups.values():
             if len(group) > 1:
                 raise ReadSetError(
@@ -546,7 +551,7 @@ class GAFReader(AlignmentReader):
             barcode = ""
             if alignment.has_tag("BX"):
                 barcode = alignment.get_tag("BX")
-
+            
             read = Read(
                 alignment.read_id,
                 alignment.mapping_quality,
@@ -554,8 +559,10 @@ class GAFReader(AlignmentReader):
                 numeric_sample_id,
                 start_on_ref,
                 barcode,
+                self._reg_const,
+                self._base_const
             )
-
+            
             detected = self.detect_alleles_by_alignment(
                 self._aligner,
                 variants_in_alignment,
@@ -565,7 +572,7 @@ class GAFReader(AlignmentReader):
                 self._realign_mode,
                 self._overhang,
                 self._em_params)
-        
+            
             for j, allele, em, quality in detected:
                 read.add_variant(variants_in_alignment[j].position_on_ref, allele, em, quality)
             if read:  # At least one variant covered and detected
@@ -597,12 +604,14 @@ class ReadSetReader(AlignmentReader):
         reference: Optional[str],
         numeric_sample_ids: NumericSampleIds,
         mapq_threshold: int = 20,
-        realign_mode: str = "ed",
+        realign_mode: str = "edit",
         overhang: int = 10,
         gap_start: int = 3,
         gap_extend: int = 1,
         default_mismatch: int = 2,
-        em_prob_params: List[float] = [0.85, 0.05, 0.05, 0.05]
+        em_prob_params: List[float] = [0.85, 0.05, 0.05, 0.05],
+        reg_const = 10,
+        base_const = math.e
     ):
         """
         paths -- list of BAM paths
@@ -612,7 +621,7 @@ class ReadSetReader(AlignmentReader):
         overhang -- extend alignment by this many bases to left and right
         gap_start, gap_extend, default_mismatch -- parameters for affine gap cost alignment
         """
-        super().__init__(paths, numeric_sample_ids, mapq_threshold, realign_mode, overhang, gap_start, gap_extend, default_mismatch, em_prob_params)
+        super().__init__(paths, numeric_sample_ids, mapq_threshold, realign_mode, overhang, gap_start, gap_extend, default_mismatch, em_prob_params, reg_const, base_const)
         self._reader: BamReader
         if len(paths) == 1:
             self._reader = SampleBamReader(paths[0], reference=reference)
@@ -654,7 +663,7 @@ class ReadSetReader(AlignmentReader):
         logger.debug("Grouping Reads into ReadSet Object")
         grouped_reads = self._group_paired_reads(reads)
         logger.debug("ReadSet Object Successfully Created")
-        readset = self._make_readset_from_grouped_reads(grouped_reads)
+        readset = self._make_readset_from_grouped_reads(grouped_reads, self._reg_const, self._base_const)
         return readset
 
     @staticmethod
@@ -737,6 +746,8 @@ class ReadSetReader(AlignmentReader):
                 numeric_sample_id,
                 alignment.bam_alignment.reference_start,
                 barcode,
+                self._reg_const,
+                self._base_const
             )
 
             detected = self.detect_alleles_by_alignment(
@@ -765,7 +776,7 @@ class ReadSetReader(AlignmentReader):
         self._reader.close()
 
 
-def merge_two_reads(read1: Read, read2: Read) -> Read:
+def merge_two_reads(read1: Read, read2: Read, reg_const, base_const) -> Read:
     """
     Merge two reads *that belong to the same haplotype* (such as the two
     ends of a paired-end read) into a single Read. Overlaps are allowed.
@@ -780,6 +791,8 @@ def merge_two_reads(read1: Read, read2: Read) -> Read:
             read1.sample_id,
             read1.reference_start,
             read1.BX_tag,
+            reg_const,
+            base_const
         )
         result.add_mapq(read2.mapqs[0])
     else:
@@ -829,7 +842,7 @@ def merge_two_reads(read1: Read, read2: Read) -> Read:
     return result
 
 
-def merge_reads(*reads: Read) -> Read:
+def merge_reads(*reads: Read, reg_const, base_const) -> Read:
     """
     Merge multiple reads that belong to the same haplotype into a single Read.
 
@@ -849,5 +862,5 @@ def merge_reads(*reads: Read) -> Read:
         raise ValueError("no reads to merge")
     assert read.is_sorted()
     for partner in it:
-        read = merge_two_reads(read, partner)
+        read = merge_two_reads(read, partner, reg_const, base_const)
     return read

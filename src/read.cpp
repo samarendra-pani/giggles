@@ -8,7 +8,15 @@
 
 using namespace std;
 
-Read::Read(const std::string& name, int mapq, int source_id, int sample_id, int reference_start, const std::string& BX_tag) : name(name), mapqs(1, mapq), source_id(source_id), sample_id(sample_id), reference_start(reference_start), BX_tag(BX_tag) {
+Read::Read(const std::string& name, int mapq, int source_id, int sample_id, int reference_start, const std::string& BX_tag, int reg_const, double base_const): 
+	name(name),
+	mapqs(1, mapq),
+	source_id(source_id),
+	sample_id(sample_id),
+	reference_start(reference_start),
+	BX_tag(BX_tag),
+	reg_const(reg_const),
+	base_const(base_const) {
 	this->id = -1;
 	hp = -1;
 	ps = -1;
@@ -57,7 +65,7 @@ bool Read::hasPhaseSet() const {
 }
 
 void Read::addVariant(int position, int allele, vector<double> em, int quality) {
-	variants.push_back(enriched_entry_t(position, allele, em, quality));
+	variants.push_back(enriched_entry_t(position, allele, em, quality, reg_const, base_const));
 }
 
 
@@ -138,7 +146,7 @@ std::vector<long double> Read::getEmissionProbability(size_t variant_idx) const 
 
 void Read::setEmissionProbability(size_t variant_idx, std::vector<double> emission) {
 	assert(variant_idx < variants.size());
-	variants[variant_idx].entry.set_emission_score(emission);
+	variants[variant_idx].entry.set_emission_score(emission, reg_const, base_const);
 }
 
 int Read::getQuality(size_t variant_idx) const {
@@ -192,6 +200,14 @@ int Read::getReferenceStart() const {
 
 const std::string& Read::getBXTag() const {
 	return BX_tag; 
+}
+
+int Read::getRegConst() const {
+	return reg_const;
+}
+
+double Read::getBaseConst() const {
+	return base_const;
 }
 
 bool Read::isSorted() const {

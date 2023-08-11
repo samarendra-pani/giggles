@@ -8,7 +8,7 @@ import logging
 import sys
 import platform
 from typing import Sequence
-from collections import defaultdict
+import math
 
 from contextlib import ExitStack
 
@@ -28,8 +28,8 @@ from giggles.pedigree import (
 )
 from giggles.timer import StageTimer
 from giggles.cli import log_memory_usage
-from giggles.phase import select_reads, setup_families
-from giggles.cli import CommandLineError, PhasedInputReader, read_haplotags
+from giggles.utils import select_reads, setup_families
+from giggles.cli import PhasedInputReader, read_haplotags
 
 
 logger = logging.getLogger(__name__)
@@ -86,7 +86,7 @@ def determine_genotype(likelihoods: Sequence[float], threshold_prob: float, n_al
     to_sort.sort(key=lambda x: x[0])
 
     # make sure there is a unique maximum which is greater than the threshold
-    if (to_sort[-1][0] > to_sort[-2][0]) and (to_sort[-1][0] > threshold_prob):
+    if (to_sort[-1][0] > to_sort[-2][0]) and (to_sort[-1][0]-to_sort[-2][0] > threshold_prob):
         return int_to_diploid_multiallelic_gt(to_sort[-1][1])
     else:
         return int_to_diploid_multiallelic_gt(-1)
@@ -104,19 +104,20 @@ def run_genotype(
     samples=None,
     chromosomes=None,
     mapping_quality=20,
-    max_coverage=15,
-    recombrate=1.26,
+    max_coverage=None,
     gt_qual_threshold=0,
-    realign_mode="ed",
+    realign_mode="edit",
     overhang=10,
     gap_start=3,
     gap_extend=1,
     mismatch=2,
+    em_reg_constant=10,
+    em_score_to_prob_base_constant=math.e,
     match_probability=0.85,
     mismatch_probability=0.05,
     insertion_probability=0.05,
     deletion_probability=0.05,
-    write_command_line_header=True,
+    recombrate=1.26,
     eff_pop_size = 10
 ):
     """
@@ -129,10 +130,7 @@ def run_genotype(
         __version__,
         platform.python_version(),
     )
-    if write_command_line_header:
-        command_line = "(giggles {}) {}".format(__version__, " ".join(sys.argv[1:]))
-    else:
-        command_line = None
+    command_line = "(giggles {}) {}".format(__version__, " ".join(sys.argv[1:]))
     with ExitStack() as stack:
         # read the given input files (BAMs, VCFs, ref...)
         numeric_sample_ids = NumericSampleIds()
@@ -149,7 +147,9 @@ def run_genotype(
                 gap_start=gap_start,
                 gap_extend=gap_extend,
                 default_mismatch=mismatch,
-                em_prob_params=[match_probability, mismatch_probability, insertion_probability, deletion_probability]
+                em_prob_params=[match_probability, mismatch_probability, insertion_probability, deletion_probability],
+                reg_const=em_reg_constant,
+                base_const=em_score_to_prob_base_constant
             )
         )
 
@@ -170,7 +170,7 @@ def run_genotype(
         recombination_cost_computer = UniformRecombinationCostComputer(recombrate, eff_pop_size)
 
         samples = frozenset(samples)
-        families, family_trios = setup_families(samples, max_coverage)
+        families, family_trios = setup_families(samples)
         for trios in family_trios.values():
             for trio in trios:
                 # Ensure that all mentioned individuals have a numeric id
@@ -195,13 +195,11 @@ def run_genotype(
             var_pos_to_ind = dict()
             n_allele_position = dict()
             allele_references = dict()
-            ids = dict()
             for i in range(len(variant_table.variants)):
                 var_pos_to_ind[variant_table.variants[i].position_on_ref] = i
                 v = variant_table.variants[i]
                 n_allele_position[v.position_on_ref] = len(v.alternative_allele)+1      ##Contains the number of alleles at every variant position
-                allele_references[v.position_on_ref] = v.allele_origin
-                ids[v.position_on_ref] = v.id            
+                allele_references[v.position_on_ref] = v.allele_origin        
             #Prior genotyping with equal probabilities
             for sample in samples:
                 variant_table.query_set_genotype_likelihoods_of(
@@ -215,8 +213,6 @@ def run_genotype(
                     logger.info("---- Processing individual %s", representative_sample)
                 else:
                     logger.info("---- Processing family with individuals: %s", ",".join(family))
-                max_coverage_per_sample = max(1, max_coverage // len(family))
-                logger.info("Using maximum coverage per sample of %dX", max_coverage_per_sample)
                 trios = family_trios[representative_sample]
                 assert (len(family) == 1) or (len(trios) > 0)
 
@@ -229,13 +225,19 @@ def run_genotype(
                         )
 
                     with timers("select"):
-                        readset = readset.subset(
-                            [i for i, read in enumerate(readset) if len(read) >= 2]
-                        )
-                        logger.info(
-                            "Kept %d reads that cover at least two variants each", len(readset)
-                        )
-                        selected_reads = select_reads(readset, max_coverage_per_sample)
+                        if max_coverage == None:
+                            selected_reads = readset
+                            logger.info(
+                                "Kept %d reads", len(readset)
+                            )
+                        else:
+                            readset = readset.subset(
+                                [i for i, read in enumerate(readset) if len(read) >= 2]
+                            )
+                            logger.info(
+                                "Kept %d reads that cover at least two variants each", len(readset)
+                            )
+                            selected_reads = select_reads(readset, max_coverage)
                     readsets[sample] = selected_reads
                     
                 # Merge reads into one ReadSet (note that each Read object
@@ -250,7 +252,7 @@ def run_genotype(
                 all_reads.sort()
                 
                 # Determine which variants can (in principle) be phased
-                accessible_positions = sorted(all_reads.get_positions())
+                accessible_positions = list(var_pos_to_ind.keys())
                 accessible_positions_n_allele = []
                 accessible_positions_allele_references = []
                 for index, position in enumerate(accessible_positions):
@@ -264,11 +266,14 @@ def run_genotype(
                                 allele_reference_to_list.append(-1)
                     accessible_positions_allele_references.append(allele_reference_to_list)
                 logger.info(
-                    "Variants covered by at least one phase-informative "
-                    "read in at least one individual after read selection: %d",
+                    "Variants covered by at least one read after read selection: %d",
+                    len(all_reads.get_positions()),
+                )
+                logger.info(
+                    "Aiming to solve genotyping problem for %d variant positions",
                     len(accessible_positions),
                 )
-                
+
                 # Create Pedigree
                 pedigree = Pedigree(numeric_sample_ids)
                 for sample in family:
@@ -285,7 +290,6 @@ def run_genotype(
                     pedigree.add_relationship(
                         father_id=trio.father, mother_id=trio.mother, child_id=trio.child
                     )
-
                 recombination_costs = recombination_cost_computer.compute(accessible_positions)
                 # Finally, run genotyping algorithm
                 with timers("genotyping"):
@@ -366,7 +370,7 @@ def add_arguments(parser):
     arg('--haplotag-tsv', metavar='HAPLOTAG', help='TSV file containing the haplotag and phaseset information.')
 
     arg = parser.add_argument_group('Input pre-processing, selection and filtering').add_argument
-    arg('--max-coverage', '-H', metavar='MAX_COV', default=15, type=int,
+    arg('--max-coverage', '-H', metavar='MAX_COV', default=None, type=int,
         help='Reduce coverage to at most MAX_COV (default: %(default)s).')
     arg('--mapping-quality', '--mapq', metavar='QUAL',
         default=20, type=int, help='Minimum mapping quality (default: %(default)s)')
@@ -383,9 +387,8 @@ def add_arguments(parser):
     
 
     arg = parser.add_argument_group('Realignment parameters').add_argument
-    arg('--realign-mode', metavar='MODE', default="ed",
-        help='Select method which will be used to calculate realignment scores. Available methods are: "wfa_full", "wfa_score", and "ed". (default: %(default)s).'
-        ' WARNING: "wfa_full" might require a lot of memory if vcf contains large alleles.')
+    arg('--realign-mode', metavar='MODE', default="edit",
+        help='Select method which will be used to calculate realignment scores. Available methods are: "wfa_full", "wfa_score", and "edit". (refer to README for more details) (default: %(default)s).')
     arg('--overhang', metavar='OVERHANG', default=10, type=int,
         help='When --reference is used, extend alignment by this many bases to left and right when realigning (default: %(default)s).')
     arg('--gap-start', metavar='GAPSTART', default=3, type=float,
@@ -395,7 +398,14 @@ def add_arguments(parser):
     arg('--mismatch', metavar='MISMATCH', default=2, type=float,
         help='mismatch cost in case wfa is used (default: %(default)s)')
     
-    arg = parser.add_argument_group('Emission probability parameters (Parameters should add up to 1). These are used when mode is "wfa_full"').add_argument
+    arg = parser.add_argument_group('Emission parameters').add_argument
+    arg('--em-reg-constant', metavar='REG_CONSTANT', default=10, type=int,
+        help='Individual read emissions will be set at a minimum of 10^-REG_CONSTANT (default: %(default)s).')
+    arg('--em-score-to-prob-base-constant', metavar='BASE_CONSTANT', default=math.e, type=float,
+        help='base value used to conversion of log probabilities to probabilities (default: %(default)s).')
+    
+
+    arg = parser.add_argument_group('CIGAR processing parameters (Parameters should add up to 1). These are used when mode is "wfa_full"').add_argument
     arg('--match-probability', metavar='MATCH_PROBABILITY', default=0.85, type=float,
         help='probability of match in alignment CIGAR (default: %(default)s)')
     arg('--mismatch-probability', metavar='MISMATCH_PROBABILITY', default=0.05, type=float,
@@ -424,8 +434,8 @@ def validate(args, parser):
     if not args.samples:
         parser.error("The sample name has to be provided. Please enter sample name with --sample.")
     if args.match_probability < 0 or args.mismatch_probability < 0 or args.insertion_probability < 0 or args.deletion_probability < 0:
-        parser.error("Emission probability parameters cannot be negative.")
-    if args.realign_mode not in ["wfa_full", "wfa_score", "ed"]:
+        parser.error("CIGAR processing parameters cannot be negative.")
+    if args.realign_mode not in ["wfa_full", "wfa_score", "edit"]:
         parser.error("Unknown realignment mode detected.")
     
 

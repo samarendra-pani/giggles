@@ -58,7 +58,7 @@ cdef class NumericSampleIds:
 
 
 cdef class Read:
-	def __cinit__(self, str name = None, int mapq = 0, int source_id = 0, int sample_id = 0, int reference_start = -1, str BX_tag = None):
+	def __cinit__(self, str name = None, int mapq = 0, int source_id = 0, int sample_id = 0, int reference_start = -1, str BX_tag = None, reg_const = 10, base_const = 2.718):
 		cdef string _name = b''
 		cdef string _BX_tag = b''
 		if name is None:
@@ -69,7 +69,7 @@ cdef class Read:
 			_name = name.encode('UTF-8')
 			if BX_tag is not '' and BX_tag is not None:
 				_BX_tag = BX_tag.encode('UTF-8')
-			self.thisptr = new cpp.Read(_name, mapq, source_id, sample_id, reference_start, _BX_tag)
+			self.thisptr = new cpp.Read(_name, mapq, source_id, sample_id, reference_start, _BX_tag, reg_const, base_const)
 			self.ownsptr = True
 
 	def __dealloc__(self):
@@ -111,6 +111,16 @@ cdef class Read:
 		def __get__(self):
 			assert self.thisptr != NULL
 			return self.thisptr.getBXTag().decode('utf-8')
+
+	property base_const:
+		def __get__(self):
+			assert self.thisptr != NULL
+			return self.thisptr.getBaseConst()
+
+	property reg_const:
+		def __get__(self):
+			assert self.thisptr != NULL
+			return self.thisptr.getRegConst()
 
 	def __iter__(self):
 		"""Iterate over all variants in this read"""
@@ -169,10 +179,10 @@ cdef class Read:
 	def __getstate__(self):
 		mapqs = [mapq for mapq in self.mapqs]
 		variants = [(var.position, var.allele, var.emission, var.quality) for var in self]
-		return (mapqs, self.name, self.source_id, self.sample_id, self.reference_start, self.BX_tag, variants)
+		return (mapqs, self.name, self.source_id, self.sample_id, self.reference_start, self.BX_tag, self.reg_const, self.base_const, variants)
 	
 	def __setstate__(self, state):
-		mapqs, name, source_id, sample_id, reference_start, BX_tag, variants = state
+		mapqs, name, source_id, sample_id, reference_start, BX_tag, reg_const, base_const, variants = state
 		
 		# TODO: Duplicated code from __cinit__ is ugly, but cinit cannot be used here directly
 		cdef string _name = b''
@@ -185,7 +195,7 @@ cdef class Read:
 			_name = name.encode('UTF-8')
 			if BX_tag is not b'' and BX_tag is not None:
 				_BX_tag = BX_tag.encode('UTF-8')
-			self.thisptr = new cpp.Read(_name, mapqs[0] if len(mapqs) > 0 else 0, source_id, sample_id, reference_start, _BX_tag)
+			self.thisptr = new cpp.Read(_name, mapqs[0] if len(mapqs) > 0 else 0, source_id, sample_id, reference_start, _BX_tag, reg_const, base_const)
 			self.ownsptr = True
 
 		for mapq in mapqs[1:]:
@@ -200,7 +210,7 @@ cdef class Read:
 		for i in range(len(em)):
 			emProb[i] = em[i]
 		self.thisptr.addVariant(position, allele, emProb, quality)
-	
+		
 	def add_haplotag(self, str hp, int ps):
 		cdef string _hp = b''
 		_hp = hp.encode('UTF-8')
