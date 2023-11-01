@@ -275,7 +275,7 @@ class VcfReader:
         indels: bool = False,
         phases: bool = False,
         genotype_likelihoods: bool = False,
-        ignore_genotypes: bool = False,
+        ignore_genotypes: bool = True,
         ploidy: int = None,
     ):
         """

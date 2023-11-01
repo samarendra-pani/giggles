@@ -166,7 +166,7 @@ def run_genotype(
         # The variant tables are then simply just updated after the HMM is run.
         vcf_reader = stack.enter_context(
             VcfReader(
-                variant_file, bam_samples=samples, indels=True, genotype_likelihoods=False, phases=False
+                variant_file, bam_samples=samples, indels=True, genotype_likelihoods=False, phases=False, ignore_genotypes=True
             )
         )
 
