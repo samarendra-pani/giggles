@@ -49,17 +49,12 @@ class Genotype{
 		/**
 		 * The maximum supported number of alleles
 		 */
-		const static uint32_t MAX_ALLELES = 16;
+		const static uint32_t MAX_ALLELES = 65536;
 	
 		/**
 		 * The maximum supported ploidy
 		 */
-		const static uint32_t MAX_PLOIDY = 15;
-	
-		/**
-		 * Constant for diploid ploidy.
-		 */
-		const static uint32_t DIPLOID = 2;
+		const static uint32_t MAX_PLOIDY = 2;
 	
 		/**
 		 * Creates an empty genotype with no alleles.
@@ -69,7 +64,7 @@ class Genotype{
 		/**
 		 * Creates a genotype of given ploidy using the canonical index (see class description).
 		 */
-		Genotype(uint64_t index, uint32_t ploidy);
+		Genotype(uint32_t index, uint32_t ploidy);
 	
 		/**
 		 * Creates a genotype from a list of given alleles.
@@ -89,7 +84,7 @@ class Genotype{
 		/**
 		 * Returns the canonical index of the genotype (see class description).
 		 */
-		uint64_t get_index() const;
+		uint32_t get_index() const;
 	
 		/**
 		 * Returns the genotype as readable string.
@@ -122,10 +117,9 @@ class Genotype{
 		 * of 15 (=60 bits). The following 4 bits encode the ploidy, with 0 indicating
 		 * an invalid genotype. The remaining bits are special flags.
 		 */
-		uint64_t gt;
+		uint32_t gt;
 	
 		// general manipulation methods
-		void set_ploidy(const uint32_t ploidy);
 		uint32_t get_position(const uint32_t pos) const;
 		void set_position(const uint32_t pos, const uint32_t allele);
 };
@@ -133,7 +127,7 @@ class Genotype{
 /**
  * Creates a sorted vector of alleles from a given canonical index and ploidy.
  */
-std::vector<uint32_t> convert_index_to_alleles(uint64_t index, uint32_t ploidy);
+std::vector<uint32_t> convert_index_to_alleles(uint32_t index, uint32_t ploidy);
 
 /**
  * Returns the maximum supported ploidy for genotypes
