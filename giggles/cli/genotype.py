@@ -179,8 +179,15 @@ def run_genotype(
         # compute genotype likelihood threshold
         gt_prob = 1.0 - (10 ** (-gt_qual_threshold / 10.0))
 
-        # Count number of samples are present in the multisample reference graph vcf file 
-        n_samples = len(list(vcf_reader._vcf_reader.header.samples))
+        # Count number of samples are present in the multisample reference graph vcf file
+        # I assume that sample names starting with HG, NA or GM are diploid and others are haploid.
+        # TODO: Need a better way to find haploids and diploids. 
+        n_haplotypes = 0
+        for sample in list(vcf_reader._vcf_reader.header.samples):
+            if sample[0:2] in ["HG", "NA", "GM"]:
+                n_haplotypes += 2
+            else:
+                n_haplotypes += 1
         
         # Iterating over chromosomes present in the multisample reference graph vcf file
         for variant_table in timers.iterate("parse_vcf", vcf_reader):
@@ -305,7 +312,7 @@ def run_genotype(
                         all_reads,
                         recombination_costs,
                         pedigree,
-                        2*n_samples,
+                        n_haplotypes,
                         accessible_positions,
                         accessible_positions_n_allele,
                         accessible_positions_allele_references
