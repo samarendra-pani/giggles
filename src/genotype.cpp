@@ -8,12 +8,13 @@
 
 using namespace std;
 
-Genotype::Genotype() : gt(0) {}
+Genotype::Genotype() : gt(0), pl(0) {}
 
 Genotype::Genotype(uint32_t index, uint32_t ploidy) {
 	if (ploidy != 2) {
 		throw std::runtime_error("Error: Ploidy is not 2!");
 	}
+	pl = ploidy;
 	std::vector<uint32_t> genotype = convert_index_to_alleles(index, ploidy);
 	std::sort(genotype.begin(), genotype.end());
 	gt = (uint32_t)0;
@@ -36,6 +37,7 @@ Genotype::Genotype(vector<uint32_t> alleles) {
 	// parameter check
 	gt = 0;
 	uint32_t ploidy = alleles.size();
+	pl = ploidy;
 	if (ploidy > MAX_PLOIDY) {
 		throw std::runtime_error("Error: Maximum ploidy for genotype exceeded!");
 	}
@@ -137,7 +139,7 @@ bool Genotype::is_diploid_and_biallelic() const{
 
 // Hardcoding only diploid
 uint32_t Genotype::get_ploidy() const {
-	return 2;
+	return pl;
 }
 
 bool operator== (const Genotype &g1, const Genotype &g2) {

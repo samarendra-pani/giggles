@@ -120,6 +120,7 @@ class Genotype{
 		 * an invalid genotype. The remaining bits are special flags.
 		 */
 		uint32_t gt;
+		uint32_t pl;
 	
 		// general manipulation methods
 		uint32_t get_position(const uint32_t pos) const;
