@@ -1,5 +1,5 @@
 # cython: language_level=3
-
+# Code taken from WhatsHap (https://github.com/whatshap/whatshap)
 import math
 import logging
 from collections import defaultdict

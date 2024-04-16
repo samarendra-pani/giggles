@@ -1,3 +1,5 @@
+// Code modified from WhatsHap (https://github.com/whatshap/whatshap)
+
 #include <sstream>
 #include <stdexcept>
 #include "genotype.h"

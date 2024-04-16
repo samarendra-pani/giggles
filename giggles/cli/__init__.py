@@ -1,3 +1,5 @@
+# Code modified from WhatsHap (https://github.com/whatshap/whatshap)
+
 import sys
 import resource
 import logging

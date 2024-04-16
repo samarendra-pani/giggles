@@ -1,5 +1,7 @@
 # cython: language_level=3
 
+# Code modified from WhatsHap (https://github.com/whatshap/whatshap)
+
 """
 Wrappers for core C++ classes.
 """

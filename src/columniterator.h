@@ -1,3 +1,5 @@
+// Code taken from WhatsHap (https://github.com/whatshap/whatshap)
+
 #ifndef COLUMNITERATOR_H
 #define COLUMNITERATOR_H
 

@@ -1,3 +1,5 @@
+// Code modified from WhatsHap (https://github.com/whatshap/whatshap)
+
 #ifndef GRAYCODES_H
 #define GRAYCODES_H
 

@@ -1,3 +1,5 @@
+// Code taken from WhatsHap (https://github.com/whatshap/whatshap)
+
 #ifndef BINOMIAL_H
 #define BINOMIAL_H
 

@@ -1,3 +1,5 @@
+// Code modified from WhatsHap (https://github.com/whatshap/whatshap)
+
 #ifndef VECTOR_2D_H
 #define VECTOR_2D_H
 

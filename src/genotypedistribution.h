@@ -1,3 +1,5 @@
+// Code modified from WhatsHap (https://github.com/whatshap/whatshap)
+
 #ifndef GENOTYPEDISTRIBUTION_H
 #define GENOTYPEDISTRIBUTION_H
 

@@ -1,3 +1,5 @@
+# Code taken from WhatsHap (https://github.com/whatshap/whatshap)
+
 import time
 from collections import defaultdict
 from contextlib import contextmanager

@@ -1,4 +1,5 @@
 # cython: language_level=3
+# Code taken from WhatsHap (https://github.com/whatshap/whatshap)
 
 from libcpp.vector cimport vector
 from libcpp.pair cimport pair

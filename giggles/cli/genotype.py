@@ -4,6 +4,9 @@ Genotype variants
 Runs only the genotyping algorithm. Genotype Likelihoods are computed using the
 forward backward algorithm.
 """
+
+# Code modified from WhatsHap (https://github.com/whatshap/whatshap)
+
 import logging
 import sys
 import platform
@@ -354,7 +357,7 @@ def add_arguments(parser):
     arg = parser.add_argument
     # Positional arguments
     arg('variant_file', metavar='VCF', help='VCF file with variants to be genotyped (can be gzip-compressed)')
-    arg('mapped_read_files', nargs='*', metavar='READS', help='BAM or GAF file. For GAF file, it expects an index created by scaffold-sort.py with .gai extension.')
+    arg('mapped_read_files', nargs='*', metavar='READS', help='BAM or GAF file. For GAF file, it expects an index created by gaftools sort with .gai extension.')
 
     arg('-o', '--output', default=sys.stdout,
         help='Output VCF file. Add .gz to the file name to get compressed output. '

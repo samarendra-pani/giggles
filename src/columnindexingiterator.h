@@ -1,3 +1,5 @@
+// Code modified from WhatsHap (https://github.com/whatshap/whatshap)
+
 #ifndef COLUMN_INDEXING_ITERATOR_H
 #define COLUMN_INDEXING_ITERATOR_H
 

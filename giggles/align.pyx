@@ -1,5 +1,7 @@
 # cython: language_level=3
 
+# Code taken from WhatsHap (https://github.com/whatshap/whatshap)
+
 """
 Edit distance computation.
 

@@ -1,3 +1,5 @@
+// Code modified from WhatsHap (https://github.com/whatshap/whatshap)
+
 #include <sstream>
 #include <algorithm>
 #include <stdexcept>

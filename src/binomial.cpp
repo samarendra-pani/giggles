@@ -1,3 +1,5 @@
+// Code taken from WhatsHap (https://github.com/whatshap/whatshap)
+
 #include "binomial.h"
 
 int binomial_coefficient(int n, int k){

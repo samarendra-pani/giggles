@@ -1,6 +1,8 @@
 """
 Detect variants in reads.
 """
+# Code modified from WhatsHap (https://github.com/whatshap/whatshap)
+
 import logging
 import math
 from collections import defaultdict, Counter, namedtuple

@@ -1,3 +1,5 @@
+// Code modified from WhatsHap (https://github.com/whatshap/whatshap)
+
 #ifndef GENOTYPE_H
 #define GENOTYPE_H
 
