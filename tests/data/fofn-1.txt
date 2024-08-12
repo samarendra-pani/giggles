@@ -1,0 +1,2 @@
+tests/data/smallgraph-alignments-sample1.gaf
+tests/data/smallgraph-alignments-sample2.gaf

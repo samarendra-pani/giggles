@@ -1,0 +1,23 @@
+##fileformat=VCFv4.2
+##phased=True
+##INFO=<ID=CONFLICT,Number=.,Type=String,Description="Assembly names for which there are multiple conflicting allele traversals">
+##INFO=<ID=AC,Number=A,Type=Integer,Description="Total number of alternate alleles in the assembly panel">
+##INFO=<ID=DIPLOID_AC,Number=A,Type=Integer,Description="Total number of alternate alleles in diploid assemblies">
+##INFO=<ID=HAPLOID_AC,Number=A,Type=Integer,Description="Total number of alternate alleles in haploid assemblies">
+##INFO=<ID=AF,Number=A,Type=Float,Description="Estimated allele frequency in the range (0,1] in the assembly panel">
+##INFO=<ID=DIPLOID_AF,Number=A,Type=Float,Description="Estimated allele frequency in the range (0,1] in diploid assemblies">
+##INFO=<ID=HAPLOID_AF,Number=A,Type=Float,Description="Estimated allele frequency in the range (0,1] in haploid assemblies">
+##INFO=<ID=NS,Number=1,Type=Integer,Description="Number of samples with data in the assembly panel">
+##INFO=<ID=DIPLOID_NS,Number=1,Type=Integer,Description="Number of samples with data in diploid assemblies">
+##INFO=<ID=HAPLOID_NS,Number=1,Type=Integer,Description="Number of samples with data in haploid assemblies">
+##INFO=<ID=AT,Number=R,Type=String,Description="Allele Traversal as path in graph">
+##FILTER=<ID=PASS,Description="All filters passed">
+##FILTER=<ID=NS80,Description="Number of Diploid Samples with data less than 80%">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##contig=<ID=chr1>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	smallgraph-alignments-sample1	smallgraph-alignments-sample2
+chr1	10	>s1>s2	C	CGCTCTAAACT	60	PASS	CONFLICT=;AC=2;DIPLOID_AC=0;HAPLOID_AC=2;AF=1.0;DIPLOID_AF=0;HAPLOID_AF=1.0;NS=2;DIPLOID_NS=0;HAPLOID_NS=2;AT=>s1>s2,>s1>s644045>s2	GT	1	1
+chr1	15	>s2>s4	TTCACG	T	60	PASS	CONFLICT=smallgraph-alignments-sample1;AC=1;DIPLOID_AC=0;HAPLOID_AC=1;AF=1.0;DIPLOID_AF=0;HAPLOID_AF=1.0;NS=1;DIPLOID_NS=0;HAPLOID_NS=1;AT=>s2>s3>s4,>s2>s4	GT	.	1
+chr1	40	>s4>s6	ACCGCT	A	60	PASS	CONFLICT=;AC=2;DIPLOID_AC=0;HAPLOID_AC=2;AF=1.0;DIPLOID_AF=0;HAPLOID_AF=1.0;NS=2;DIPLOID_NS=0;HAPLOID_NS=2;AT=>s4>s5>s6,>s4>s6	GT	1	1
+chr1	50	>s6>s8	AATGGC	A	60	PASS	CONFLICT=;AC=1;DIPLOID_AC=0;HAPLOID_AC=1;AF=0.5;DIPLOID_AF=0;HAPLOID_AF=0.5;NS=2;DIPLOID_NS=0;HAPLOID_NS=2;AT=>s6>s7>s8,>s6>s8	GT	1	0
+chr1	100	>s8>s9	A	AAGCTTACCAAGTCAACATTG	60	PASS	CONFLICT=;AC=2;DIPLOID_AC=0;HAPLOID_AC=2;AF=1.0;DIPLOID_AF=0;HAPLOID_AF=1.0;NS=2;DIPLOID_NS=0;HAPLOID_NS=2;AT=>s8>s9,>s8>s314711>s9	GT	1	1
