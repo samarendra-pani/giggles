@@ -1,3 +1,5 @@
+// Code taken from WhatsHap (https://github.com/whatshap/whatshap)
+
 #ifndef PHRED_GENOTYPE_LIKELIHOODS_H
 #define PHRED_GENOTYPE_LIKELIHOODS_H
 

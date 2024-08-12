@@ -1,6 +1,8 @@
 """
 Pedigree-related functions
 """
+# Code modified from WhatsHap (https://github.com/whatshap/whatshap)
+
 from abc import ABC, abstractmethod
 
 class RecombinationCostComputer(ABC):

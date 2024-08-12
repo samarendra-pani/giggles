@@ -1,7 +1,7 @@
 """
 Find connected components.
 """
-
+# Code taken from WhatsHap (https://github.com/whatshap/whatshap)
 
 class Node:
     def __init__(self, value, parent):

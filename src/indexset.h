@@ -1,3 +1,5 @@
+// Code taken from WhatsHap (https://github.com/whatshap/whatshap)
+
 #ifndef INDEXSET_H
 #define INDEXSET_H
 

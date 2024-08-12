@@ -1,5 +1,5 @@
 # cython: language_level=3
-
+# Code modified from WhatsHap (https://github.com/whatshap/whatshap)
 """
 Declarations for all C++ classes that are wrapped from Cython.
 """

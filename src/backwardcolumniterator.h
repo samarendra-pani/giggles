@@ -1,3 +1,5 @@
+// Code taken from WhatsHap (https://github.com/whatshap/whatshap)
+
 #ifndef BACKWARDCOLUMNITERATOR_H
 #define BACKWARDCOLUMNITERATOR_H
 

@@ -1,3 +1,5 @@
+// Code taken from WhatsHap (https://github.com/whatshap/whatshap)
+
 #include <cassert>
 #include <limits>
 #include <unordered_set>

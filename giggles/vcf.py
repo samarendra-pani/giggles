@@ -1,6 +1,8 @@
 """
 Functions for reading VCFs.
 """
+# Code modified from WhatsHap (https://github.com/whatshap/whatshap)
+
 import os
 import re
 import sys

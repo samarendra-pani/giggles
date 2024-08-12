@@ -1,3 +1,5 @@
+// Code modified from WhatsHap (https://github.com/whatshap/whatshap)
+
 #ifndef COLUMN_H
 #define COLUMN_H
 

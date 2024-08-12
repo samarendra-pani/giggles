@@ -1,3 +1,5 @@
+# Code taken from WhatsHap (https://github.com/whatshap/whatshap)
+
 import os
 from abc import ABC
 from urllib.parse import urlparse

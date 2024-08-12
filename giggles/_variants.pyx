@@ -1,3 +1,5 @@
+# Code taken from WhatsHap (https://github.com/whatshap/whatshap)
+
 # cython: language_level=3
 
 def _iterate_cigar(variants, int j, bam_read, cigartuples):

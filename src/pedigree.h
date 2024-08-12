@@ -1,3 +1,5 @@
+// Code taken from WhatsHap (https://github.com/whatshap/whatshap)
+
 #ifndef PEDIGREE_H
 #define PEDIGREE_H
 

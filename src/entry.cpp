@@ -1,3 +1,5 @@
+// Code modified from WhatsHap (https://github.com/whatshap/whatshap)
+
 #include <cassert>
 #include <bits/stdc++.h>
 #include <cmath>

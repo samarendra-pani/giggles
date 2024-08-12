@@ -1,3 +1,5 @@
+// Code modified from WhatsHap (https://github.com/whatshap/whatshap)
+
 #ifndef ENTRY_H
 #define ENTRY_H
 

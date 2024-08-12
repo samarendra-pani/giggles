@@ -1,3 +1,5 @@
+# Code taken from WhatsHap (https://github.com/whatshap/whatshap)
+
 class CovMonitor:
     # TODO: This is a most simple, naive implementation. Could do this smarter.
     # TODO : Maybe change the coverage monitor from the usage of vcf_indices to the real varaint positions

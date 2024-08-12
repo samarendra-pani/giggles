@@ -1,3 +1,5 @@
+# Code taken from WhatsHap (https://github.com/whatshap/whatshap)
+
 import gzip
 import logging
 from collections import defaultdict
