@@ -49,6 +49,7 @@ def run(
     gfa=None,
     haploid=None,
     diploid=None,
+    keep_all_records=False,
     output=None
 ):
     
@@ -84,7 +85,7 @@ def run(
     ref_alleles = get_reference_alleles(edges, list(variants.keys()))
     
     writer = VCFWriter(output)
-    write_vcf(writer, variants, ref_alleles, haplotype_list, contigs, gfa, nodes)
+    write_vcf(writer, variants, ref_alleles, haplotype_list, contigs, nodes, keep_all_records)
     writer.close()
     
 
@@ -197,7 +198,6 @@ def find_variant_alleles(gaf, variants, nodes, haplotype):
         reader = open(gaf, 'r')
     counts = defaultdict(lambda: 0)
     while True:
-        offset = reader.tell()
         alignment = reader.readline()
         if not alignment:
             break
@@ -230,7 +230,6 @@ def find_variant_alleles(gaf, variants, nodes, haplotype):
         # Assign reversed if there are more scaffold nodes with < direction
         # Overall orientation has been reversed
         if orient_list.count('>') < orient_list.count('<'):
-            rv = True
             logger.debug('\t\tContig alignment identified as reversed.')
             counts['reversed'] += 1
             scaffold_index.reverse()
@@ -321,8 +320,14 @@ def find_variant_alleles(gaf, variants, nodes, haplotype):
     for key, value in variants.items():
         try:
             var = value[haplotype]
+            # TODO: Check if the variant bubbles with multiple ATs have the same sequence.
             if len(var) > 1:
                 counts['Number of Variant Bubbles with multiple Allele Traversals found'] += 1
+                seqs = get_sequences(list(var), nodes)
+                seqs = set(seqs)
+                if len(seqs) == 1:
+                    value[haplotype] = set([list(value[haplotype])[0]])
+                    counts['Number of Variant Bubbles with multiple Allele Traversals found but they are the same sequence'] += 1
         except KeyError:
             counts['Number of Variant Bubbles not found in the alignments'] += 1
     for key, value in counts.items():
@@ -344,12 +349,12 @@ def reverse_path(path):
     return new_path
 
 
-def write_vcf(writer, variants, ref_alleles, haplotypes, contigs, gfa, nodes):
-    write_header(writer, contigs, haplotypes, gfa)
-    write_records(writer, variants, ref_alleles, haplotypes, nodes)
+def write_vcf(writer, variants, ref_alleles, haplotypes, contigs, nodes, keep_all_records):
+    write_header(writer, contigs, haplotypes)
+    write_records(writer, variants, ref_alleles, haplotypes, nodes, keep_all_records)
     pass
 
-def write_header(writer, contigs, haplotypes, gfa):
+def write_header(writer, contigs, haplotypes):
     diploid_samples = list(set([x.split('.')[0] for x in haplotypes if '.' in x]))
     diploid_samples.sort()
     haploid_samples = list(set([x.split('.')[0] for x in haplotypes if '.' not in x]))
@@ -386,7 +391,7 @@ def write_header(writer, contigs, haplotypes, gfa):
     writer.write("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t%s"%('\t'.join(samples)))
 
 
-def write_records(writer, variants, ref_alleles, haplotypes, nodes):
+def write_records(writer, variants, ref_alleles, haplotypes, nodes, keep_all_records):
 
     diploid_samples = list(set([x.split('.')[0] for x in haplotypes if '.' in x]))
     diploid_samples.sort()
@@ -589,7 +594,8 @@ def write_records(writer, variants, ref_alleles, haplotypes, nodes):
         # ignore if this is the case
         if len(new_ac) == 1:
             num_variants['skipped'] += 1
-            continue
+            if not keep_all_records:
+                continue
 
         num_variants['processed'] += 1
         
@@ -614,12 +620,15 @@ def write_records(writer, variants, ref_alleles, haplotypes, nodes):
         id = bub
         ref = new_seq[0]
         alt = new_seq[1:]
+        # if alt is empty, replace it with a .
+        if alt == []:
+            alt = ['.']
         qual = 60
         info={"CONFLICT": conflict, "AC": new_ac[1:], "DIPLOID_AC": new_ac_diploid[1:], "HAPLOID_AC": new_ac_haploid[1:], "AF": af, "DIPLOID_AF": af_diploid, "HAPLOID_AF": af_haploid, "NS": ns, "DIPLOID_NS": ns_diploid, "HAPLOID_NS": ns_haploid, "AT": at_new}
         writer.write(variant_record_to_string(chr, pos, id, ref, alt, qual, filter, deepcopy(info), genotypes))
         
-    logger.info("\nSkipped variant counts: %d", num_variants['skipped'])
-    logger.info("Proceesed variant counts: %d", num_variants['processed'])
+    logger.info("\nNumber of variant records lacking alternate alleles or unavailable alleles: %d", num_variants['skipped'])
+    logger.info("Number of variant records in the VCF: %d", num_variants['processed'])
         
 
 def get_reference_alleles(edges, bubbles):
@@ -704,6 +713,8 @@ def add_arguments(parser):
         help='Text file with the list of diploid assembly-to-graph GAF files.')
     arg('-hap', '--haploid', dest='haploid', metavar="HAPLOID",
         help='Text file with the list of haploidhaplotype assembly-to-graph GAF files.')
+    arg('-a', '--keep-all-records', dest='keep_all_records', action='store_true',
+        help='Flag to keep all the records regardless of whether alt allele is present or all genotypes are unavailable.')
     arg('-o', '--output', dest='output', metavar="OUTPUT",
         help='Output VCF path. Default is stdout.')
     
