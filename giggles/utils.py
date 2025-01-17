@@ -3,14 +3,14 @@
 import gzip
 import logging
 from collections import defaultdict
-from typing import Optional, DefaultDict
+from typing import DefaultDict
 import pyfaidx
+from abc import ABC, abstractmethod
 
 from giggles import __version__
 from giggles.core import (
     readselection
 )
-from giggles.graph import ComponentFinder
 
 class FastaNotIndexedError(Exception):
     pass
@@ -53,9 +53,6 @@ def IndexedFasta(path):
     return f
 
 
-def plural_s(n: int) -> str:
-    return "" if n == 1 else "s"
-
 _warning_count: DefaultDict[str, int] = defaultdict(int)
 
 
@@ -66,7 +63,9 @@ def warn_once(logger, msg: str, *args) -> None:
         logger.debug(msg, *args)
     _warning_count[msg] += 1
 
+
 logger = logging.getLogger(__name__)
+
 
 def select_reads(readset, max_coverage, preferred_source_ids=None):
     logger.info(
@@ -82,36 +81,25 @@ def select_reads(readset, max_coverage, preferred_source_ids=None):
 
     return selected_reads
 
-def setup_families(samples):
-    """
-    Return families, family_trios pair.
+class RecombinationCostComputer(ABC):
+    @abstractmethod
+    def compute(self, positions):
+        pass
 
-    families maps a family representative to a list of family members
+class UniformRecombinationCostComputer(RecombinationCostComputer):
+    def __init__(self, recombination_rate, eff_pop_size):
+        self._recombination_rate = recombination_rate
+        self._eff_pop_size = eff_pop_size
 
-    family_trios maps a family representative to a list of trios in this family
-    """
+    @staticmethod
+    def uniform_recombination_map(recombrate, eff_pop_size, positions):
 
-    # list of all trios across all families
-    all_trios = dict()
+        # For a list of positions and a constant recombination rate (in cM/Mb),
+        # return a list "results" of the same length as "positions" such that
+        # results[i] is the phred-scaled recombination probability between
+        # positions[i-1] and positions[i].
+        
+        return [(positions[i] - positions[i - 1])*recombrate*eff_pop_size*(4/(pow(10,6))) for i in range(1, len(positions))]
 
-    # Keep track of connected components (aka families) in the pedigree
-    family_finder = ComponentFinder(samples)
-
-    # map family representatives to lists of family members
-    families = defaultdict(list)
-    for sample in samples:
-        families[family_finder.find(sample)].append(sample)
-
-    # map family representatives to lists of trios for this family
-    family_trios = defaultdict(list)
-    for trio in all_trios:
-        family_trios[family_finder.find(trio.child)].append(trio)
-    logger.info(
-        "Working on %d%s samples from %d famil%s",
-        len(samples),
-        plural_s(len(samples)),
-        len(families),
-        "y" if len(families) == 1 else "ies",
-    )
-
-    return families, family_trios
+    def compute(self, positions):
+        return self.uniform_recombination_map(self._recombination_rate, self._eff_pop_size, positions)

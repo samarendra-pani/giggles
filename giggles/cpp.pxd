@@ -13,7 +13,7 @@ from libcpp.unordered_map cimport unordered_map
 
 cdef extern from "../src/read.h":
 	cdef cppclass Read:
-		Read(string, int, int, int, int, string, int, double) except +
+		Read(string, int, int, int, string, int, double) except +
 		Read(Read) except +
 		string toString() except +
 		void addHaplotag(string, int) except +
@@ -29,7 +29,6 @@ cdef extern from "../src/read.h":
 		void sortVariants() except +
 		bool isSorted() except +
 		int getSourceID() except +
-		int getSampleID() except +
 		int getReferenceStart() except +
 		string getBXTag() except +
 		bool hasBXTag() except +
@@ -39,6 +38,7 @@ cdef extern from "../src/read.h":
 		void setQuality(int, int) except +
 		int getRegConst() except +
 		double getBaseConst() except +
+
 
 cdef extern from "../src/indexset.h":
 	cdef cppclass IndexSet:
@@ -63,20 +63,9 @@ cdef extern from "../src/readset.h":
 		vector[unsigned int]* get_positions()
 
 
-cdef extern from "../src/pedigree.h":
-	cdef cppclass Pedigree:
-		Pedigree() except +
-		void addIndividual(unsigned int id, vector[Genotype*] genotypes, vector[PhredGenotypeLikelihoods*]) except +
-		void addRelationship(unsigned int f, unsigned int m, unsigned int c) except +
-		unsigned int size()
-		string toString() except +
-		const Genotype* get_genotype_by_id(unsigned int, unsigned int) except +
-		const PhredGenotypeLikelihoods* get_genotype_likelihoods_by_id(unsigned int, unsigned int) except +
-		unsigned int get_variant_count() except +
-		unsigned int triple_count() except +
-		
 cdef extern from "../src/binomial.h":
 	cdef int binomial_coefficient(int n, int k) except +
+
 
 cdef extern from "../src/genotype.h":
 	cdef cppclass Genotype:
@@ -97,10 +86,12 @@ cdef extern from "../src/genotype.h":
 	cdef uint32_t get_max_genotype_ploidy() except +
 	cdef uint32_t get_max_genotype_alleles() except +
 
+
 cdef extern from "../src/genotypehmm.h":
 	cdef cppclass GenotypeHMM:
-		GenotypeHMM(ReadSet* readset, vector[float] recombcost, Pedigree* pedigree, unsigned int n_references, vector[unsigned int]* positions, vector[unsigned int]* n_allele_positions, vector[vector[int]]*) except +
-		vector[long double] get_genotype_likelihoods(unsigned int individual, unsigned int position) except +
+		GenotypeHMM(ReadSet* readset, vector[float] recombcost, unsigned int n_references, vector[unsigned int]* positions, vector[unsigned int]* n_allele_positions, vector[vector[int]]*) except +
+		vector[long double] get_genotype_likelihoods(unsigned int position) except +
+
 
 cdef extern from "../src/phredgenotypelikelihoods.h":
 	cdef cppclass PhredGenotypeLikelihoods:

@@ -7,7 +7,7 @@ import re
 import pysam
 import logging
 import gzip
-from collections import defaultdict, namedtuple
+from collections import namedtuple
 from dataclasses import dataclass
 import pickle as pkl
 
@@ -18,6 +18,10 @@ logger = logging.getLogger(__name__)
 class AlignmentWithSourceID:
     source_id: int
     bam_alignment: pysam.AlignedSegment
+
+
+class CommandLineError(Exception):
+    pass
 
 
 class AlignmentFileNotIndexedError(Exception):
@@ -159,8 +163,7 @@ class SampleGafParser(GafParser):
             logger.info("Parsing FASTA File.")
             self._read_sequences = pysam.FastaFile(read_fasta)
         else:
-            logger.info("FASTA file not given. Assuming the read sequences will be provided in GAF File.")
-            self._read_sequences = None
+            raise CommandLineError("FASTA file not given. Assuming the read sequences will be provided in GAF File.")
         gzipped = detect_gzip(path)
         if gzipped:
             self._file = pysam.libcbgzf.BGZFile(path, "rb")
@@ -171,7 +174,7 @@ class SampleGafParser(GafParser):
 
     def process_index_file(self, path):
         try:
-            with open(path+".gai", 'rb') as f:
+            with open(path+".gsi", 'rb') as f:
                 return pkl.load(f)
         except FileNotFoundError:
             raise AlignmentFileNotIndexedError("No index file found for GAF file. Run gaftools scaffold-sort and create index.")
@@ -185,7 +188,11 @@ class SampleGafParser(GafParser):
         """
         Fetch GafAlignment from specified contig
         """
-        offsets = self._index[self._contig_iter]    # Contains offset of first line of alignment and last line of alignment for a particular contig
+        try:
+            # Contains offset of first line of alignment and last line of alignment for a particular contig
+            offsets = self._index[self._contig_iter]
+        except KeyError:
+            yield None
         it = True
         file = self._file
         file.seek(offsets[0])
@@ -205,7 +212,6 @@ class SampleGafParser(GafParser):
                 continue
             if a.tags['iv'] == 1:
                 continue
-            
             yield a
 
 

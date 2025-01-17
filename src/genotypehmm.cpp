@@ -16,10 +16,9 @@
 
 using namespace std;
 
-GenotypeHMM::GenotypeHMM(ReadSet* read_set, const vector<float>& recombcost, const Pedigree* pedigree, const unsigned int& n_references, const vector<unsigned int>* positions, const vector<unsigned int>* n_allele_positions,  const vector<vector<int> >* allele_references)
+GenotypeHMM::GenotypeHMM(ReadSet* read_set, const vector<float>& recombcost, const unsigned int& n_references, const vector<unsigned int>* positions, const vector<unsigned int>* n_allele_positions,  const vector<vector<int> >* allele_references)
     :read_set(read_set),
      recombcost(recombcost),
-     pedigree(pedigree),
      input_column_iterator(*read_set, positions),
      backward_input_column_iterator(*read_set, positions),
      transition_probability_table(input_column_iterator.get_column_count() - 1,nullptr),
@@ -29,21 +28,13 @@ GenotypeHMM::GenotypeHMM(ReadSet* read_set, const vector<float>& recombcost, con
      n_references(n_references),
      allele_references(allele_references)
 {
-    genotype_likelihood_table = Vector2D<genotype_likelihood_t>(pedigree->size(),input_column_iterator.get_column_count());
-    assert (pedigree->size() == 1);
-    for (size_t i = 0; i < pedigree->size(); i ++) {
-        for (size_t j = 0; j < input_column_iterator.get_column_count(); j++) {
-            genotype_likelihood_table.set(i, j, genotype_likelihood_t(binomial_coefficient(n_allele_positions->at(j)+1, n_allele_positions->at(j)-1)));
-        }
+    genotype_likelihood_table = Vector2D<genotype_likelihood_t>(1, input_column_iterator.get_column_count());
+    for (size_t i = 0; i < input_column_iterator.get_column_count(); i++) {
+        genotype_likelihood_table.set(0, i, genotype_likelihood_t(binomial_coefficient(n_allele_positions->at(i)+1, n_allele_positions->at(i)-1)));
     }
     read_set->reassignReadIds();
     assert(input_column_iterator.get_column_count() == backward_input_column_iterator.get_column_count());
 
-    // translate all individual ids to individual indices
-    for(size_t i = 0; i<read_set->size(); ++i)
-    {
-        read_sources.push_back(pedigree->id_to_index(read_set->get(i)->getSampleID()));
-    }
     //compute forward and backward probabilities
     compute_index();
     compute_backward_prob();
@@ -532,17 +523,9 @@ void GenotypeHMM::compute_forward_column(size_t column_index, unique_ptr<vector<
         // if (column_index == 2047) cout << "Forward: " << current_projection_column->at(i) << "\tBackward: " << backward_probabilities->at(i) << "\tG Index: " << g_index << endl;
         normalization += forward_backward;
         
-        // HARDCODED FOR A PEDIGREE SIZE OF 1.
         genotype_likelihood_table.at(0, column_index).likelihoods[g_index] += forward_backward;
     }
-    /* if (column_index == 2047) {
-        cout << endl;
-        cout << "Likelihoods: ";
-        for (auto g: genotype_likelihood_table.at(0, column_index).likelihoods) {
-            cout << g << "\t";
-        }
-        cout << endl;
-    } */
+    
     std::transform((*current_projection_column).begin(), (*current_projection_column).end(), (*current_projection_column).begin(), std::bind2nd(std::divides<long double>(), sum));
     // store the computed projection column (in case there is one)
     if(current_projection_column != 0){
@@ -555,22 +538,13 @@ void GenotypeHMM::compute_forward_column(size_t column_index, unique_ptr<vector<
         backward_pass_column_table[column_index] = nullptr;
     }
     // scale the likelihoods
-    for(size_t individuals_index = 0; individuals_index < pedigree->size(); ++individuals_index){
-        genotype_likelihood_table.at(individuals_index,column_index).divide_likelihoods_by(normalization);
-    }
+    genotype_likelihood_table.at(0, column_index).divide_likelihoods_by(normalization);
 }
 
-vector<long double> GenotypeHMM::get_genotype_likelihoods(unsigned int individual_id, unsigned int position)
+vector<long double> GenotypeHMM::get_genotype_likelihoods(unsigned int position)
 {
-    assert(pedigree->id_to_index(individual_id) < genotype_likelihood_table.get_size0());
     assert(position < input_column_iterator.get_column_count());
-    /* cout << "Normalized Likelihoods: ";
-        for (auto g: genotype_likelihood_table.at(0, position).likelihoods) {
-            cout << g << "\t";
-        }
-        cout << endl; */
-    return genotype_likelihood_table.at(pedigree->id_to_index(individual_id),position).likelihoods;
-
+    return genotype_likelihood_table.at(0, position).likelihoods;
 }
 
 void GenotypeHMM::update_emission_probability(Vector2D<long double>* em_prob, const int bit_changed, const ColumnIndexingIterator& iterator, vector<const Entry *>& entries) {

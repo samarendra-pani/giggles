@@ -4,12 +4,6 @@ from libcpp cimport bool
 from libc.stdint cimport uint32_t, uint64_t
 from . cimport cpp
 
-
-cdef class NumericSampleIds:
-	cdef dict mapping
-	cdef bool frozen
-
-
 cdef class Read:
 	cdef cpp.Read *thisptr
 	cdef bool ownsptr
@@ -17,11 +11,6 @@ cdef class Read:
 
 cdef class ReadSet:
 	cdef cpp.ReadSet *thisptr
-
-
-cdef class Pedigree:
-	cdef cpp.Pedigree *thisptr
-	cdef NumericSampleIds numeric_sample_ids
 
 
 cdef class PhredGenotypeLikelihoods:
@@ -36,5 +25,3 @@ cdef class Genotype:
 
 cdef class GenotypeHMM:
 	cdef cpp.GenotypeHMM *thisptr
-	cdef Pedigree pedigree
-	cdef NumericSampleIds numeric_sample_ids

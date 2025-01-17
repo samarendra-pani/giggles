@@ -10,11 +10,10 @@
 
 using namespace std;
 
-Read::Read(const std::string& name, int mapq, int source_id, int sample_id, int reference_start, const std::string& BX_tag, int reg_const, double base_const): 
+Read::Read(const std::string& name, int mapq, int source_id, int reference_start, const std::string& BX_tag, int reg_const, double base_const): 
 	name(name),
 	mapqs(1, mapq),
 	source_id(source_id),
-	sample_id(sample_id),
 	reference_start(reference_start),
 	BX_tag(BX_tag),
 	reg_const(reg_const),
@@ -32,7 +31,7 @@ string Read::toString() {
 		if (i>0) oss << ",";
 		oss << mapqs[i];
 	}
-	oss << ") source:" << source_id << " sample:" << sample_id << " (";
+	oss << ") source:" << source_id << " (";
 	for (size_t i=0; i<variants.size(); ++i) {
 		if (i>0) oss << ";";
 		oss << "[" << variants[i].position << "," << variants[i].entry << "]";
@@ -191,10 +190,6 @@ int Read::getSourceID() const {
 	return source_id;
 }
 
-
-int Read::getSampleID() const {
-	return sample_id;
-}
 
 int Read::getReferenceStart() const {
 	return reference_start;

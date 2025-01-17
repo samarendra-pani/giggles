@@ -4,7 +4,6 @@ Functions for reading VCFs.
 # Code modified from WhatsHap (https://github.com/whatshap/whatshap)
 
 import os
-import re
 import sys
 import math
 import logging
@@ -12,7 +11,7 @@ import itertools
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
 from os import PathLike
-from typing import List, Sequence, Dict, Tuple, Iterable, Optional, Union, TextIO, Iterator
+from typing import List, Sequence, Tuple, Iterable, Optional, Union, TextIO, Iterator
 
 from pysam import VariantFile, VariantHeader, VariantRecord
 
@@ -150,10 +149,9 @@ class VariantTable:
     samples -- list of sample names
     """
 
-    def __init__(self, chromosome: str, query_samples: List[str], samples: List[str]):
+    def __init__(self, chromosome: str, samples: List[str]):
         self.chromosome = chromosome
         self.samples = samples
-        self.query_samples = query_samples
         self.variants: List[VcfVariant] = []
         
         # Separate lists for VCF samples and GAF/BAM sample
@@ -162,9 +160,8 @@ class VariantTable:
         self.genotype_likelihoods: List[List[Optional[GenotypeLikelihoods]]] = [[] for _ in samples]
         self._sample_to_index = {sample: index for index, sample in enumerate(samples)}
 
-        self._query_sample_to_index = {sample: index for index, sample in enumerate(query_samples)}
-        self.query_genotypes: List[List[Genotype]] = [[] for _ in query_samples]
-        self.query_genotype_likelihoods: List[List[Optional[GenotypeLikelihoods]]] = [[] for _ in query_samples]
+        self.query_genotypes= []
+        self.query_genotype_likelihoods = []
 
     def __len__(self) -> int:
         return len(self.variants)
@@ -193,10 +190,8 @@ class VariantTable:
             self.genotype_likelihoods[i].append(gl)
         
         # Adding empty Genotype object for the GAF/BAM sample
-        for i in range(len(self.query_samples)):
-            self.query_genotypes[i].append(Genotype([]))
-        for i in range(len(self.query_samples)):
-            self.query_genotype_likelihoods[i].append(None)
+        self.query_genotypes.append(Genotype([]))
+        self.query_genotype_likelihoods.append(None)
 
     def genotypes_of(self, sample: str) -> List[Genotype]:
         """Retrieve genotypes by sample name"""
@@ -234,29 +229,25 @@ class VariantTable:
     
 
     # Making a copy of all the functions to include GAF/BAM sample functions separately.
-    def query_genotypes_of(self, sample: str) -> List[Genotype]:
+    def query_genotypes_of(self) -> List[Genotype]:
         """Retrieve genotypes by sample name"""
-        return self.query_genotypes[self._query_sample_to_index[sample]]
+        return self.query_genotypes
 
-    def query_set_genotypes_of(self, sample: str, genotypes: List[Genotype]) -> None:
+    def query_set_genotypes_of(self, genotypes: List[Genotype]) -> None:
         """Set genotypes by sample name"""
         assert len(genotypes) == len(self.variants)
-        self.query_genotypes[self._query_sample_to_index[sample]] = genotypes
+        self.query_genotypes = genotypes
 
-    def query_genotype_likelihoods_of(self, sample: str) -> List[Optional[GenotypeLikelihoods]]:
+    def query_genotype_likelihoods_of(self) -> List[Optional[GenotypeLikelihoods]]:
         """Retrieve genotype likelihoods by sample name"""
-        return self.query_genotype_likelihoods[self._query_sample_to_index[sample]]
+        return self.query_genotype_likelihoods
 
     def query_set_genotype_likelihoods_of(
-        self, sample: str, genotype_likelihoods: List[Optional[GenotypeLikelihoods]]
+        self, genotype_likelihoods: List[Optional[GenotypeLikelihoods]]
     ) -> None:
         """Set genotype likelihoods by sample name"""
         assert len(genotype_likelihoods) == len(self.variants)
-        self.query_genotype_likelihoods[self._query_sample_to_index[sample]] = genotype_likelihoods
-
-    def query_id_of(self, sample: str) -> int:
-        """Return a unique int id of a sample given by name"""
-        return self._query_sample_to_index[sample]
+        self.query_genotype_likelihoods = genotype_likelihoods
 
 
 class MixedPhasingError(Exception):
@@ -271,7 +262,6 @@ class VcfReader:
     def __init__(
         self,
         path: Union[str, PathLike],
-        bam_samples: List[str] = None,
         indels: bool = False,
         phases: bool = False,
         genotype_likelihoods: bool = False,
@@ -293,11 +283,9 @@ class VcfReader:
         self._phases = phases
         self._genotype_likelihoods = genotype_likelihoods
         self._ignore_genotypes = ignore_genotypes
-        self.samples = bam_samples 
         self.vcf_samples = list(self._vcf_reader.header.samples)
         self.ploidy = ploidy
-        logger.debug("Found %d sample(s) in the BAM file.", len(self.samples))      # BAM File samples
-
+        
     def __enter__(self):
         return self
 
@@ -390,7 +378,7 @@ class VcfReader:
         n_other = 0
         n_multi = 0
         n_skip = 0  #To count the number of records that need to be skipped since they have more alleles than can be handled by Giggles
-        table = VariantTable(chromosome, self.samples, self.vcf_samples)
+        table = VariantTable(chromosome, self.vcf_samples)
         prev_position = None
         ## records is a list of VariantRecord objects
         logger.info("Processing variants from Chromosome %s."%(chromosome))
@@ -695,7 +683,7 @@ class VcfAugmenter(ABC):
     def __init__(
         self,
         in_path: str,
-        bam_samples: Iterable[str],
+        sample: str,
         command_line: Optional[str],
         out_file: TextIO = sys.stdout,
         include_haploid_phase_sets: bool = False,
@@ -722,8 +710,7 @@ class VcfAugmenter(ABC):
             self._reader.header.add_meta("commandline", command_line)
         self._writer = VariantFile(out_file, mode="w", header=VariantHeader())
         self.setup_header(self._writer.header)
-        for sample in bam_samples:
-            self._writer.header.add_sample(sample)
+        self._writer.header.add_sample(sample)
         
     @abstractmethod
     def setup_header(self, header):
@@ -784,13 +771,13 @@ class GenotypeVcfWriter(VcfAugmenter):
     multi-sample VCFs.
     """
 
-    def __init__(self, in_path: str, bam_samples: Iterable[str], command_line: Optional[str], out_file: TextIO = sys.stdout):
+    def __init__(self, in_path: str, sample: str, command_line: Optional[str], out_file: TextIO = sys.stdout):
         """
         in_path -- Path to input VCF, used as template.
         command_line -- A string that will be added as a VCF header entry.
         out_file -- Open file-like object to which VCF is written.
         """
-        super().__init__(in_path, bam_samples, command_line, out_file)
+        super().__init__(in_path, sample, command_line, out_file)
 
     def setup_header(self, header: VariantHeader):
         """Called by baseclass constructor"""
@@ -839,13 +826,13 @@ class GenotypeVcfWriter(VcfAugmenter):
                 geno_q = None
                 # for genotyped variants, get computed likelihoods/genotypes (for all others, give uniform likelihoods)
                 if pos in genotyped_variants:
-                    likelihoods = variant_table.query_genotype_likelihoods_of(sample)[
+                    likelihoods = variant_table.query_genotype_likelihoods_of()[
                         genotyped_variants[pos]
                     ]
                     # likelihoods can be 'None' if position was not accessible
                     if likelihoods is not None:
                         geno_l = [l for l in likelihoods]  # type: ignore
-                        geno = variant_table.query_genotypes_of(sample)[genotyped_variants[pos]]
+                        geno = variant_table.query_genotypes_of()[genotyped_variants[pos]]
 
                 # Compute GQ
                 geno_index = geno.get_index()

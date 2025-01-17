@@ -10,7 +10,6 @@
 #include "entry.h"
 #include "read.h"
 #include "readset.h"
-#include "pedigree.h"
 #include "vector2d.h"
 #include "backwardcolumniterator.h"
 #include "transitionprobabilitycomputer.h"
@@ -55,14 +54,9 @@ private:
   // the input sequencing reads
   ReadSet* read_set;
   
-  // stores sample index for each read
-  std::vector<unsigned int> read_sources;
-  
   // the recombination cost vector
   const std::vector<float>& recombcost;
   
-  // the pedigree containing all the individuals
-  const Pedigree* pedigree;
   // indexing schemes
   std::vector<Column*> hmm_columns;
   
@@ -135,15 +129,14 @@ public:
    * @param read_set   DP table is constructed for the given reads. Ownership is retained by caller.
    *			Pointer must remain valid during the lifetime of this GenotypeDPTable.
    * @param recombcost phred scaled recombination probabilities
-   * @param pedigree the pedigree giving individuals and their relationships
    * @param positions positions to work on. If 0, all positions given in the read_set are used.
    * 		      caller retains ownership.
    */
-  GenotypeHMM(ReadSet* read_set, const std::vector<float>& recombcost, const Pedigree* pedigree, const unsigned int& n_references, const std::vector<unsigned int>* positions = nullptr, const std::vector<unsigned int>* n_allele_positions = nullptr, const std::vector<std::vector<int> >* allele_references = nullptr);
+  GenotypeHMM(ReadSet* read_set, const std::vector<float>& recombcost, const unsigned int& n_references, const std::vector<unsigned int>* positions = nullptr, const std::vector<unsigned int>* n_allele_positions = nullptr, const std::vector<std::vector<int> >* allele_references = nullptr);
   ~GenotypeHMM();
 
-  // returns the computed genotype likelihoods for a given individual and a given SNP position
-  std::vector<long double> get_genotype_likelihoods(unsigned int individual, unsigned int position);
+  // returns the computed genotype likelihoods for a given position
+  std::vector<long double> get_genotype_likelihoods(unsigned int position);
 
 };
 #endif

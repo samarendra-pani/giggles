@@ -20,7 +20,6 @@ extensions = [
         "giggles.core",
         sources=[
             "giggles/core.pyx",
-            "src/pedigree.cpp",
             "src/columnindexingiterator.cpp",
             "src/column.cpp",
             "src/entry.cpp",

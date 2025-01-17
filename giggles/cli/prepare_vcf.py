@@ -2,7 +2,6 @@
 Create VCFs using assembly-to-graph alignments.
 '''
 
-import os
 import sys
 import logging
 from collections import defaultdict, namedtuple, abc

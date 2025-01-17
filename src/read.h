@@ -11,7 +11,7 @@
 
 class Read {
 public:
-	Read(const std::string& name, int mapq, int source_id, int sample_id, int reference_start = -1, const std::string& BX_tag = "", int reg_const = 10, double base_const = 2.718);
+	Read(const std::string& name, int mapq, int source_id, int reference_start = -1, const std::string& BX_tag = "", int reg_const = 10, double base_const = 2.718);
 	virtual ~Read() {}
 	std::string toString();
 	void addHaplotag(std::string hp, int ps);
@@ -43,7 +43,6 @@ public:
 	const std::vector<int>& getMapqs() const;
 	void addMapq(int mapq);
 	int getSourceID() const;
-	int getSampleID() const;
 	int getReferenceStart() const;
 	const std::string& getBXTag() const;
 	int getRegConst() const;
@@ -70,7 +69,6 @@ private:
 	std::string name;
 	std::vector<int> mapqs;
 	int source_id;
-	int sample_id;
 	int id;
 	int reference_start;
 	std::string BX_tag;

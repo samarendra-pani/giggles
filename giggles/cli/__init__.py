@@ -28,12 +28,14 @@ class CommandLineError(Exception):
     """An anticipated command-line error occurred. This ends up as a user-visible error message"""
 
 
-def alignment_reader(type, paths, reference, read_fasta, numeric_sample_ids, **kwargs):
+def alignment_reader(type, paths, reference, read_fasta, **kwargs):
     try:
         if type == "BAM":
-            readset_reader = ReadSetReader(paths, reference, numeric_sample_ids, **kwargs)
+            # here reference is a fasta file
+            readset_reader = ReadSetReader(paths, reference, **kwargs)
         elif type == "GAF":
-            readset_reader = GAFReader(paths, reference, read_fasta, numeric_sample_ids, **kwargs)
+            # here reference is a gfa file
+            readset_reader = GAFReader(paths, reference, read_fasta, **kwargs)
     except OSError as e:
         raise CommandLineError(e)
     except AlignmentFileNotIndexedError as e:
@@ -57,7 +59,6 @@ class PhasedInputReader:
         reference_fasta,
         gfa,
         read_fasta,
-        numeric_sample_ids,
         **kwargs,  # passed to ReadSetReader constructor
     ):
         self._bam_paths, self._gaf_paths = self._split_input_file_list(bam_or_gaf_paths)
@@ -70,17 +71,16 @@ class PhasedInputReader:
             self._type="GAF"
             reference = gfa
         logger.info("Detected %s file given as input..." %(self._type))
-        self._numeric_sample_ids = numeric_sample_ids
-        self._fasta = self._open_reference(reference_fasta) if reference_fasta else None
+        self._reference_fasta = self._open_reference(reference_fasta) if reference_fasta else None
 
-        self._readset_reader = alignment_reader(self._type, bam_or_gaf_paths, reference, read_fasta, numeric_sample_ids, **kwargs)
+        self._readset_reader = alignment_reader(self._type, bam_or_gaf_paths, reference, read_fasta, **kwargs)
     
     def __enter__(self):
         return self
 
     def __exit__(self, *args):
-        if self._fasta is not None:
-            self._fasta.close()
+        if self._reference_fasta is not None:
+            self._reference_fasta.close()
 
     @property
     def has_vcfs(self):
@@ -122,33 +122,33 @@ class PhasedInputReader:
             )
         return indexed_fasta
 
-    def read(self, chromosome, variants, sample, haplotags, keep_untagged):
+    def read(self, chromosome, variants, haplotags, keep_untagged):
         """
         Return a pair (readset, vcf_source_ids) where readset is a sorted ReadSet.
 
         Set read_vcf to False to not read phased blocks from the VCFs
         """
         readset_reader = self._readset_reader
-        for_sample = "for sample {!r} ".format(sample)
-        logger.info("Reading alignments %sand detecting alleles ...", for_sample)
+        logger.info("Reading alignments and detecting alleles ...")
         reference = None
         if self._type == "BAM":
             try:
-                reference = self._fasta[chromosome] if self._fasta else None
+                reference = self._reference_fasta[chromosome] if self._reference_fasta else None
             except KeyError:
                 raise CommandLineError(
-                    "Chromosome {!r} present in VCF file, but not in the reference FASTA {!r}".format(
-                        chromosome, self._fasta.filename
-                    )
+                    f"Chromosome {chromosome} present in VCF file, but not in the reference FASTA {self._reference_fasta.filename}"
                 )
             if reference == None:
-                CommandLineError("No reference sequence found for Chromosomes {!r}. Please provide the reference file with the chromosomes.".format(chromosome))
+                raise CommandLineError(
+                    f"No reference sequence found for Chromosomes {chromosome}. Please provide the reference file with the chromosomes."
+                )
         
-        bam_sample = sample
         try:
-            readset = readset_reader.read(chromosome, variants, bam_sample, reference)
+            readset = readset_reader.read(chromosome, variants, reference)
+            if readset is None:
+                readset = ReadSet()
         except SampleNotFoundError:
-            logger.warning("Sample %r not found in any BAM/CRAM file.", bam_sample)
+            logger.warning("Sample not found in any BAM/CRAM file.")
             readset = ReadSet()
         except ReadSetError as e:
             raise CommandLineError(e)
@@ -157,9 +157,9 @@ class PhasedInputReader:
                 alternative = chromosome[3:]
             else:
                 alternative = "chr" + chromosome
-            message = "The chromosome {!r} was not found in the BAM/CRAM file.".format(chromosome)
+            message = f"The chromosome {chromosome} was not found in the BAM/CRAM file."
             if readset_reader.has_reference(alternative):
-                message += " Found {!r} instead".format(alternative)
+                message += f" Found {alternative} instead"
             raise CommandLineError(message)
 
         new_readset = ReadSet()
@@ -179,6 +179,7 @@ class PhasedInputReader:
         logger.info(
             "Found %d reads covering %d variants", len(new_readset), len(new_readset.get_positions())
         )
+        
         return new_readset
 
 def read_haplotags(file):

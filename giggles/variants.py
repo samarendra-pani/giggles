@@ -10,16 +10,19 @@ from typing import Iterable, Iterator, List, Optional
 import re
 from pywfa import WavefrontAligner
 
-from giggles.core import Read, ReadSet, NumericSampleIds
+from giggles.core import Read, ReadSet
 from giggles.bam import SampleBamReader, MultiBamReader, BamReader
 from giggles.gaf import GafParser, SampleGafParser
 from giggles.align import edit_distance
 from giggles._variants import _iterate_cigar
 
+
 logger = logging.getLogger(__name__)
 
+
 class CommandLineError(Exception):
-    """An anticipated command-line error occurred. This ends up as a user-visible error message"""
+    pass
+
 
 class ReadSetError(Exception):
     pass
@@ -32,7 +35,6 @@ class AlignmentReader:
     def __init__(
             self,
             paths,
-            numeric_sample_ids: NumericSampleIds,
             mapq_threshold: int,
             realign_mode: str,
             overhang: int,
@@ -45,7 +47,6 @@ class AlignmentReader:
 
         self._paths = paths
         self._mapq_threshold = mapq_threshold
-        self._numeric_sample_ids = numeric_sample_ids
         self._realign_mode = realign_mode
         if realign_mode == "edit":
             self._aligner = edit_distance
@@ -74,6 +75,8 @@ class AlignmentReader:
     def _make_readset_from_grouped_reads(groups: Iterable[List[Read]], reg_const: int, base_const: float) -> ReadSet:
         read_set = ReadSet()
         for group in groups:
+            if group is None:
+                return None
             read_set.add(merge_reads(*group, reg_const = reg_const, base_const = base_const))
         return read_set
 
@@ -335,7 +338,6 @@ class GAFReader(AlignmentReader):
         paths: List[str],
         reference: str,
         read_fasta: str,
-        numeric_sample_ids: NumericSampleIds,
         mapq_threshold: int = 20,
         realign_mode: str = "wfa_full",
         overhang: int = 10,
@@ -346,7 +348,7 @@ class GAFReader(AlignmentReader):
         reg_const = 10,
         base_const = math.e
     ):
-        super().__init__(paths, numeric_sample_ids, mapq_threshold, realign_mode, overhang, gap_start, gap_extend, default_mismatch, em_prob_params, reg_const, base_const)
+        super().__init__(paths, mapq_threshold, realign_mode, overhang, gap_start, gap_extend, default_mismatch, em_prob_params, reg_const, base_const)
         self._reader: GafParser
         if len(paths) == 1:
             self._reader = SampleGafParser(paths[0], reference=reference, read_fasta=read_fasta, mapq=self._mapq_threshold)
@@ -356,7 +358,7 @@ class GAFReader(AlignmentReader):
     def has_reference(self, chromosome):
         return self._reader.has_reference(chromosome)
 
-    def read(self, chromosome, variants, sample=None, reference=None) -> ReadSet:
+    def read(self, chromosome, variants, reference=None) -> ReadSet:
         """
         Detect alleles and return a ReadSet object containing reads representing
         the given variants.
@@ -366,10 +368,7 @@ class GAFReader(AlignmentReader):
 
         chromosome -- name of chromosome to work on
         variants -- list of vcf.VcfVariant objects
-        sample -- name of sample to work on. If None, read group information is
-            ignored and all reads in the file are used.
-        reference -- reference sequence of the given chromosome (or None)
-        regions -- list of start,end tuples (end can be None)
+        reference -- Here the variable does nothing. Kept to maintain compatibility with ReadSetReader
         """
         # Since variants are identified by position, positions must be unique.
         if __debug__ and variants:
@@ -378,9 +377,9 @@ class GAFReader(AlignmentReader):
             assert count == 1, "Position {} occurs more than once in variant list.".format(pos)
 
         logger.debug("Extracting Usable Alignments")
-        alignments = self._usable_alignments(chromosome, variants)
+        alignments = self._usable_alignments(chromosome)
         logger.debug("Converting Alignments to Read Objects")
-        reads = self._alignments_to_reads(alignments, variants, sample)
+        reads = self._alignments_to_reads(alignments, variants)
         logger.debug("Grouping Reads into ReadSet Object")
         grouped_reads = self._remove_duplicate_reads(reads)
         logger.debug("ReadSet Object Successfully Created")
@@ -394,18 +393,20 @@ class GAFReader(AlignmentReader):
         """
         groups = defaultdict(list)
         for read in reads:
-            if groups[(read.source_id, read.name, read.sample_id)] == []:
-                groups[(read.source_id, read.name, read.sample_id)] = [read]       # Keeping this as a list so that I dont need to change _make_readset_from_grouped_reads()
+            if read is None:
+                yield None
+            if groups[(read.source_id, read.name)] == []:
+                groups[(read.source_id, read.name)] = [read]       # Keeping this as a list so that I dont need to change _make_readset_from_grouped_reads()
             else:
-                old_read = groups[(read.source_id, read.name, read.sample_id)][0]
+                old_read = groups[(read.source_id, read.name)][0]
 
                 # Check the number of variants it covers
                 if len(old_read) < len(read):
-                    groups[(read.source_id, read.name, read.sample_id)] = [read]
+                    groups[(read.source_id, read.name)] = [read]
                 
                 # Check the mapping quality
                 if old_read.mapqs < read.mapqs:
-                    groups[(read.source_id, read.name, read.sample_id)] = [read]
+                    groups[(read.source_id, read.name)] = [read]
         
         for group in groups.values():
             if len(group) > 1:
@@ -424,7 +425,7 @@ class GAFReader(AlignmentReader):
         return seq
 
 
-    def _usable_alignments(self, chromosome, variants):
+    def _usable_alignments(self, chromosome):
         """
         Retrieve usable (suficient mapping quality, not secondary etc.)
         alignments from the alignment file
@@ -433,7 +434,7 @@ class GAFReader(AlignmentReader):
         for alignment in self._reader(contig=chromosome):
             yield alignment
 
-    def _alignments_to_reads(self, alignments, variants, sample):
+    def _alignments_to_reads(self, alignments, variants):
         """
         Convert GAF alignments to Read objects.
 
@@ -441,7 +442,6 @@ class GAFReader(AlignmentReader):
 
         Yield Read objects.
         """
-        numeric_sample_id = 0 if sample is None else self._numeric_sample_ids[sample]
         rgfa = self._reader._reference
         bub_start_to_end = {}
         bub_end_to_start = {}
@@ -455,8 +455,12 @@ class GAFReader(AlignmentReader):
         cg_letter_to_op = {'M': 0, 'I': 1, 'D': 2, 'N': 3, 'S': 4, 'H': 5, 'P': 6, 'X': 7, '=': 8}
         Alignment = namedtuple('Alignment', ['cigartuples', 'reference_start', 'query_sequence'])        # Class created to maintain compatibility with old code
         for alignment in alignments:
-            # Checking if the alignment is in reverse direction.
             
+            # if no alignment found for the chromosome, return None
+            if alignment is None:
+                yield None
+            
+            # Checking if the alignment is in reverse direction.
             reverse = False
             orient  = None
             for n in alignment.path:
@@ -511,10 +515,8 @@ class GAFReader(AlignmentReader):
                     reference += node.sequence
                 
                 # Finding variants and variant positions
-                
-                if not start_reading and (node.tags['NO'] == 0 and n in bub_start_to_end.keys()):
+                if (not start_reading) and (node.tags['NO'] == 0 and n in bub_start_to_end.keys()):
                     start_reading = True
-                
                 if start_reading:
                     if node.tags['NO'] == 0 and n in bub_end_to_start.keys():
                         if len(variants_in_alignment) > 0:
@@ -535,8 +537,7 @@ class GAFReader(AlignmentReader):
 
             # Extract the aligned segement from the complete read sequence and create a new object.
             # Need cigartuples, and reference_start (where it starts in the reference. So the path start in this case.)
-
-
+            #print(f'num_var_alignment: {len(variants_in_alignment)}')
             gaf_aligned_segment = alignment.sequence[alignment.q_start:alignment.q_end]
             cg_tuples = []
             cg = list(filter(None, re.split("([MIDNSHP=X])", alignment.cigar)))
@@ -558,7 +559,6 @@ class GAFReader(AlignmentReader):
                 alignment.read_id,
                 alignment.mapping_quality,
                 alignment.source_id,
-                numeric_sample_id,
                 start_on_ref,
                 barcode,
                 self._reg_const,
@@ -574,7 +574,6 @@ class GAFReader(AlignmentReader):
                 self._realign_mode,
                 self._overhang,
                 self._em_params)
-            
             for j, allele, em, quality in detected:
                 read.add_variant(variants_in_alignment[j].position_on_ref, allele, em, quality)
             if read:  # At least one variant covered and detected
@@ -604,7 +603,6 @@ class ReadSetReader(AlignmentReader):
         self,
         paths: List[str],
         reference: Optional[str],
-        numeric_sample_ids: NumericSampleIds,
         mapq_threshold: int = 20,
         realign_mode: str = "edit",
         overhang: int = 10,
@@ -618,12 +616,11 @@ class ReadSetReader(AlignmentReader):
         """
         paths -- list of BAM paths
         reference -- path to reference FASTA (can be None)
-        numeric_sample_ids -- sample ids in numeric format
         mapq_threshold -- minimum mapping quality
         overhang -- extend alignment by this many bases to left and right
         gap_start, gap_extend, default_mismatch -- parameters for affine gap cost alignment
         """
-        super().__init__(paths, numeric_sample_ids, mapq_threshold, realign_mode, overhang, gap_start, gap_extend, default_mismatch, em_prob_params, reg_const, base_const)
+        super().__init__(paths, mapq_threshold, realign_mode, overhang, gap_start, gap_extend, default_mismatch, em_prob_params, reg_const, base_const)
         self._reader: BamReader
         if len(paths) == 1:
             self._reader = SampleBamReader(paths[0], reference=reference)
@@ -633,7 +630,7 @@ class ReadSetReader(AlignmentReader):
     def has_reference(self, chromosome):
         return self._reader.has_reference(chromosome)
 
-    def read(self, chromosome, variants, sample, reference) -> ReadSet:
+    def read(self, chromosome, variants, reference) -> ReadSet:
         """
         Detect alleles and return a ReadSet object containing reads representing
         the given variants.
@@ -647,10 +644,7 @@ class ReadSetReader(AlignmentReader):
 
         chromosome -- name of chromosome to work on
         variants -- list of vcf.VcfVariant objects
-        sample -- name of sample to work on. If None, read group information is
-            ignored and all reads in the file are used.
         reference -- reference sequence of the given chromosome (or None)
-        regions -- list of start,end tuples (end can be None)
         """
         # Since variants are identified by position, positions must be unique.
         if __debug__ and variants:
@@ -659,9 +653,9 @@ class ReadSetReader(AlignmentReader):
             assert count == 1, "Position {} occurs more than once in variant list.".format(pos)
 
         logger.debug("Extracting Usable Alignments")
-        alignments = self._usable_alignments(chromosome, sample)
+        alignments = self._usable_alignments(chromosome)
         logger.debug("Converting Alignments to Read Objects")
-        reads = self._alignments_to_reads(alignments, variants, sample, reference)
+        reads = self._alignments_to_reads(alignments, variants, reference)
         logger.debug("Grouping Reads into ReadSet Object")
         grouped_reads = self._group_paired_reads(reads)
         logger.debug("ReadSet Object Successfully Created")
@@ -671,7 +665,7 @@ class ReadSetReader(AlignmentReader):
     @staticmethod
     def _group_paired_reads(reads: Iterable[Read]) -> Iterator[List[Read]]:
         """
-        Group reads into paired-end read pairs. Uses name, source_id and sample_id
+        Group reads into paired-end read pairs. Uses name and source_id
         as grouping key.
 
         TODO
@@ -680,7 +674,7 @@ class ReadSetReader(AlignmentReader):
         """
         groups = defaultdict(list)
         for read in reads:
-            groups[(read.source_id, read.name, read.sample_id)].append(read)
+            groups[(read.source_id, read.name)].append(read)
         for group in groups.values():
             if len(group) > 2:
                 raise ReadSetError(
@@ -688,30 +682,27 @@ class ReadSetReader(AlignmentReader):
                 )
             yield group
 
-    def _usable_alignments(self, chromosome, sample, regions=None):
+    def _usable_alignments(self, chromosome):
         """
         Retrieve usable (suficient mapping quality, not secondary etc.)
         alignments from the alignment file
         """
-        if regions is None:
-            regions = [(0, None)]
-        for s, e in regions:
-            for alignment in self._reader.fetch(
-                reference=chromosome, sample=sample, start=s, end=e
+        for alignment in self._reader.fetch(
+            reference=chromosome
+        ):
+            # TODO handle additional alignments correctly!
+            # find out why they are sometimes overlapping/redundant
+            if (
+                alignment.bam_alignment.flag & 2048 != 0
+                or alignment.bam_alignment.mapping_quality < self._mapq_threshold
+                or alignment.bam_alignment.is_secondary
+                or alignment.bam_alignment.is_unmapped
+                or alignment.bam_alignment.is_duplicate
             ):
-                # TODO handle additional alignments correctly!
-                # find out why they are sometimes overlapping/redundant
-                if (
-                    alignment.bam_alignment.flag & 2048 != 0
-                    or alignment.bam_alignment.mapping_quality < self._mapq_threshold
-                    or alignment.bam_alignment.is_secondary
-                    or alignment.bam_alignment.is_unmapped
-                    or alignment.bam_alignment.is_duplicate
-                ):
-                    continue
-                yield alignment
+                continue
+            yield alignment
 
-    def _alignments_to_reads(self, alignments, variants, sample, reference):
+    def _alignments_to_reads(self, alignments, variants, reference):
         """
         Convert BAM alignments to Read objects.
 
@@ -719,8 +710,7 @@ class ReadSetReader(AlignmentReader):
 
         Yield Read objects.
         """
-        # FIXME hard-coded zero
-        numeric_sample_id = 0 if sample is None else self._numeric_sample_ids[sample]
+        
         if reference is not None:
             # Copy the pyfaidx.FastaRecord into a str for faster access
             reference = reference[:]
@@ -745,7 +735,6 @@ class ReadSetReader(AlignmentReader):
                 alignment.bam_alignment.qname,
                 alignment.bam_alignment.mapq,
                 alignment.source_id,
-                numeric_sample_id,
                 alignment.bam_alignment.reference_start,
                 barcode,
                 self._reg_const,
@@ -790,7 +779,6 @@ def merge_two_reads(read1: Read, read2: Read, reg_const, base_const) -> Read:
             read1.name,
             read1.mapqs[0],
             read1.source_id,
-            read1.sample_id,
             read1.reference_start,
             read1.BX_tag,
             reg_const,

@@ -8,8 +8,10 @@ import logging
 import giggles.cli as cli_package
 from . import __version__
 from .args import HelpfulArgumentParser
-from .cli import CommandLineError
 
+
+class CommandLineError(Exception):
+    pass
 
 logger = logging.getLogger(__name__)
 
