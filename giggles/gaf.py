@@ -143,30 +143,32 @@ class SampleGafParser(GafParser):
     """
     def __init__(
         self,
-        path: str, *,
-        reference: str,
-        read_fasta: str = None,
-        mapq = None,
-        source_id: int = 0
+        path,
+        reference,
+        read_fasta,
+        mapq,
+        source_id = 1
     ):
         """
         path -- path to the GAF file
         reference -- rGFA for the realignment
         """
-        reference = os.path.abspath(reference)
-        self.source_id: int = source_id
+        self.source_id = source_id
         self._mapq = mapq
         path = os.path.abspath(path)
-        logger.info("Reading GFA File.")
-        self._reference = rGFA(reference_path=reference)
+        self._reference = reference
         if read_fasta != None:
-            logger.info("Parsing FASTA File.")
+            logger.info("Parsing FASTA file with read seqeunces.")
+            # TODO: Problem with parallel processing
             self._read_sequences = pysam.FastaFile(read_fasta)
+
         else:
             raise CommandLineError("FASTA file not given. Assuming the read sequences will be provided in GAF File.")
         gzipped = detect_gzip(path)
         if gzipped:
+            # TODO: problem with parallel processing
             self._file = pysam.libcbgzf.BGZFile(path, "rb")
+            pass
         else:
             self._file = open(path, "r")
         logger.info("Parsing GAF File.")
@@ -215,6 +217,15 @@ class SampleGafParser(GafParser):
             yield a
 
 
+class Node:
+    def __init__(self, sequence, start, contig, tags):
+        self.sequence = sequence
+        self.start = start
+        self.contig = contig
+        self.tags = tags
+
+    def __repr__(self):
+        return "Node(sequence={}, start={}, contig={}, tags={})".format(self.sequence, self.start, self.contig, self.tags)
 
 class rGFA:
     """
@@ -223,7 +234,7 @@ class rGFA:
     """
     def __init__(self, reference_path) -> None:
         
-        
+        logger.info('Reading rGFA file.')
         gzipped = None
         with open(reference_path, 'rb') as test_f:
             gzipped = (test_f.read(2) == b'\x1f\x8b')
@@ -236,7 +247,6 @@ class rGFA:
         
 
     def parse_gfa_file(self, file):
-        Node = namedtuple("Node", ['sequence', 'start', 'contig', 'tags'])
         node_dict = {}
         ref_contig_nodes = {}   # Node IDs (sequential) for reference backbone contigs 
         for line in file:

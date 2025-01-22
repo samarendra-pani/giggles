@@ -12,7 +12,7 @@ from pywfa import WavefrontAligner
 
 from giggles.core import Read, ReadSet
 from giggles.bam import SampleBamReader, MultiBamReader, BamReader
-from giggles.gaf import GafParser, SampleGafParser
+from giggles.gaf import GafParser, SampleGafParser, rGFA
 from giggles.align import edit_distance
 from giggles._variants import _iterate_cigar
 
@@ -336,7 +336,7 @@ class GAFReader(AlignmentReader):
     def __init__(
         self,
         paths: List[str],
-        reference: str,
+        reference: rGFA,
         read_fasta: str,
         mapq_threshold: int = 20,
         realign_mode: str = "wfa_full",

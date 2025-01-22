@@ -3,13 +3,14 @@
 import gzip
 import logging
 from collections import defaultdict
-from typing import DefaultDict
+from typing import DefaultDict, Sequence
 import pyfaidx
 from abc import ABC, abstractmethod
 
 from giggles import __version__
 from giggles.core import (
-    readselection
+    readselection,
+    Genotype
 )
 
 class FastaNotIndexedError(Exception):
@@ -103,3 +104,61 @@ class UniformRecombinationCostComputer(RecombinationCostComputer):
 
     def compute(self, positions):
         return self.uniform_recombination_map(self._recombination_rate, self._eff_pop_size, positions)
+
+
+def bin_coeff(n, k):
+    if (k < 0) or (n < 0) or (n < k):
+        return 0
+	
+    result = 1.0
+    if (k > n-k):
+        k = n-k
+	
+    for i in range(k):
+        result *= (n-i)
+        result /= (i+1)
+	
+    return int(result)
+
+
+def int_to_diploid_multiallelic_gt(numeric_repr):
+    """Converts the classic numeric representation of multi-allelic, diploid genotypes
+    into a genotype object
+    """
+    if numeric_repr == -1:
+        return Genotype([])
+    ploidy = 2
+    genotype = [-1,-1]
+    pth = ploidy
+    max_allele_index = numeric_repr
+    leftover_genotype_index = numeric_repr
+
+    while (pth > 0):
+        for allele_index in range(max_allele_index+1):
+            i = bin_coeff(pth + allele_index - 1, pth)
+            if (i >= leftover_genotype_index) or (allele_index == max_allele_index):
+                if (i > leftover_genotype_index):
+                    allele_index -= 1
+                leftover_genotype_index -= bin_coeff(pth + allele_index - 1, pth)
+                pth -= 1
+                max_allele_index = allele_index
+                genotype[pth] = allele_index
+                break
+    
+    return Genotype(genotype)
+
+
+def determine_genotype(likelihoods: Sequence[float], threshold_prob: float, n_allele: int) -> float:
+    """given genotype likelihoods for 0/0, 0/1, 1/1, determines likeliest genotype"""
+
+    assert bin_coeff(n_allele + 1, n_allele - 1) == len(likelihoods)
+    to_sort = []
+    for i in range(len(likelihoods)):
+        to_sort.append((likelihoods[int_to_diploid_multiallelic_gt(i)], i))
+    to_sort.sort(key=lambda x: x[0])
+
+    # make sure there is a unique maximum which is greater than the threshold
+    if (to_sort[-1][0] > to_sort[-2][0]) and (to_sort[-1][0]-to_sort[-2][0] > threshold_prob):
+        return int_to_diploid_multiallelic_gt(to_sort[-1][1])
+    else:
+        return int_to_diploid_multiallelic_gt(-1)

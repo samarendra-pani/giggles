@@ -97,7 +97,6 @@ class VcfVariant:
         )
        
 
-
 class GenotypeLikelihoods:
     __slots__ = "log_prob_genotypes"
 
@@ -152,12 +151,12 @@ class VariantTable:
     def __init__(self, chromosome: str, samples: List[str]):
         self.chromosome = chromosome
         self.samples = samples
-        self.variants: List[VcfVariant] = []
+        self.variants = []
         
         # Separate lists for VCF samples and GAF/BAM sample
-        self.genotypes: List[List[Genotype]] = [[] for _ in samples]
-        self.phases: List[List[Optional[VariantCallPhase]]] = [[] for _ in samples]
-        self.genotype_likelihoods: List[List[Optional[GenotypeLikelihoods]]] = [[] for _ in samples]
+        self.genotypes = [[] for _ in samples]
+        self.phases = [[] for _ in samples]
+        self.genotype_likelihoods = [[] for _ in samples]
         self._sample_to_index = {sample: index for index, sample in enumerate(samples)}
 
         self.query_genotypes= []
@@ -253,7 +252,8 @@ class VariantTable:
 class MixedPhasingError(Exception):
     pass
 
-
+# TODO: Clean up VcfReader.
+# There is space for haplotagging but there is no plans for developing in that direction yet.
 class VcfReader:
     """
     Read a VCF file chromosome by chromosome.
@@ -266,7 +266,8 @@ class VcfReader:
         phases: bool = False,
         genotype_likelihoods: bool = False,
         ignore_genotypes: bool = True,
-        ploidy: int = None,
+        ploidy: int = 2,
+        required_chr: List = None,
     ):
         """
         path -- Path to VCF file
@@ -285,6 +286,7 @@ class VcfReader:
         self._ignore_genotypes = ignore_genotypes
         self.vcf_samples = list(self._vcf_reader.header.samples)
         self.ploidy = ploidy
+        self.required_chr = required_chr
         
     def __enter__(self):
         return self
@@ -337,15 +339,18 @@ class VcfReader:
         return self._process_single_chromosome(chromosome, records)
 
     def __iter__(self) -> Iterator[VariantTable]:
-        """
-        Yield VariantTable objects for each chromosome.
-
-        Multi-ALT sites are skipped. (TODO Have to fix that.)
-        """
-        ## self._vcf_reader is VariantFile object
-        ## So it records is a list of VariantRecord objects
+        # self._vcf_reader is pysam.VariantFile object
+        # So it records is a list of VariantRecord objects
+        # Problem with itertools.groupby is in its processing of the entire VCF file instead of being a generator yielding records.
+        # Requires high memory initially
+        # TODO: Possible to make this more memory efficient?
         for chromosome, records in itertools.groupby(self._vcf_reader, lambda record: record.chrom):
-            yield self._process_single_chromosome(chromosome, records)
+            if (not self.required_chr) or (chromosome in self.required_chr):
+                logger.info("======== Working on chromosome %r", chromosome)
+                yield self._process_single_chromosome(chromosome, records)
+            else:
+                logger.info("======== Skipping chromosome %r", chromosome)
+            
 
     @staticmethod
     def _extract_HP_phase(call) -> Optional[VariantCallPhase]:
@@ -498,7 +503,7 @@ class VcfReader:
             variant = VcfVariant(id = id, position=pos, reference_allele=ref, alternative_allele=alts, allele_origin=allele_origin, allele_traversal=allele_traversal)
             table.add_variant(variant, genotypes, phases, genotype_likelihoods)
 
-        logger.info("Processed Chromosome %s. Parsed %s SNVs, %s non-SNVs and %s multi-ALTs. Also skipped %s records exceeding max allele caparacity.", chromosome, n_snvs, n_other, n_multi, n_skip)
+        logger.info(f"Processed Chromosome {chromosome}. Parsed {n_snvs} SNVs, {n_other} non-SNVs and {n_multi} multi-ALTs. Also skipped {n_skip} records exceeding max allele caparacity.")
 
         return table
 

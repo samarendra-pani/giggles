@@ -3,7 +3,6 @@
 import sys
 import resource
 import logging
-from collections import defaultdict, namedtuple
 
 from giggles.bam import (
     AlignmentFileNotIndexedError,
@@ -19,7 +18,7 @@ from giggles.gaf import (
 from giggles.variants import ReadSetReader, ReadSetError, GAFReader
 from giggles.utils import IndexedFasta, FastaNotIndexedError, detect_file_format
 from giggles.core import ReadSet
-from giggles.vcf import VcfReader
+
 
 logger = logging.getLogger(__name__)
 
@@ -72,13 +71,12 @@ class PhasedInputReader:
             reference = gfa
         logger.info("Detected %s file given as input..." %(self._type))
         self._reference_fasta = self._open_reference(reference_fasta) if reference_fasta else None
-
         self._readset_reader = alignment_reader(self._type, bam_or_gaf_paths, reference, read_fasta, **kwargs)
     
     def __enter__(self):
         return self
 
-    def __exit__(self, *args):
+    def __exit__(self):
         if self._reference_fasta is not None:
             self._reference_fasta.close()
 
@@ -182,6 +180,12 @@ class PhasedInputReader:
         
         return new_readset
 
+class Haplotag:
+    def __init__(self, hp, ps, chr):
+        self.hp = hp
+        self.ps = ps
+        self.chr = chr
+
 def read_haplotags(file):
     """
     Function to read the haplotag file.
@@ -196,11 +200,11 @@ def read_haplotags(file):
     """
 
     logger.info("Reading Haplotag TSV File")
-    Haplotag = namedtuple('Haplotag', ['hp', 'ps', 'chr'])
-    out = defaultdict(lambda: Haplotag(hp="none", ps=-1, chr="none"))
+    out = None
     if file == None:
         return out
     with open(file, 'r') as f:
+        out = dict()
         while True:
             line = f.readline()
             if not line:

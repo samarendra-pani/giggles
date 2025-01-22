@@ -10,9 +10,9 @@ forward backward algorithm.
 import logging
 import sys
 import platform
-from typing import Sequence
 import math
-
+# from multiprocessing import Pool
+from functools import partial
 from contextlib import ExitStack
 
 from giggles import __version__
@@ -25,70 +25,118 @@ from giggles.core import (
 from giggles.utils import (
     UniformRecombinationCostComputer,
 )
+from giggles.gaf import rGFA
 from giggles.timer import StageTimer
 from giggles.cli import log_memory_usage
-from giggles.utils import select_reads
+from giggles.utils import select_reads, bin_coeff, determine_genotype
 from giggles.cli import PhasedInputReader, read_haplotags
 
 
 logger = logging.getLogger(__name__)
 
-def bin_coeff(n, k):
-    if (k < 0) or (n < 0) or (n < k):
-        return 0
-	
-    result = 1.0
-    if (k > n-k):
-        k = n-k
-	
-    for i in range(k):
-        result *= (n-i)
-        result /= (i+1)
-	
-    return int(result)
 
-
-def int_to_diploid_multiallelic_gt(numeric_repr):
-    """Converts the classic numeric representation of multi-allelic, diploid genotypes
-    into a genotype object
-    """
-    if numeric_repr == -1:
-        return Genotype([])
-    ploidy = 2
-    genotype = [-1,-1]
-    pth = ploidy
-    max_allele_index = numeric_repr
-    leftover_genotype_index = numeric_repr
-
-    while (pth > 0):
-        for allele_index in range(max_allele_index+1):
-            i = bin_coeff(pth + allele_index - 1, pth)
-            if (i >= leftover_genotype_index) or (allele_index == max_allele_index):
-                if (i > leftover_genotype_index):
-                    allele_index -= 1
-                leftover_genotype_index -= bin_coeff(pth + allele_index - 1, pth)
-                pth -= 1
-                max_allele_index = allele_index
-                genotype[pth] = allele_index
-                break
+def genotype_chromosome(variant_table, 
+        phased_input_reader_arguments, 
+        haplotags, 
+        keep_untagged, 
+        max_coverage, 
+        gt_prob, 
+        recombination_cost_computer, 
+        n_haplotypes, 
+        timers
+    ):
     
-    return Genotype(genotype)
+    chromosome = variant_table.chromosome
+    with timers("phased_input_reader"):
+        phased_input_reader = PhasedInputReader(*phased_input_reader_arguments[0], **phased_input_reader_arguments[1])
+    
+    # create a mapping of genome positions to indices
+    var_pos_to_ind = dict()
+    n_allele_position = dict()
+    allele_references = dict()
+    for i in range(len(variant_table.variants)):
+        var_pos_to_ind[variant_table.variants[i].position_on_ref] = i
+        v = variant_table.variants[i]
+        n_allele_position[v.position_on_ref] = len(v.alternative_allele)+1      ##Contains the number of alleles at every variant position
+        allele_references[v.position_on_ref] = v.allele_origin        
+    
+    #Prior genotyping with equal probabilities
+    variant_table.query_set_genotype_likelihoods_of(
+        [PhredGenotypeLikelihoods([1/(bin_coeff(n_allele_position[pos] + 1, n_allele_position[pos] - 1))] * (bin_coeff(n_allele_position[pos] + 1, n_allele_position[pos] - 1)) , 2, n_allele_position[pos]) for pos in list(var_pos_to_ind.keys())]
+    )
+    
+    # Get the reads belonging to each sample
+    with timers("read_alignment"):
+        readset = phased_input_reader.read(
+            chromosome, variant_table.variants, haplotags, keep_untagged
+        )
+    if len(readset) == 0:
+        logger.info(f"Skipping chromosome {chromosome} because no reads were found.")
+        return
 
+    with timers("select"):
+        if max_coverage == None:
+            selected_reads = readset
+            logger.info(f"Kept {len(readset)} reads in {chromosome}")
+        else:
+            readset = readset.subset(
+                [i for i, read in enumerate(readset) if len(read) >= 2]
+            )
+            logger.info(f"Kept {len(readset)} reads that cover at least two variants each in {chromosome}")
+            selected_reads = select_reads(readset, max_coverage)
+    
+    # Sorting selected reads
+    with timers("alignment_sorting"):
+        for read in selected_reads:
+            if not read.is_sorted():
+                read.sort()
+        selected_reads.sort()
+        
+    # Determine which variants can (in principle) be phased
+    accessible_positions = list(var_pos_to_ind.keys())
+    accessible_positions_n_allele = []
+    accessible_positions_allele_references = []
+    for position in accessible_positions:
+        accessible_positions_n_allele.append(n_allele_position[position])
+        allele_reference_to_list = []
+        for ref_sample in allele_references[position]:
+            for hap in ref_sample:
+                try:
+                    allele_reference_to_list.append(int(hap))
+                except TypeError:
+                    allele_reference_to_list.append(-1)
+        accessible_positions_allele_references.append(allele_reference_to_list)
+    logger.info(f"Variants in {chromosome} covered by at least one read after read selection: {len(selected_reads.get_positions())}")
 
-def determine_genotype(likelihoods: Sequence[float], threshold_prob: float, n_allele: int) -> float:
-    """given genotype likelihoods for 0/0, 0/1, 1/1, determines likeliest genotype"""
+    recombination_costs = recombination_cost_computer.compute(accessible_positions)
+    
+    # Finally, run genotyping algorithm
+    with timers("genotyping"):
+        forward_backward_table = GenotypeHMM(
+            selected_reads,
+            recombination_costs,
+            n_haplotypes,
+            accessible_positions,
+            accessible_positions_n_allele,
+            accessible_positions_allele_references
+        )
+        
+        # store results
+        likelihood_list = variant_table.query_genotype_likelihoods_of()
+        genotypes_list = variant_table.query_genotypes_of()
 
-    assert bin_coeff(n_allele + 1, n_allele - 1) == len(likelihoods)
-    to_sort = []
-    for i in range(len(likelihoods)):
-        to_sort.append((likelihoods[int_to_diploid_multiallelic_gt(i)], i))
-    to_sort.sort(key=lambda x: x[0])
+        for pos in range(len(accessible_positions)):
+            likelihoods = forward_backward_table.get_genotype_likelihoods(pos, accessible_positions_n_allele[pos])
+            # compute genotypes from likelihoods and store information
+            geno = determine_genotype(likelihoods, gt_prob, accessible_positions_n_allele[pos])
+            assert isinstance(geno, Genotype)
+            genotypes_list[var_pos_to_ind[accessible_positions[pos]]] = geno
+            likelihood_list[var_pos_to_ind[accessible_positions[pos]]] = likelihoods
 
-    # make sure there is a unique maximum which is greater than the threshold
-    if (to_sort[-1][0] > to_sort[-2][0]) and (to_sort[-1][0]-to_sort[-2][0] > threshold_prob):
-        return int_to_diploid_multiallelic_gt(to_sort[-1][1])
-    else:
-        return int_to_diploid_multiallelic_gt(-1)
+        variant_table.query_set_genotypes_of(genotypes_list)
+        variant_table.query_set_genotype_likelihoods_of(likelihood_list)
+
+    return (variant_table, chromosome)
 
 
 def run_genotype(
@@ -101,6 +149,7 @@ def run_genotype(
     keep_untagged=False,
     output=sys.stdout,
     sample=None,
+    # cores=1,
     chromosomes=None,
     mapping_quality=20,
     max_coverage=None,
@@ -129,27 +178,24 @@ def run_genotype(
     command_line = "(giggles {}) {}".format(__version__, " ".join(sys.argv[1:]))
     with ExitStack() as stack:
         # read the given input files (BAMs, VCFs, ref...)
-        phased_input_reader = stack.enter_context(
-            PhasedInputReader(
-                mapped_read_files,
-                reference_fasta,
-                rgfa,
-                read_fasta,
-                mapq_threshold=mapping_quality,
-                realign_mode=realign_mode,
-                overhang=overhang,
-                gap_start=gap_start,
-                gap_extend=gap_extend,
-                default_mismatch=mismatch,
-                em_prob_params=[match_probability, mismatch_probability, insertion_probability, deletion_probability],
-                reg_const=em_reg_constant,
-                base_const=em_score_to_prob_base_constant
-            )
-        )
-
-        haplotags = read_haplotags(haplotag_tsv)
-        logger.debug("Initial Parsing of Alignments Done. PhasedInputReader object successfully created.")
-
+        if rgfa is not None:
+            rgfa = rGFA(reference_path=rgfa)
+        pir_args = (mapped_read_files, reference_fasta, rgfa, read_fasta)
+        pir_kwargs = {'mapq_threshold': mapping_quality,
+                'realign_mode': realign_mode,
+                'overhang': overhang,
+                'gap_start': gap_start,
+                'gap_extend': gap_extend,
+                'default_mismatch': mismatch,
+                'em_prob_params': [match_probability, mismatch_probability, insertion_probability, deletion_probability],
+                'reg_const': em_reg_constant,
+                'base_const': em_score_to_prob_base_constant}
+        
+        # reading haplotags
+        haplotags = None
+        if haplotag_tsv is not None:
+            haplotags = read_haplotags(haplotag_tsv)
+        
         # vcf writer for final genotype likelihoods
         vcf_writer = stack.enter_context(GenotypeVcfWriter(command_line=command_line, in_path=variant_file, out_file=output, sample=sample))
         
@@ -157,7 +203,7 @@ def run_genotype(
         # The variant tables are then simply just updated after the HMM is run.
         vcf_reader = stack.enter_context(
             VcfReader(
-                variant_file, indels=True, genotype_likelihoods=False, phases=False, ignore_genotypes=True
+                variant_file, indels=True, genotype_likelihoods=False, phases=False, ignore_genotypes=True, required_chr=chromosomes
             )
         )
         recombination_cost_computer = UniformRecombinationCostComputer(recombrate, eff_pop_size)
@@ -174,119 +220,47 @@ def run_genotype(
             else:
                 n_haplotypes += 1
         
-        # Iterating over chromosomes present in the multisample reference graph vcf file
+        # creating partial function to give Pool.imap()
+        # Note: The phased_input_reader is common to all the processes but python multiprocessing has trouble with pysam-based objects.
+        partial_genotype_chromosome = partial(genotype_chromosome, 
+            phased_input_reader_arguments=[pir_args, pir_kwargs], 
+            haplotags=haplotags, 
+            keep_untagged=keep_untagged, 
+            max_coverage=max_coverage, 
+            gt_prob=gt_prob, 
+            recombination_cost_computer=recombination_cost_computer, 
+            n_haplotypes=n_haplotypes, 
+            timers=timers)
+        
+        # No parallel processing
         for variant_table in timers.iterate("parse_vcf", vcf_reader):
-
-            chromosome = variant_table.chromosome
-            if (not chromosomes) or (chromosome in chromosomes):
-                logger.info("======== Working on chromosome %r", chromosome)
-            else:
+            result = partial_genotype_chromosome(variant_table=variant_table)
+            if result == None:
                 continue
-            
-            # create a mapping of genome positions to indices
-            var_pos_to_ind = dict()
-            n_allele_position = dict()
-            allele_references = dict()
-            for i in range(len(variant_table.variants)):
-                var_pos_to_ind[variant_table.variants[i].position_on_ref] = i
-                v = variant_table.variants[i]
-                n_allele_position[v.position_on_ref] = len(v.alternative_allele)+1      ##Contains the number of alleles at every variant position
-                allele_references[v.position_on_ref] = v.allele_origin        
-            
-            #Prior genotyping with equal probabilities
-            variant_table.query_set_genotype_likelihoods_of(
-                [PhredGenotypeLikelihoods([1/(bin_coeff(n_allele_position[pos] + 1, n_allele_position[pos] - 1))] * (bin_coeff(n_allele_position[pos] + 1, n_allele_position[pos] - 1)) , 2, n_allele_position[pos]) for pos in list(var_pos_to_ind.keys())]
-            )
-            
-            # Whether to write records for chromosomes. Default is True.
-            logger.info("---- Processing individual %s", sample)
-            # Get the reads belonging to each sample
-            with timers("read_alignment"):
-                readset = phased_input_reader.read(
-                    chromosome, variant_table.variants, haplotags, keep_untagged
-                )
-            if len(readset) == 0:
-                logger.info(f"Skipping chromosome {chromosome} because no reads were found.")
-                continue
-
-            with timers("select"):
-                if max_coverage == None:
-                    selected_reads = readset
-                    logger.info(
-                        "Kept %d reads", len(readset)
-                    )
-                else:
-                    readset = readset.subset(
-                        [i for i, read in enumerate(readset) if len(read) >= 2]
-                    )
-                    logger.info(
-                        "Kept %d reads that cover at least two variants each", len(readset)
-                    )
-                    selected_reads = select_reads(readset, max_coverage)
-            
-            # Sorting selected reads
-            with timers("alignment_sorting"):
-                for read in selected_reads:
-                    if not read.is_sorted():
-                        read.sort()
-                selected_reads.sort()
-                
-            # Determine which variants can (in principle) be phased
-            accessible_positions = list(var_pos_to_ind.keys())
-            accessible_positions_n_allele = []
-            accessible_positions_allele_references = []
-            for index, position in enumerate(accessible_positions):
-                accessible_positions_n_allele.append(n_allele_position[position])
-                allele_reference_to_list = []
-                for ref_sample in allele_references[position]:
-                    for hap in ref_sample:
-                        try:
-                            allele_reference_to_list.append(int(hap))
-                        except TypeError:
-                            allele_reference_to_list.append(-1)
-                accessible_positions_allele_references.append(allele_reference_to_list)
-            logger.info(
-                "Variants covered by at least one read after read selection: %d",
-                len(selected_reads.get_positions()),
-            )
-            logger.info(
-                "Aiming to solve genotyping problem for %d variant positions",
-                len(accessible_positions),
-            )
-
-            recombination_costs = recombination_cost_computer.compute(accessible_positions)
-            exit()
-            # Finally, run genotyping algorithm
-            with timers("genotyping"):
-                forward_backward_table = GenotypeHMM(
-                    selected_reads,
-                    recombination_costs,
-                    n_haplotypes,
-                    accessible_positions,
-                    accessible_positions_n_allele,
-                    accessible_positions_allele_references
-                )
-                
-                # store results
-                likelihood_list = variant_table.query_genotype_likelihoods_of()
-                genotypes_list = variant_table.query_genotypes_of()
-
-                for pos in range(len(accessible_positions)):
-                    likelihoods = forward_backward_table.get_genotype_likelihoods(pos, accessible_positions_n_allele[pos])
-                    # compute genotypes from likelihoods and store information
-                    geno = determine_genotype(likelihoods, gt_prob, accessible_positions_n_allele[pos])
-                    assert isinstance(geno, Genotype)
-                    genotypes_list[var_pos_to_ind[accessible_positions[pos]]] = geno
-                    likelihood_list[var_pos_to_ind[accessible_positions[pos]]] = likelihoods
-
-                variant_table.query_set_genotypes_of(genotypes_list)
-                variant_table.query_set_genotype_likelihoods_of(likelihood_list)
-    
+            variant_table, chromosome = result
+            # writing VCF outside of parallel processing
             with timers("write_vcf"):
-                logger.info("======== Writing VCF")
+                logger.info(f"======== Writing {chromosome} records")
                 vcf_writer.write_genotypes(chromosome, variant_table, indels=True)
+        
+        '''
+        # TODO
+        # creating a pool of processes to run the genotyping algorithm in parallel
+        # This uses too much RAM (which the memory usage log is also unable to track)
+        with Pool(cores) as pool:
+            # using pool.imap to yield single values from iterator instead of creating a list with all variant_tables
+            results = pool.imap(partial_genotype_chromosome, timers.iterate("parse_vcf", vcf_reader))
+            for result in results:
+                if result == None:
+                    continue
+                variant_table, chromosome = result
+                # writing VCF outside of parallel processing
+                with timers("write_vcf"):
+                    logger.info(f"======== Writing {chromosome} records")
+                    #vcf_writer.write_genotypes(chromosome, variant_table, indels=True)
 
-            logger.debug("Chromosome %r finished", chromosome)
+                logger.debug("Chromosome %r finished", chromosome)
+        '''
 
     logger.info("\n== SUMMARY ==")
     total_time = timers.total()
@@ -324,6 +298,8 @@ def add_arguments(parser):
         help='TSV file containing the haplotag and phaseset information.')
     arg('--sample', dest='sample', metavar='SAMPLE',
         help='Name of a sample to genotype. Has to be given.')
+    # arg('--cores', dest='cores', metavar='CORES', default=1, type=int,
+    #     help='Number of parallel cores to use for multiprocessing (default: %(default)s)')
     
 
     arg = parser.add_argument_group('Input pre-processing, selection and filtering').add_argument
