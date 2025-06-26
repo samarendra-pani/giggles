@@ -13,11 +13,11 @@ def parse_output(filename):
 # testing vcf creation with haploid assembly gaf
 def test_haploid(tmp_path):
     
-    graph = 'tests/data/smallgraph-ordered.gfa'
-    hap_fofn = 'tests/data/fofn-1.txt'
+    graph = 'tests/data/prepare-vcf/smallgraph-ordered.gfa'
+    hap_fofn = 'tests/data/prepare-vcf/fofn-1.txt'
     test_out = str(tmp_path)+'/prepared-vcf.vcf'
 
-    true_out = 'tests/data/smallgraph-prepared-vcf-haploid.vcf'
+    true_out = 'tests/data/prepare-vcf/smallgraph-prepared-vcf-haploid.vcf'
 
     run(gfa=graph, haploid=hap_fofn, output=test_out)
 

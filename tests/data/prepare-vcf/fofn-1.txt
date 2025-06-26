@@ -1,0 +1,2 @@
+tests/data/prepare-vcf/smallgraph-alignments-sample1.gaf
+tests/data/prepare-vcf/smallgraph-alignments-sample2.gaf

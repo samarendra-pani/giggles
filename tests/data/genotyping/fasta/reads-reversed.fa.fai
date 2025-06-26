@@ -1,0 +1,7 @@
+read_s1_s2_s4_s6_revcomp	4793	26	60	61
+read_s2_s#2_s3_s4_revcomp	626	4926	60	61
+read_s4_s6_revcomp	1141	5583	60	61
+read_s6_revcomp	1000	6761	60	61
+read_s2_s#2_s3_s4_s6_s8_revcomp	8755	7811	60	61
+read_s#2_s3_s4_s6_revcomp	2051	16739	60	61
+read_s7_s8_revcomp	1435	18845	60	61
