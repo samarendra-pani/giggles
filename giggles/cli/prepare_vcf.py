@@ -701,7 +701,7 @@ def variant_record_to_string(chr, pos, id, ref, alt, qual, filter, info, genotyp
             info[key] = ','.join([str(a) for a in value])
         else:
             info[key] = str(value)
-    return '%s\t%d\t%s\t%s\t%s\t%d\t%s\t%s\tGT\t%s'%(chr, pos, id, ref, ','.join(alt), qual, ','.join(filter), ';'.join(['%s=%s'%(key,values) for key, values in info.items()]), '\t'.join(genotypes))
+    return '%s\t%d\t%s\t%s\t%s\t%d\t%s\t%s\tGT\t%s'%(chr, pos-1, id, ref, ','.join(alt), qual, ','.join(filter), ';'.join(['%s=%s'%(key,values) for key, values in info.items()]), '\t'.join(genotypes))
 
 # fmt: off
 def add_arguments(parser):
