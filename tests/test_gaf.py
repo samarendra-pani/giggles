@@ -14,12 +14,12 @@ def parse_output(filename):
 # testing gaf alignment reversal in case of reverse complement alignment
 def test_gaf_reversal(tmp_path):
     
-    revcomp_gaf = 'tests/data/genotyping/gaf/reads-reversed.sorted.gaf'
-    revcomp_fa = 'tests/data/genotyping/fasta/reads-reversed.fa'
-    forward_gaf = 'tests/data/genotyping/truth/reads-reversed-truth.sorted.gaf'
-    forward_fa = 'tests/data/genotyping/truth/reads-reversed-truth.fa'
+    revcomp_gaf = 'tests/data/gaf/reads-reversed.sorted.gaf'
+    revcomp_fa = 'tests/data/fasta/reads-reversed.fa'
+    forward_gaf = 'tests/data/truth/reads-reversed-truth.sorted.gaf'
+    forward_fa = 'tests/data/truth/reads-reversed-truth.fa'
 
-    graph = 'tests/data/genotyping/gfa/smallgraph-complete.gfa'
+    graph = 'tests/data/gfa/smallgraph-complete.gfa'
 
     graph_reader = rGFA(graph)
     revcomp_fasta_reader = FastaFile(revcomp_fa)
@@ -54,7 +54,7 @@ def test_gaf_reversal(tmp_path):
         assert revcomp_alignment.path == forward_alignment.path, (revcomp_alignment.path, forward_alignment.path)
         assert revcomp_alignment.cigar == forward_alignment.cigar, (revcomp_alignment.cigar, forward_alignment.cigar)
         
-        
+
 # testing gaf coordinates on reference
 def test_gaf_coord_on_ref(tmp_path):
     
@@ -74,11 +74,11 @@ def test_gaf_coord_on_ref(tmp_path):
             table[line[0]] = [int(line[1]), int(line[2]), int(line[3])]
         return table
     
-    graph = 'tests/data/genotyping/gfa/smallgraph-complete.gfa'
-    reads = 'tests/data/genotyping/fasta/reads.fa'
+    graph = 'tests/data/gfa/smallgraph-complete.gfa'
+    reads = 'tests/data/fasta/reads-sample1.fa'
     # first testing with graphaligner output
-    alignmets = 'tests/data/genotyping/gaf/smallgraph-graphaligner.sorted.gaf'
-    truth_table = 'tests/data/genotyping/truth/graphaligner-gaf-test.tsv'
+    alignmets = 'tests/data/gaf/reads-sample1-GA.sorted.gaf'
+    truth_table = 'tests/data/truth/graphaligner-gaf-test.tsv'
     
     graph_reader = rGFA(graph)
     fasta_reader = FastaFile(reads)
