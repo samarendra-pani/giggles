@@ -1,7 +1,0 @@
-[M::main::0.000*6.12] loaded the graph from "../gfa/smallgraph-complete.gfa"
-[M::mg_index::0.002*2.36] indexed the graph
-[M::mg_opt_update::0.002*2.27] occ_max1=250; lc_max_occ=2
-[M::worker_pipeline::0.012*1.80] mapped 16 sequences
-[M::main] Version: 0.21-r606
-[M::main] CMD: /home/samarendra/Downloads/installed-packages/minigraph-0.21/minigraph --vc -c -x lr -o ../gaf/test/smallgraph-minigraph.gaf ../gfa/smallgraph-complete.gfa ../fasta/reads.fa
-[M::main] Real time: 0.012 sec; CPU: 0.021 sec; Peak RSS: 0.006 GB
