@@ -1,0 +1,2 @@
+tests/data/gaf/assembly-alignments/PSHAP#1.gaf
+tests/data/gaf/assembly-alignments/PSHAP#2.gaf

@@ -1,0 +1,8 @@
+tests/data/gaf/assembly-alignments/HG001.1.gaf
+tests/data/gaf/assembly-alignments/HG001.2.gaf
+tests/data/gaf/assembly-alignments/HG002.1.gaf
+tests/data/gaf/assembly-alignments/HG002.2.gaf
+tests/data/gaf/assembly-alignments/HG003.1.gaf
+tests/data/gaf/assembly-alignments/HG003.2.gaf
+tests/data/gaf/assembly-alignments/HG004.1.gaf
+tests/data/gaf/assembly-alignments/HG004.2.gaf
