@@ -21,3 +21,4 @@ giggles/__pycache__/*.pyc
 giggles/cli/__pycache__/*.pyc
 .vscode/
 test/
+commands.md
