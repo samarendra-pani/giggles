@@ -49,6 +49,7 @@ def run(
     haploid=None,
     diploid=None,
     keep_all_records=False,
+    external_vcf=None,
     output=None
 ):
     
@@ -57,7 +58,11 @@ def run(
     nodes = defaultdict(lambda: Node())
     edges = defaultdict(lambda: Edge())
     read_gfa(gfa, nodes, edges)
+    ext_variants = read_external_vcf(external_vcf) if external_vcf else {}
     scaffold_nodes = [node_id for node_id, value in sorted(nodes.items(), key=lambda item: item[1].BO) if value.NO==0]
+    
+    # find the variants that fall on the scaffold nodes
+    label_ext_variants(ext_variants, scaffold_nodes, nodes)
     
     diploid_variants, haploid_variants = None, None
     diploid_haplotype_list, haploid_haplotype_list = [], []
@@ -75,7 +80,7 @@ def run(
                 variants[bub].update(haploid_variants[bub])
     else:
         variants = haploid_variants
-
+    
     diploid_haplotype_list.sort()
     haploid_haplotype_list.sort()
     haplotype_list = diploid_haplotype_list+haploid_haplotype_list
@@ -84,9 +89,72 @@ def run(
     ref_alleles = get_reference_alleles(edges, list(variants.keys()))
     
     writer = VCFWriter(output)
-    write_vcf(writer, variants, ref_alleles, haplotype_list, contigs, nodes, keep_all_records)
+    write_vcf(writer, variants, ref_alleles, haplotype_list, contigs, nodes, keep_all_records, ext_variants)
     writer.close()
     
+
+def label_ext_variants(ext_variants, scaffold_nodes, nodes):
+    """
+    Label external variants based on their position on the scaffold nodes.
+    """
+
+    # extracting the coordinates of scaffold nodes
+    scaffold_coordiantes = {}
+    for node in scaffold_nodes:
+        chrom = nodes[node].SN
+        start = nodes[node].SO
+        end = start + nodes[node].LN
+        if chrom not in scaffold_coordiantes:
+            scaffold_coordiantes[chrom] = []
+        scaffold_coordiantes[chrom].append((start, end))
+    
+    # sorting the coordinates for each chromosome
+    for chrom in scaffold_coordiantes:
+        scaffold_coordiantes[chrom].sort(key=lambda x: x[0])
+    
+    # assuming the VCF is sorted
+    # iterating through the external variants and checking if they fall on the scaffold nodes
+    for chrom in ext_variants:
+        if chrom not in scaffold_coordiantes:
+            logger.error(f"Chromosome {chrom} in external variants not found in scaffold nodes. Skipping.")
+            continue
+        variants = ext_variants[chrom]
+        scaffold_pointer = 0
+        for variant in variants:
+            pos = variant['POS']
+            # Move the scaffold pointer to the right position
+            while scaffold_pointer < len(scaffold_coordiantes[chrom]) and pos > scaffold_coordiantes[chrom][scaffold_pointer][1]:
+                scaffold_pointer += 1
+            # Check if the variant falls on a scaffold node
+            if scaffold_pointer < len(scaffold_coordiantes[chrom]) and pos >= scaffold_coordiantes[chrom][scaffold_pointer][0] and pos <= scaffold_coordiantes[chrom][scaffold_pointer][1]:
+                variant['on_scaffold'] = True
+            else:
+                variant['on_scaffold'] = False   
+
+
+def read_external_vcf(external_vcf):
+    """
+    Read an external VCF file and return a dictionary of variants.
+    """
+    variants = {}
+    with open(external_vcf, 'r') as vcf:
+        for line in vcf:
+            if line.startswith('#'):
+                continue
+            fields = line.strip().split('\t')
+            chrom = fields[0]
+            pos = int(fields[1])
+            ref = fields[3]
+            alts = fields[4].split(',')
+            if chrom not in variants:
+                variants[chrom] = []
+            variants[chrom].append({
+                'POS': pos,
+                'REF': ref,
+                'ALT': alts,
+                'on_scaffold': None
+            })
+    return variants
 
 def read_gfa(gfa, node, edges):
     
@@ -348,9 +416,9 @@ def reverse_path(path):
     return new_path
 
 
-def write_vcf(writer, variants, ref_alleles, haplotypes, contigs, nodes, keep_all_records):
+def write_vcf(writer, variants, ref_alleles, haplotypes, contigs, nodes, keep_all_records, external_variants):
     write_header(writer, contigs, haplotypes)
-    write_records(writer, variants, ref_alleles, haplotypes, nodes, keep_all_records)
+    write_records(writer, variants, ref_alleles, haplotypes, nodes, keep_all_records, external_variants)
     pass
 
 def write_header(writer, contigs, haplotypes):
@@ -390,14 +458,49 @@ def write_header(writer, contigs, haplotypes):
     writer.write("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t%s"%('\t'.join(samples)))
 
 
-def write_records(writer, variants, ref_alleles, haplotypes, nodes, keep_all_records):
+def write_records(writer, variants, ref_alleles, haplotypes, nodes, keep_all_records, external_variants):
 
     diploid_samples = list(set([x.split('.')[0] for x in haplotypes if '.' in x]))
     diploid_samples.sort()
     haploid_samples = list(set([x.split('.')[0] for x in haplotypes if '.' not in x]))
     haploid_samples.sort()
     num_variants = {'skipped': 0, 'processed': 0}
+
+    ext_var_pointer = 0
+    ext_var_chrom = None
+    write_begin = False
+
     for bub in variants.keys():
+        
+        nd = nodes[bub.split(">")[1]]
+        chr = nd.SN
+        pos = nd.SO + nd.LN
+        if ext_var_chrom != chr or (ext_var_chrom is None and ext_var_pointer == 0):
+            ext_var_chrom = chr
+            ext_var_pointer = 0
+            write_begin = True
+
+        # writing any external variants that are on the starting scaffold of the bubble (only done for the first bubble of the chromosome)
+        if write_begin and external_variants and ext_var_pointer < len(external_variants[chr]):
+            while (ext_var_pointer < len(external_variants[chr]) and external_variants[chr][ext_var_pointer]['POS'] < pos):
+                ext_var = external_variants[chr][ext_var_pointer]
+                if ext_var['on_scaffold']:
+                    ref = ext_var['REF']
+                    alts = ext_var['ALT']
+                    id = f'EXT-{chr}-{ext_var["POS"]}'
+                    qual = '.'
+                    filter = 'PASS'
+                    info = '.'
+                    format_str = 'GT'
+                    genotypes = ['.'] * (len(diploid_samples) + len(haploid_samples))
+                    # Writing the external variant record
+                    writer.write(f'{chr}\t{ext_var["POS"]}\t{id}\t{ref}\t{",".join(alts)}\t{qual}\t{filter}\t{info}\t{format_str}'+"\t".join(genotypes))
+                else:
+                    # code block for future use in-case I want to do stuff with the variants in bubbles.
+                    pass
+                ext_var_pointer += 1
+            write_begin = False
+        
         variant = variants[bub]
         ref_path = ref_alleles[bub]
         alleles = {ref_path: 0}
@@ -408,8 +511,7 @@ def write_records(writer, variants, ref_alleles, haplotypes, nodes, keep_all_rec
         allele_count = {0: 0}
         conflict = []
         genotypes = []
-       
-       
+              
         # Reading the diploid assembly information
         for sample in diploid_samples:
             #TODO: Hardcoded the identifier for the maternal and paternal haplotypes
@@ -612,10 +714,6 @@ def write_records(writer, variants, ref_alleles, haplotypes, nodes, keep_all_rec
         else:
             af_haploid = [x/tot for x in new_ac_haploid[1:]]
         
-
-        nd = nodes[bub.split(">")[1]]
-        chr = nd.SN
-        pos = nd.SO + nd.LN
         id = bub
         ref = new_seq[0]
         alt = new_seq[1:]
@@ -626,6 +724,29 @@ def write_records(writer, variants, ref_alleles, haplotypes, nodes, keep_all_rec
         info={"CONFLICT": conflict, "AC": new_ac[1:], "DIPLOID_AC": new_ac_diploid[1:], "HAPLOID_AC": new_ac_haploid[1:], "AF": af, "DIPLOID_AF": af_diploid, "HAPLOID_AF": af_haploid, "NS": ns, "DIPLOID_NS": ns_diploid, "HAPLOID_NS": ns_haploid, "AT": at_new}
         writer.write(variant_record_to_string(chr, pos, id, ref, alt, qual, filter, deepcopy(info), genotypes))
         
+        nd = nodes[bub.split(">")[-1]]
+        pos = nd.SO + nd.LN
+        
+        # writing any external variants that are on the starting scaffold of the bubble (only done for the first bubble of the chromosome)
+        if external_variants and ext_var_pointer < len(external_variants[chr]):
+            while (ext_var_pointer < len(external_variants[chr]) and external_variants[chr][ext_var_pointer]['POS'] < pos):
+                ext_var = external_variants[chr][ext_var_pointer]
+                if ext_var['on_scaffold']:
+                    ref = ext_var['REF']
+                    alts = ext_var['ALT']
+                    id = f'EXT-{chr}-{ext_var["POS"]}'
+                    qual = '.'
+                    filter = 'PASS'
+                    info = '.'
+                    format_str = 'GT'
+                    genotypes = ['.'] * (len(diploid_samples) + len(haploid_samples))
+                    # Writing the external variant record
+                    writer.write(f'{chr}\t{ext_var["POS"]}\t{id}\t{ref}\t{",".join(alts)}\t{qual}\t{filter}\t{info}\t{format_str}\t'+"\t".join(genotypes))
+                else:
+                    # code block for future use in-case I want to do stuff with the variants in bubbles.
+                    pass
+                ext_var_pointer += 1
+
     logger.info("\nNumber of variant records lacking alternate alleles or unavailable alleles: %d", num_variants['skipped'])
     logger.info("Number of variant records in the VCF: %d", num_variants['processed'])
         
@@ -714,6 +835,8 @@ def add_arguments(parser):
         help='Text file with the list of haploidhaplotype assembly-to-graph GAF files.')
     arg('-a', '--keep-all-records', dest='keep_all_records', action='store_true',
         help='Flag to keep all the records regardless of whether alt allele is present or all genotypes are unavailable.')
+    arg('-e', '--external-vcf', dest='external_vcf', metavar="EXTERNAL_VCF",
+        help='External VCF file with small InDels to merge with the generated VCF (The VCF should be sorted).')
     arg('-o', '--output', dest='output', metavar="OUTPUT",
         help='Output VCF path. Default is stdout.')
     
