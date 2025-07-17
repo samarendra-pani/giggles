@@ -2,9 +2,11 @@
 # Uses the following files
 # VCF: vcf file with all the variants
 # Reference FASTA: reference genome in FASTA format
-# Base error probability: probability of a base being incorrect
 # Haplotype list: file with haplotype node path (probably only containing the bubbles. The small variants can be decided by the script)
-# 
+# Base error probability: probability of a base being incorrect
+# FASTA output: output file for the generated reads in FASTA format
+# Alternate Allele file: file with alternate alleles. If the file does not exist, it will be written based on the random generation of variants.
+# # Average read length: average read length for the reads. If not provided, it will be set to 2000.
 
 import sys
 import random
@@ -12,6 +14,7 @@ from collections import defaultdict
 import re
 import logging
 import os
+import numpy
 
 logging.basicConfig(format='[%(levelname)s] %(message)s', level=logging.INFO)
 
@@ -141,6 +144,7 @@ def write_alt_alleles(alt_alleles, alt_alleles_file):
             af.write(f"{id}\t{alleles}\t{hap1_index}\t{hap2_index}\n")
     logging.info(f"Alternate alleles written to {alt_alleles_file}")
 
+
 def reverse_complement(seq):
     complement = {'A': 'T', 'T': 'A', 'C': 'G', 'G': 'C'}
     return ''.join(complement[base] for base in reversed(seq))
@@ -190,7 +194,8 @@ def generate_sequence_from_variants(variants, gfa_nodes, haplotypes, reference, 
                     continue
                 if pos < end:
                     # writing the reference sequence before the external variant start
-                    seq[hap_index][(node, id, 'ref', new_start)] = node_seq[new_start:pos-1]
+                    seq[hap_index][(node, id, 'ref', new_start)] = node_seq[new_start-so:pos-1-so]
+                    assert node_seq[new_start-so:pos-1-so] == reference['chr1'][new_start: pos-1], f"Reference sequence mismatch at {node} for variant {id}. Expected {reference[new_start:pos-1]}, got {node_seq[new_start-so:pos-1-so]}"
                     if alternate_alleles:
                         # extracting the alt allele info from files
                         alleles = alternate_alleles[id][0]
@@ -221,8 +226,56 @@ def generate_sequence_from_variants(variants, gfa_nodes, haplotypes, reference, 
     return seq, alternate_variants_selected
         
 
+def find_variants_covered_by_read(start, end, coordinate_table):
+    """
+    Find variants that are covered by a read based on its start and end coordinates.
+    """
+    variants_covered = []
+    for key, (start_coord, end_coord, *rest) in coordinate_table.items():
+        if start > end_coord or end < start_coord:
+            continue
+        # The read overlaps with the variant
+        variants_covered.append((key, start_coord, end_coord))
+    # sort the variants by their start coordinate
+    variants_covered.sort(key=lambda x: x[1])
+    return variants_covered
+
+
+def create_read_id_from_variants(hap_index, read_index, variants_covered):
+    """
+    Create a unique read ID based on the haplotype index, read index, and variants covered by the read.
+    """
+    variant_ids = []
+    for variant in variants_covered:
+        variant = variant[0]
+        variant_id = variant[0] if isinstance(variant, tuple) else variant
+        variant_ids.append(variant_id)
+    variant_ids_str = '_'.join(str(v) for v in variant_ids)
+    return f"hap{hap_index+1}_read{read_index}_{variant_ids_str}"
+
+def create_reads_from_haplotypes(haplotypes, avg_read_length, coordinate_table):
+    # create a read length distribution based on the average read length
+    reads = {}
+    for hap_index, hap in enumerate(haplotypes):
+        num_reads = random.randint(40, 50)  # Randomly decide the number of reads to generate
+        read_length_distribution = numpy.random.normal(avg_read_length, avg_read_length * 0.3, num_reads)
+        # logging.info(f"Generating reads for haplotype {hap_index+1}")
+        for read_index in range(num_reads):
+            read_length = int(read_length_distribution[read_index])
+            start = random.randint(0, len(hap) - read_length)
+            end = start + read_length
+            read_seq = hap[start:end]
+            if read_seq == '':
+                logging.warning(f"Generated empty read for haplotype {hap_index+1}, read index {read_index}. Skipping.")
+                continue
+            variants_covered = find_variants_covered_by_read(start, end, coordinate_table[hap_index])
+            read_id = create_read_id_from_variants(hap_index, read_index+1, variants_covered)
+            reads[read_id] = read_seq
+    return reads
+            
+
 if __name__ == "__main__":
-    if len(sys.argv) < 9:
+    if len(sys.argv) < 8:
         print("Usage: python generate_vcf_sites.py <vcf> <reference fasta> <gfa> <haplotype list> <base error probability> <fasta output> <alternate alleles file> [<average read length>]")
         sys.exit(1)
     
@@ -233,7 +286,7 @@ if __name__ == "__main__":
     base_error_prob = float(sys.argv[5])
     fasta_output = sys.argv[6]  # Output file for the generated reads in FASTA format
     alternate_alleles_file = sys.argv[7] # File with alternate alleles. If file does not exist, it will be written
-    avg_read_length = int(sys.argv[8]) if len(sys.argv) > 8 else 1000  # Default read length if not provided
+    avg_read_length = int(sys.argv[8]) if len(sys.argv) > 8 else 2000  # Default read length if not provided
     
     if not (0 <= base_error_prob <= 1):
         print("Base error probability must be between 0 and 1.")
@@ -256,17 +309,43 @@ if __name__ == "__main__":
     
     # create table of start and end coordinate of variants to keep track of variants covered by each read
     haplotypes = ['', '']
-    
+    coordinate_table = [{}, {}] # keeping track of the coordinates of the variants in haplotypes
+
+    for hap_index, seq_dict in enumerate(seq):
+        for key, value in seq_dict.items():
+            if isinstance(key, tuple):
+                # inside a scaffold node
+                if 'allele' in key:
+                    # The string is a variant allele
+                    node, id, _ = key
+                    start = len(haplotypes[hap_index])
+                    end = start + len(value)
+                    haplotypes[hap_index] += value
+                    coordinate_table[hap_index][id] = (start, end, node, value)
+                else:
+                    # The string is a reference sequence
+                    node, id, _, start_on_ref = key
+                    start = len(haplotypes[hap_index])
+                    end = start + len(value)
+                    haplotypes[hap_index] += value
+                    coordinate_table[hap_index][(node, start_on_ref)] = (start, end)
+            else:
+                # a non-scaffolf node
+                start = len(haplotypes[hap_index])
+                end = start + len(value)
+                haplotypes[hap_index] += value
+                coordinate_table[hap_index][key] = (start, end)
     
     # generating reads from haplotypes
-    reads = {}
-
-
-
+    reads = create_reads_from_haplotypes(haplotypes, avg_read_length, coordinate_table)
+   
     # introduce base errors in the reads
     noisy_reads = introduce_noise(reads, base_error_prob)
+    # shuffle the reads to simulate random sequencing
+    noisy_reads = dict(random.sample(list(noisy_reads.items()), len(noisy_reads)))  # Shuffle the reads
     # write fasta
     fasta_writer = open(fasta_output, 'w')
     for read_id, read_seq in noisy_reads.items():
+        print(len(read_seq))
         print(f">{read_id}\n{read_seq}", file=fasta_writer)
     fasta_writer.close()
