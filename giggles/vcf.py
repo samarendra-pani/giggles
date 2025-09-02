@@ -56,22 +56,33 @@ class VariantCallPhase:
 class VcfVariant:
     """A variant in a VCF file (not to be confused with core.Variant)"""
 
-    __slots__ = ("id", "position", "position_on_ref", "reference_allele", "alternative_allele", "allele_origin", "allele_traversal","length_on_path")
+    __slots__ = ("id", "position", "position_on_ref", "reference_allele", "alternative_allele", "allele_origin", "allele_traversal", "length_on_path")
 
     def __init__(self, id: str, position: int, reference_allele: str, alternative_allele: tuple, allele_origin: list, allele_traversal: tuple):
         
         self.id = id
-        self.position_on_ref = position     # This is the position on the backbone reference (the position given in the VCF)
-        self.position = position            # This is the position on the paths (the position used to find the variant locations on paths). This changes for every new alignment path.
+        # This is the position on the backbone reference (the position given in the VCF)
+        self.position_on_ref = position
+        # This is the position on the paths (the position used to find the variant locations on paths).
+        # This changes for every new alignment path.
+        self.position = None
         self.reference_allele = reference_allele
         self.alternative_allele = alternative_allele
         self.allele_origin = allele_origin
         self.allele_traversal = allele_traversal
+        # This is the length of the variant on the alignment path.
+        # This is needed since the CIGAR string processing needs this length.
+        # This changes for every new alignment.
         self.length_on_path = None
-        
+
+    #def __repr__(self):
+    #    return "VcfVariant({}, {}, {}, {!r}, {!r}, {!r})".format(
+    #        self.id, self.position_on_ref, self.position_on_ref + len(self.reference_allele), self.reference_allele, self.alternative_allele, self.allele_origin
+    #    )
+    
     def __repr__(self):
-        return "VcfVariant({}, {}, {!r}, {!r}, {!r})".format(
-            self.id, self.position_on_ref, self.reference_allele, self.alternative_allele, self.allele_origin
+        return "VcfVariant({}, {}, {})".format(
+            self.id, self.position_on_ref, self.position_on_ref + len(self.reference_allele)
         )
 
     def __hash__(self):
@@ -95,7 +106,17 @@ class VcfVariant:
         return (self.reference_allele != self.alternative_allele[ix]) and (
             len(self.reference_allele) == len(self.alternative_allele[ix]) == 1
         )
-       
+    
+    def get_variant_bo(self, rgfa):
+        if 'EXT' in self.id:
+            # no tag available for external variants
+            return None
+        start_id = self.id.split('>')[1]
+        end_id = self.id.split('>')[-1]
+        start_bo = rgfa.get_node(start_id).tags['BO']
+        end_bo = rgfa.get_node(end_id).tags['BO']
+        assert end_bo == start_bo + 2, f"Inconsistent BO tags for bubble {self.id}"
+        return start_bo + 1
 
 class GenotypeLikelihoods:
     __slots__ = "log_prob_genotypes"
@@ -382,6 +403,7 @@ class VcfReader:
         n_snvs = 0
         n_other = 0
         n_multi = 0
+        n_ext = 0
         n_skip = 0  #To count the number of records that need to be skipped since they have more alleles than can be handled by Giggles
         table = VariantTable(chromosome, self.vcf_samples)
         prev_position = None
@@ -402,7 +424,12 @@ class VcfReader:
             allele_origin = []
             for _, call in record.samples.items():
                 allele_origin.append(call["GT"])
-            allele_traversal = record.info["AT"]
+            try:
+                allele_traversal = record.info["AT"]
+            except KeyError:
+                # the case of small indels or SNPs not coming from the graph
+                allele_traversal = None
+                n_ext += 1
             for alt in alts:
                 if len(ref) == len(alt) == 1:
                     n_snvs += 1
@@ -503,7 +530,7 @@ class VcfReader:
             variant = VcfVariant(id = id, position=pos, reference_allele=ref, alternative_allele=alts, allele_origin=allele_origin, allele_traversal=allele_traversal)
             table.add_variant(variant, genotypes, phases, genotype_likelihoods)
 
-        logger.info(f"Processed Chromosome {chromosome}. Parsed {n_snvs} SNVs, {n_other} non-SNVs and {n_multi} multi-ALTs. Also skipped {n_skip} records exceeding max allele caparacity.")
+        logger.info(f"Processed Chromosome {chromosome}. Parsed {n_snvs} SNVs, {n_other} non-SNVs and {n_multi} multi-ALTs. Identified {n_ext} external variants added to the graph variants. Also skipped {n_skip} records exceeding max allele caparacity.")
 
         return table
 
