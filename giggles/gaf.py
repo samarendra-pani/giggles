@@ -2,6 +2,7 @@ import os
 from abc import ABC
 from urllib.parse import urlparse
 from typing import Iterator
+from .utils import warn_once, reverse_complement, reverse_cigar
 
 import re
 import pysam
@@ -58,15 +59,54 @@ class GafAlignment:
     def __init__(self, line, source_id, fasta):
         self.read_id, self.q_len, self.q_start, self.q_end, self.orient, self.path, self.p_len, self.p_start, self.p_end, self.mapping_quality, self.tags, self.sequence = self.parseGafLine(line, fasta)
         if 'cg' in self.tags:
-            self.cigar = self.tags['cg']
+            self.cigar = self.tags.pop('cg')
         else:
-            self.cigar = self.tags['CG']
+            self.cigar = self.tags.pop('CG')
         self.path = list(filter(None, re.split('(>)|(<)', self.path)))
         self.source_id = source_id
         self.clip_start = False
         self.clip_end = False
-        pass
-    
+        
+    # Checking if the alignment is in reverse direction.
+    @staticmethod
+    def check_reverse(alignment, rgfa):
+        reverse = False
+        orient  = None
+        for n in alignment.path:
+            if n in ['>', '<']:
+                orient = n
+                continue
+            if rgfa.get_node(n).tags["NO"] == 0:
+                reverse = orient == '<'
+                break
+        
+        # Reversing path and updating other variables if required
+        if reverse:
+            reverse_orient = {'>': '<', '<': '>'}
+            new_alignment = []
+            for n in alignment.path[::-1]:
+                if n in ['>', '<']:
+                    new_alignment.insert(-1, reverse_orient[n])
+                else:
+                    new_alignment.append(n)
+            qs = alignment.q_start
+            qe = alignment.q_end
+            ql = alignment.q_len
+            ps = alignment.p_start
+            pe = alignment.p_end
+            pl = alignment.p_len
+            
+            alignment.q_start = ql - qe
+            alignment.q_end = ql - qs
+            alignment.orient = '+'
+            alignment.p_start = pl - pe
+            alignment.p_end = pl - ps
+            alignment.sequence = reverse_complement(alignment.sequence)
+            alignment.path = new_alignment
+            alignment.cigar = reverse_cigar(alignment.cigar)
+        
+        return alignment, reverse
+
     @staticmethod
     def parseGafLine(line, fasta):
         try:
@@ -76,6 +116,18 @@ class GafAlignment:
         read_id = line[0]
         tags = {}
         for f in line[12:]:
+            if '::' in f:
+                # Right now making an exception for the 'ds' tag
+                assert f.startswith("ds")
+                f = f.split("::")
+                tag_name = f[0].split(':')[0]
+                tag_type = f[0].split(':')[1]
+                if tag_type == "i":
+                    f[1] = int(f[1])
+                elif tag_type == "f":
+                    f[1] = float(f[1])
+                tags[tag_name] = f[1]
+                continue 
             f = f.split(":")
             assert len(f) ==  3, "The tag provided in read %s is not in correct format."%(read_id)
             if f[1] == "i":
@@ -86,7 +138,9 @@ class GafAlignment:
         assert "cg" in tags or "CG" in tags, "No CIGAR string in read %s. Provide the CIGAR string with 'CG' or 'cg' tag."%(read_id)
         assert "sn" in tags, "No 'sn' tag to indicate contig it is aligned to. Use gaftools scaffold-sort to sort it and automatically add tag."
         assert "iv" in tags, "No 'iv' tag to indicate presence of inversion. Use gaftools scaffold-sort to sort it and automatically add tag."
-        assert "tp" in tags, "No 'tp' tag to indicate primary alignment."
+        if "tp" not in tags:
+            warn_once(logger, "No 'tp' tag to indicate primary alignment. Assuming the alignment is primary.")
+            tags["tp"] = "P"
         # The sequence will be searched in the RS tag or rs tag
         if fasta == None:
             assert "rs" in tags or "RS" in tags, "No Read Sequence in read %s. Provide the CIGAR string with 'RS' or 'rs' tag."%(read_id)
@@ -98,7 +152,90 @@ class GafAlignment:
             seq = fasta.fetch(region=read_id)
         return line[0], int(line[1]), int(line[2]), int(line[3]), line[4], line[5], int(line[6]), int(line[7]), int(line[8]), int(line[11]), tags, seq
 
+    @staticmethod
+    def get_alignment_start_on_ref(alignment, rgfa):
+        # Taking alignment whose orientation is same as the reference and finding where it starts on the reference
+        # Returns the following information:
+        #       Start position (0-based; closed) on the reference
+        #       Index of the first reference node in the path
+        #       Index of the first scaffold node in the path
+        start_on_path = alignment.p_start
+        path = alignment.path
+        count = -1
+        start_node_on_ref = None
+        found_scaffold = False
+        found_ref = False
+        scaffold_count = None
+        ref_count = None
+        for node in path:
+            count += 1
+            if node in ['<', '>']:
+                continue
+            if not found_scaffold:
+                if rgfa.get_node(node).tags['NO'] == 0:
+                    found_scaffold = True
+                    scaffold_count = count
+            if not found_ref:
+                if rgfa.get_node(node).rank == 0:
+                    found_ref = True
+                    start_node_on_ref = node
+                    ref_count = count
+            if found_scaffold and found_ref:
+                break
+        if start_node_on_ref == None:
+            return None, None, None
+        assert ref_count > 0
+        if ref_count == 1:
+            # first node in the path is a reference node
+            return rgfa.get_node(start_node_on_ref).start + start_on_path, ref_count, scaffold_count
+        else:
+            # first node in the path is not a reference node
+            return rgfa.get_node(start_node_on_ref).start, ref_count, scaffold_count
     
+    @staticmethod
+    def get_alignment_end_on_ref(alignment, rgfa):
+        # Taking alignment whose orientation is same as the reference and finding where it ends on the reference
+        # Returns the following information:
+        #       End position (0-based; closed) on the reference
+        #       Index of the end reference node in the path
+        #       Index of the end scaffold node in the path
+        distance_from_end = alignment.p_len - alignment.p_end
+        path = alignment.path
+        count = -1
+        end_node_on_ref = None
+        found_scaffold = False
+        found_ref = False
+        scaffold_count = None
+        ref_count = None
+        for node in path[::-1]:
+            count += 1
+            if node in ['<', '>']:
+                continue
+            if not found_scaffold:
+                if rgfa.get_node(node).tags['NO'] == 0:
+                    found_scaffold = True
+                    scaffold_count = count
+            if not found_ref:
+                if rgfa.get_node(node).rank == 0:
+                    found_ref = True
+                    end_node_on_ref = node
+                    ref_count = count
+            if found_ref and found_scaffold:
+                break
+        if end_node_on_ref == None:
+            return None, None, None
+        if ref_count != None:
+            ref_count = len(path) - ref_count - 1
+        if scaffold_count != None:
+            scaffold_count = len(path) - scaffold_count - 1
+        if ref_count == len(path) - 1:
+            # last node in the path is a reference node
+            return rgfa.get_node(end_node_on_ref).start + len(rgfa.get_node(end_node_on_ref).sequence) - distance_from_end - 1, ref_count, scaffold_count
+        else:
+            # last node in the path is not a reference node
+            return rgfa.get_node(end_node_on_ref).start + len(rgfa.get_node(end_node_on_ref).sequence) - 1, ref_count, scaffold_count
+    
+
     def compare(self, alignment):
         """
         Compare this alignment to another alignment object
@@ -119,6 +256,9 @@ class GafAlignment:
             return True
         else:
             return False
+
+    def __repr__(self):
+        return f"GafAlignment(read_id={self.read_id}, q_len={self.q_len}, q_start={self.q_start}, q_end={self.q_end}, orient={self.orient}, path={''.join(self.path)}, p_len={self.p_len}, p_start={self.p_start}, p_end={self.p_end}, tags={self.tags}, cigar='{self.cigar}')"
 
     def set_tags(self, tags):
         self.tags = tags
@@ -218,14 +358,15 @@ class SampleGafParser(GafParser):
 
 
 class Node:
-    def __init__(self, sequence, start, contig, tags):
+    def __init__(self, sequence, start, contig, rank, tags):
         self.sequence = sequence
         self.start = start
         self.contig = contig
+        self.rank = rank
         self.tags = tags
 
     def __repr__(self):
-        return "Node(sequence={}, start={}, contig={}, tags={})".format(self.sequence, self.start, self.contig, self.tags)
+        return "Node(sequence={}, start={}, contig={}, rank = {}, tags={})".format(self.sequence, self.start, self.contig, self.rank, self.tags)
 
 class rGFA:
     """
@@ -268,7 +409,7 @@ class rGFA:
             node_contig = tags.pop("SN")
             node_start = tags.pop("SO")
             node_rank = tags.pop("SR")
-            node_dict[node_id] = Node(node_seq, node_start, node_contig, tags)
+            node_dict[node_id] = Node(node_seq, node_start, node_contig, node_rank, tags)
             if node_rank == 0:
                 try:
                     ref_contig_nodes[node_contig].append(node_id)
