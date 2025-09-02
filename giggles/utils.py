@@ -2,6 +2,7 @@
 
 import gzip
 import logging
+import itertools
 from collections import defaultdict
 from typing import DefaultDict, Sequence
 import pyfaidx
@@ -162,3 +163,18 @@ def determine_genotype(likelihoods: Sequence[float], threshold_prob: float, n_al
         return int_to_diploid_multiallelic_gt(to_sort[-1][1])
     else:
         return int_to_diploid_multiallelic_gt(-1)
+
+def reverse_complement(seq):
+    seq = seq.replace("A", "t").replace(
+        "C", "g").replace("T", "a").replace("G", "c")
+    seq = seq.upper()
+    
+    seq = seq[::-1]
+    return seq
+
+def reverse_cigar(cigar):
+    all_cigars = ["".join(x) for _, x in itertools.groupby(cigar, key=str.isdigit)]
+    new_cigar = ""
+    for i in range(len(all_cigars), 0, -2):
+        new_cigar += str(all_cigars[i - 2]) + str(all_cigars[i - 1])
+    return new_cigar
