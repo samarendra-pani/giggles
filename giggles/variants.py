@@ -3,7 +3,7 @@ Detect variants in reads.
 """
 # Code modified from WhatsHap (https://github.com/whatshap/whatshap)
 
-import logging
+from giggles.logger import logger
 import itertools
 import math
 from collections import defaultdict, Counter, namedtuple
@@ -12,30 +12,19 @@ import re
 from pywfa import WavefrontAligner
 
 from giggles.core import Read, ReadSet
-from giggles.bam import SampleBamReader, MultiBamReader, BamReader
-from giggles.gaf import GafParser, SampleGafParser, rGFA, GafAlignment
+from giggles.gaf import GafParser, rGFA, GafAlignment
 from giggles.align import edit_distance
 from giggles._variants import _iterate_cigar
 
 
-logger = logging.getLogger(__name__)
-
-
-class CommandLineError(Exception):
-    pass
-
-
-class ReadSetError(Exception):
-    pass
-
-
+# Keeping this
 class AlignmentReader:
     """
-    Superclass for the GAF and BAM Readers
+    Superclass for the GAF Readers (and any other alignment file readers)
     """
     def __init__(
             self,
-            paths,
+            path: List[str],
             mapq_threshold: int,
             realign_mode: str,
             overhang: int,
@@ -46,7 +35,7 @@ class AlignmentReader:
             reg_const: int,
             base_const: float):
 
-        self._paths = paths
+        self._path = path
         self._mapq_threshold = mapq_threshold
         self._realign_mode = realign_mode
         if realign_mode == "edit":
@@ -328,7 +317,7 @@ class AlignmentReader:
             if allele is not None:
                 yield (index, allele, emission, quality)
 
-
+# Keeping this
 class GAFReader(AlignmentReader):
     """
     Associate VCF variant with GAF Read.
@@ -336,9 +325,9 @@ class GAFReader(AlignmentReader):
 
     def __init__(
         self,
-        paths: List[str],
+        alignment_files: List[str],
         reference: rGFA,
-        read_fasta: str,
+        read_fasta_files: List[str],
         mapq_threshold: int = 20,
         realign_mode: str = "wfa_full",
         overhang: int = 10,
@@ -349,17 +338,24 @@ class GAFReader(AlignmentReader):
         reg_const = 10,
         base_const = math.e
     ):
-        super().__init__(paths, mapq_threshold, realign_mode, overhang, gap_start, gap_extend, default_mismatch, em_prob_params, reg_const, base_const)
-        self._reader: GafParser
-        if len(paths) == 1:
-            self._reader = SampleGafParser(paths[0], reference=reference, read_fasta=read_fasta, mapq=self._mapq_threshold)
-        else:
-            raise CommandLineError("Giggles does not support multiple GAF file parsing. Please provide a single GAF file.")
+        super().__init__(
+            alignment_files, 
+            mapq_threshold, 
+            realign_mode, 
+            overhang, 
+            gap_start, 
+            gap_extend, 
+            default_mismatch, 
+            em_prob_params, 
+            reg_const, 
+            base_const)
+
+        self._reader = GafParser(alignment_files=alignment_files, reference=reference, read_fasta_files=read_fasta_files, mapq=self._mapq_threshold)
 
     def has_reference(self, chromosome):
         return self._reader.has_reference(chromosome)
 
-    def read(self, chromosome, variants, reference=None) -> ReadSet:
+    def read(self, chromosome, variants) -> ReadSet:
         """
         Detect alleles and return a ReadSet object containing reads representing
         the given variants.
@@ -413,9 +409,7 @@ class GAFReader(AlignmentReader):
         
         for group in groups.values():
             if len(group) > 1:
-                raise ReadSetError(
-                    "Read name {!r} occurs more than twice in the input file".format(group[0].name)
-                )
+                raise Exception(f"Read name {group[0].name} occurs more than twice in the input file")
             yield group
 
     def _usable_alignments(self, chromosome):
@@ -788,8 +782,6 @@ class GAFReader(AlignmentReader):
 
             yield (variants_in_alignment, alignment, alignment_start_on_ref, reference, partial_bubble_start_of_chrom_copy, partial_bubble_end_of_chrom)
 
-
-
     def _alignments_to_reads(self, updated_variants):
         """
         Convert GAF alignments to Read objects.
@@ -859,184 +851,7 @@ class GAFReader(AlignmentReader):
         self._aligner.__dealloc__()
         self._reader.close()
 
-class ReadSetReader(AlignmentReader):
-    """
-    Associate VCF variants with BAM reads.
-
-    A VCF file contains variants, and a BAM file contain reads, but the
-    information which read contains which variant is not available. This
-    class re-discovers the variants in each read, using the
-    knowledge in the VCF of where they should occur.
-    """
-
-    def __init__(
-        self,
-        paths: List[str],
-        reference: Optional[str],
-        mapq_threshold: int = 20,
-        realign_mode: str = "edit",
-        overhang: int = 10,
-        gap_start: int = 3,
-        gap_extend: int = 1,
-        default_mismatch: int = 2,
-        em_prob_params: List[float] = [0.85, 0.05, 0.05, 0.05],
-        reg_const = 10,
-        base_const = math.e
-    ):
-        """
-        paths -- list of BAM paths
-        reference -- path to reference FASTA (can be None)
-        mapq_threshold -- minimum mapping quality
-        overhang -- extend alignment by this many bases to left and right
-        gap_start, gap_extend, default_mismatch -- parameters for affine gap cost alignment
-        """
-        super().__init__(paths, mapq_threshold, realign_mode, overhang, gap_start, gap_extend, default_mismatch, em_prob_params, reg_const, base_const)
-        self._reader: BamReader
-        if len(paths) == 1:
-            self._reader = SampleBamReader(paths[0], reference=reference)
-        else:
-            self._reader = MultiBamReader(paths, reference=reference)
-
-    def has_reference(self, chromosome):
-        return self._reader.has_reference(chromosome)
-
-    def read(self, chromosome, variants, reference) -> ReadSet:
-        """
-        Detect alleles and return a ReadSet object containing reads representing
-        the given variants.
-
-        If a reference is provided (reference is not None), alleles are
-        detected by re-aligning sections of the query to the REF and ALT
-        sequence extended a few bases to the left and right.
-
-        If reference is None, alleles are detected by inspecting the
-        existing alignment (via the CIGAR).
-
-        chromosome -- name of chromosome to work on
-        variants -- list of vcf.VcfVariant objects
-        reference -- reference sequence of the given chromosome (or None)
-        """
-        # Since variants are identified by position, positions must be unique.
-        if __debug__ and variants:
-            varposc = Counter(variant.position for variant in variants)
-            pos, count = varposc.most_common()[0]
-            assert count == 1, "Position {} occurs more than once in variant list.".format(pos)
-
-        logger.debug("Extracting Usable Alignments")
-        alignments = self._usable_alignments(chromosome)
-        logger.debug("Converting Alignments to Read Objects")
-        reads = self._alignments_to_reads(alignments, variants, reference)
-        logger.debug("Grouping Reads into ReadSet Object")
-        grouped_reads = self._group_paired_reads(reads)
-        logger.debug("ReadSet Object Successfully Created")
-        readset = self._make_readset_from_grouped_reads(grouped_reads, self._reg_const, self._base_const)
-        return readset
-
-    @staticmethod
-    def _group_paired_reads(reads: Iterable[Read]) -> Iterator[List[Read]]:
-        """
-        Group reads into paired-end read pairs. Uses name and source_id
-        as grouping key.
-
-        TODO
-        Grouping by name should be sufficient since the SAM spec states:
-        "Reads/segments having identical QNAME are regarded to come from the same template."
-        """
-        groups = defaultdict(list)
-        for read in reads:
-            groups[(read.source_id, read.name)].append(read)
-        for group in groups.values():
-            if len(group) > 2:
-                raise ReadSetError(
-                    "Read name {!r} occurs more than twice in the input file".format(group[0].name)
-                )
-            yield group
-
-    def _usable_alignments(self, chromosome):
-        """
-        Retrieve usable (suficient mapping quality, not secondary etc.)
-        alignments from the alignment file
-        """
-        for alignment in self._reader.fetch(
-            reference=chromosome
-        ):
-            # TODO handle additional alignments correctly!
-            # find out why they are sometimes overlapping/redundant
-            if (
-                alignment.bam_alignment.flag & 2048 != 0
-                or alignment.bam_alignment.mapping_quality < self._mapq_threshold
-                or alignment.bam_alignment.is_secondary
-                or alignment.bam_alignment.is_unmapped
-                or alignment.bam_alignment.is_duplicate
-            ):
-                continue
-            yield alignment
-
-    def _alignments_to_reads(self, alignments, variants, reference):
-        """
-        Convert BAM alignments to Read objects.
-
-        If reference is not None, alleles are detected through re-alignment.
-
-        Yield Read objects.
-        """
-        
-        if reference is not None:
-            # Copy the pyfaidx.FastaRecord into a str for faster access
-            reference = reference[:]
-            normalized_variants = variants
-        else:
-            normalized_variants = variants
-
-        i = 0  # index into variants
-        for alignment in alignments:
-            # Skip variants that are to the left of this read
-            while (
-                i < len(normalized_variants)
-                and normalized_variants[i].position < alignment.bam_alignment.reference_start
-            ):
-                i += 1
-
-            barcode = ""
-            if alignment.bam_alignment.has_tag("BX"):
-                barcode = alignment.bam_alignment.get_tag("BX")
-
-            read = Read(
-                alignment.bam_alignment.qname,
-                alignment.bam_alignment.mapq,
-                alignment.source_id,
-                alignment.bam_alignment.reference_start,
-                barcode,
-                self._reg_const,
-                self._base_const
-            )
-
-            detected = self.detect_alleles_by_alignment(
-                self._aligner,
-                variants,
-                i,
-                alignment.bam_alignment,
-                reference,
-                self._realign_mode,
-                self._overhang,
-                self._em_params
-            )
-            for j, allele, em, quality in detected:
-                read.add_variant(variants[j].position, allele, em, quality)
-            if read:  # At least one variant covered and detected
-                yield read
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *args):
-        self.close()
-
-    def close(self):
-        self._aligner.__dealloc__()
-        self._reader.close()
-
-
+# TODO: Do I need this?
 def merge_two_reads(read1: Read, read2: Read, reg_const, base_const) -> Read:
     """
     Merge two reads *that belong to the same haplotype* (such as the two
@@ -1101,7 +916,7 @@ def merge_two_reads(read1: Read, read2: Read, reg_const, base_const) -> Read:
             i2 += 1
     return result
 
-
+# TODO: Do I need this?
 def merge_reads(*reads: Read, reg_const, base_const) -> Read:
     """
     Merge multiple reads that belong to the same haplotype into a single Read.

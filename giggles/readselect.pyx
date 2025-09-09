@@ -1,8 +1,8 @@
 # cython: language_level=3
 # Code taken from WhatsHap (https://github.com/whatshap/whatshap)
 import math
-import logging
 from collections import defaultdict
+from giggles.logger import logger
 
 from .coverage import CovMonitor
 from .graph import ComponentFinder
@@ -12,8 +12,6 @@ from libcpp.unordered_set cimport unordered_set
 from .priorityqueue cimport priority_type, priority_type_ptr, queue_entry_type, PriorityQueue
 from .core cimport ReadSet
 from . cimport cpp
-
-logger = logging.getLogger(__name__)
 
 
 def _construct_indexes(readset, preferred_source_ids=None):

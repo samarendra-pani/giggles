@@ -7,7 +7,6 @@ forward backward algorithm.
 
 # Code modified from WhatsHap (https://github.com/whatshap/whatshap)
 
-import logging
 import sys
 import platform
 import math
@@ -16,6 +15,7 @@ from functools import partial
 from contextlib import ExitStack
 
 from giggles import __version__
+from giggles.logger import logger
 from giggles.vcf import VcfReader, GenotypeVcfWriter
 from giggles.core import (
     GenotypeHMM,
@@ -29,27 +29,25 @@ from giggles.gaf import rGFA
 from giggles.timer import StageTimer
 from giggles.cli import log_memory_usage
 from giggles.utils import select_reads, bin_coeff, determine_genotype
-from giggles.cli import PhasedInputReader, read_haplotags
+from giggles.cli import ReadSetCreator, read_haplotags
 
 
-logger = logging.getLogger(__name__)
-
+timers = StageTimer()
 
 def genotype_chromosome(variant_table, 
-        phased_input_reader_arguments, 
+        readset_creator_arguments, 
         haplotags, 
         keep_untagged, 
         max_coverage, 
         gt_prob, 
         recombination_cost_computer, 
         n_haplotypes, 
-        timers
     ):
     
     chromosome = variant_table.chromosome
     with timers("phased_input_reader"):
-        phased_input_reader = PhasedInputReader(*phased_input_reader_arguments[0], **phased_input_reader_arguments[1])
-    
+        readset_creator = ReadSetCreator(*readset_creator_arguments[0], **readset_creator_arguments[1])
+
     # create a mapping of genome positions to indices
     var_pos_to_ind = dict()
     n_allele_position = dict()
@@ -67,7 +65,7 @@ def genotype_chromosome(variant_table,
     
     # Get the reads belonging to each sample
     with timers("read_alignment"):
-        readset = phased_input_reader.read(
+        readset = readset_creator.read(
             chromosome, variant_table.variants, haplotags, keep_untagged
         )
     if len(readset) == 0:
@@ -140,15 +138,14 @@ def genotype_chromosome(variant_table,
 
 
 def run_genotype(
-    mapped_read_files,
+    alignment_files,
     variant_file,
-    reference_fasta=None,
-    rgfa=None,
-    read_fasta=None,
+    rgfa,
+    read_fasta_files,
     haplotag_tsv=None,
     keep_untagged=False,
     output=sys.stdout,
-    sample=None,
+    sample="sample",
     # cores=1,
     chromosomes=None,
     mapping_quality=20,
@@ -168,20 +165,21 @@ def run_genotype(
     recombrate=1.26,
     eff_pop_size = 10
 ):
-    
-    timers = StageTimer()
-    logger.info(
-        "This is Giggles (genotyping) %s running under Python %s",
-        __version__,
-        platform.python_version(),
-    )
+    logger.info(f"This is Giggles (genotyping) {__version__} running under Python {platform.python_version()}\n")
+    logger.info('======= Working Files')
+    logger.info(f"Alignment files: {','.join(alignment_files)}")
+    logger.info(f"Read FASTA files: {','.join(read_fasta_files)}")
+    logger.info(f"Haplotags for alignments: {'None provided' if haplotag_tsv is None else haplotag_tsv}")
+    logger.info(f"Reference GFA file: {rgfa}")
+    logger.info(f"Variant sites files: {variant_file}")
+    logger.info(f"Writing to: {'Standard output' if output is sys.stdout else output}\n")
     command_line = "(giggles {}) {}".format(__version__, " ".join(sys.argv[1:]))
     with ExitStack() as stack:
         # read the given input files (BAMs, VCFs, ref...)
         if rgfa is not None:
             rgfa = rGFA(reference_path=rgfa)
-        pir_args = (mapped_read_files, reference_fasta, rgfa, read_fasta)
-        pir_kwargs = {'mapq_threshold': mapping_quality,
+        readset_creator_args = (alignment_files, rgfa, read_fasta_files)
+        readset_creator_kwargs = {'mapq_threshold': mapping_quality,
                 'realign_mode': realign_mode,
                 'overhang': overhang,
                 'gap_start': gap_start,
@@ -192,9 +190,7 @@ def run_genotype(
                 'base_const': em_score_to_prob_base_constant}
         
         # reading haplotags
-        haplotags = None
-        if haplotag_tsv is not None:
-            haplotags = read_haplotags(haplotag_tsv)
+        haplotags = read_haplotags(haplotag_tsv)
         
         # vcf writer for final genotype likelihoods
         vcf_writer = stack.enter_context(GenotypeVcfWriter(command_line=command_line, in_path=variant_file, out_file=output, sample=sample))
@@ -223,14 +219,13 @@ def run_genotype(
         # creating partial function to give Pool.imap()
         # Note: The phased_input_reader is common to all the processes but python multiprocessing has trouble with pysam-based objects.
         partial_genotype_chromosome = partial(genotype_chromosome, 
-            phased_input_reader_arguments=[pir_args, pir_kwargs], 
+            readset_creator_arguments=[readset_creator_args, readset_creator_kwargs], 
             haplotags=haplotags, 
             keep_untagged=keep_untagged, 
             max_coverage=max_coverage, 
             gt_prob=gt_prob, 
             recombination_cost_computer=recombination_cost_computer, 
-            n_haplotypes=n_haplotypes, 
-            timers=timers)
+            n_haplotypes=n_haplotypes)
         
         # No parallel processing
         for variant_table in timers.iterate("parse_vcf", vcf_reader):
@@ -259,7 +254,7 @@ def run_genotype(
                     logger.info(f"======== Writing {chromosome} records")
                     #vcf_writer.write_genotypes(chromosome, variant_table, indels=True)
 
-                logger.debug("Chromosome %r finished", chromosome)
+                logger.debug(f"Chromosome {chromosome} finished")
         '''
 
     logger.info("\n== SUMMARY ==")
@@ -280,33 +275,27 @@ def run_genotype(
 def add_arguments(parser):
     arg = parser.add_argument
     # Positional arguments
-    arg('variant_file', metavar='VCF', help='VCF file with variants to be genotyped (can be gzip-compressed)')
-    arg('mapped_read_files', nargs='*', metavar='READS', help='BAM or GAF file. For GAF file, it expects an index created by gaftools sort with .gsi extension.')
-
+    arg('variant_file', metavar='VCF', help='VCF file with variants to be genotyped (can be bgzip-compressed).')
+    arg('rgfa', metavar='rGFA', help='reference GFA for the GAF alignment (can be bgzip-compressed).')
+    arg('alignment_files', metavar='READS', help='Comma separated list of GAF files along with their indexes generated by gaftools sort (can be bgzip-compressed).')
+    arg('read_fasta_files', metavar='FASTA', help='Comma separated list of FASTA file with the reads used in GAF files. Please provide in the same order as GAF files. If no index (.fai) exists, it will be created.')
+    
     arg('-o', '--output', default=sys.stdout,
         help='Output VCF file. Add .gz to the file name to get compressed output. '
         'If omitted, use standard output.')
-    arg('--reference-fasta', '-rf', metavar='FASTA',
-        help='FASTA Reference file. Provide this with the BAM file. '
-        'If no index (.fai) exists, it will be created')
-    arg('--rgfa', metavar='rGFA',
-        help='GFA Reference file. Provide this along with the input GAF file')
-    arg('--read-fasta', '-f', metavar='FASTA',
-        help='FASTA file with the reads used in GAF file. Provide this with the GAF file unless the read sequences are given in the GAF file with RS or rs tag. '
-        'If no index (.fai) exists, it will be created')
     arg('--haplotag-tsv', metavar='HAPLOTAG', 
-        help='TSV file containing the haplotag and phaseset information.')
-    arg('--sample', dest='sample', metavar='SAMPLE',
-        help='Name of a sample to genotype. Has to be given.')
+        help='Comma separated list of TSV file containing the haplotag and phaseset information. Please provide in the same order as GAF files.')
+    arg('--sample', dest='sample', metavar='SAMPLE', default='sample',
+        help='Name of the sample being genotyped. (default: %(default)s)')
     # arg('--cores', dest='cores', metavar='CORES', default=1, type=int,
     #     help='Number of parallel cores to use for multiprocessing (default: %(default)s)')
     
 
     arg = parser.add_argument_group('Input pre-processing, selection and filtering').add_argument
     arg('--max-coverage', '-H', metavar='MAX_COV', default=None, type=int,
-        help='Reduce coverage to at most MAX_COV (default: %(default)s).')
+        help='Reduce coverage to at most MAX_COV. (default: %(default)s)')
     arg('--mapping-quality', '--mapq', metavar='QUAL',
-        default=20, type=int, help='Minimum mapping quality (default: %(default)s)')
+        default=20, type=int, help='Minimum mapping quality (default: %(default)s).')
     arg('--chromosome', dest='chromosomes', metavar='CHROMOSOME', default=[], action='append',
         help='Name of chromosome to genotyped. If not given, all chromosomes in the '
         'input VCF are genotyped. Can be used multiple times.')
@@ -356,18 +345,28 @@ def add_arguments(parser):
 
 
 def validate(args, parser):
-    if len(args.mapped_read_files) == 0:
-        parser.error("No BAM or GAF files found.")
+    args.alignment_files = args.alignment_files.split(",")
+    args.read_fasta_files = args.read_fasta_files.split(",")
+    args.haplotag_tsv = args.haplotag_tsv.split(",") if args.haplotag_tsv else None
+    if args.haplotag_tsv is not None and len(args.haplotag_tsv) != len(args.alignment_files):
+        parser.error("The number of haplotag TSV files must match the number of GAF files.")
+    if not all(f.endswith(".gaf") or f.endswith(".gaf.gz") for f in args.alignment_files):
+        parser.error("Only GAF files are supported.")
+    if len(args.alignment_files) == 0:
+        parser.error("At least one GAF file must be provided.")
+    if len(args.alignment_files) != len(args.read_fasta_files):
+        parser.error("The number of GAF files must match the number of FASTA files.")
     if args.gt_qual_threshold < 0:
         parser.error("Genotype quality threshold (gt-qual-threshold) must be at least 0.")
-    if not args.reference_fasta and not args.rgfa:
-        parser.error("No reference found. Please rGFA with GAF files or FASTA with BAM files.")
-    if not args.sample:
-        parser.error("The sample name has to be provided. Please enter sample name with --sample.")
     if args.match_probability < 0 or args.mismatch_probability < 0 or args.insertion_probability < 0 or args.deletion_probability < 0:
         parser.error("CIGAR processing parameters cannot be negative.")
     if args.realign_mode not in ["wfa_full", "wfa_score", "edit"]:
         parser.error("Unknown realignment mode detected.")
+    
+    if args.haplotag_tsv is None:
+        if not args.keep_untagged:
+            # If no haplotype TSV is provided, we read all alignments
+            args.keep_untagged = True
     
 
 def main(args):

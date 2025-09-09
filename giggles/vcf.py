@@ -6,7 +6,6 @@ Functions for reading VCFs.
 import os
 import sys
 import math
-import logging
 import itertools
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
@@ -21,30 +20,7 @@ from .core import (
     binomial_coefficient,
     get_max_genotype_ploidy,
 )
-from .utils import warn_once
-
-logger = logging.getLogger(__name__)
-
-
-class VcfError(Exception):
-    pass
-
-
-class VcfNotSortedError(VcfError):
-    pass
-
-
-class PloidyError(VcfError):
-    pass
-
-
-class VcfIndexMissing(VcfError):
-    pass
-
-
-class VcfInvalidChromosome(VcfError):
-    pass
-
+from .logger import logger, warn_once
 
 @dataclass
 class VariantCallPhase:
@@ -270,9 +246,6 @@ class VariantTable:
         self.query_genotype_likelihoods = genotype_likelihoods
 
 
-class MixedPhasingError(Exception):
-    pass
-
 # TODO: Clean up VcfReader.
 # There is space for haplotagging but there is no plans for developing in that direction yet.
 class VcfReader:
@@ -328,11 +301,9 @@ class VcfReader:
             records = self._vcf_reader.fetch(chromosome, start=start, stop=end)
         except ValueError as e:
             if "invalid contig" in e.args[0]:
-                raise VcfInvalidChromosome(e.args[0]) from None
+                raise Exception("Invalid chromosome found in VCF file")
             elif "fetch requires an index" in e.args[0]:
-                raise VcfIndexMissing(
-                    "{} is missing an index (.tbi or .csi)".format(self._path)
-                ) from None
+                raise Exception(f"{self._path} is missing an index (.tbi or .csi)")
             else:
                 raise
         return records
@@ -367,11 +338,10 @@ class VcfReader:
         # TODO: Possible to make this more memory efficient?
         for chromosome, records in itertools.groupby(self._vcf_reader, lambda record: record.chrom):
             if (not self.required_chr) or (chromosome in self.required_chr):
-                logger.info("======== Working on chromosome %r", chromosome)
+                logger.info(f"======== Working on chromosome {chromosome}")
                 yield self._process_single_chromosome(chromosome, records)
             else:
-                logger.info("======== Skipping chromosome %r", chromosome)
-            
+                logger.info(f"======== Skipping chromosome {chromosome}")
 
     @staticmethod
     def _extract_HP_phase(call) -> Optional[VariantCallPhase]:
@@ -408,7 +378,7 @@ class VcfReader:
         table = VariantTable(chromosome, self.vcf_samples)
         prev_position = None
         ## records is a list of VariantRecord objects
-        logger.info("Processing variants from Chromosome %s."%(chromosome))
+        logger.info(f"Processing variants from Chromosome {chromosome}.")
         for record in records:
             if not record.alts:
                 continue
@@ -437,10 +407,8 @@ class VcfReader:
                     n_other += 1
 
             if (prev_position is not None) and (prev_position > pos):
-                raise VcfNotSortedError(
-                    "VCF not ordered: {}:{} appears before {}:{}".format(
-                        chromosome, prev_position + 1, chromosome, pos + 1
-                    )
+                raise Exception(
+                    f"VCF not ordered: {chromosome}:{prev_position + 1} appears before {chromosome}:{pos + 1}"
                 )
 
             if prev_position == pos:
@@ -475,28 +443,19 @@ class VcfReader:
                             if phase_detected is None:
                                 phase_detected = phase_name
                             elif phase_detected != phase_name:
-                                raise MixedPhasingError(
-                                    "Mixed phasing information in input VCF (e.g. mixing PS "
-                                    "and HP fields)"
-                                )
+                                raise Exception("Mixed phasing information in input VCF (e.g. mixing PS and HP fields)")
                             phase = p
                             # check for ploidy consistency and limits
                             phase_ploidy = len(p.phase)
                             if phase_ploidy > get_max_genotype_ploidy():
-                                raise PloidyError(
-                                    "Ploidies higher than {} are not supported."
-                                    "".format(get_max_genotype_ploidy())
-                                )
+                                raise Exception(f"Ploidies higher than {get_max_genotype_ploidy()} are not supported.")
                             elif p is None or p.block_id is None or p.phase is None:
                                 pass
                             elif self.ploidy is None:
                                 self.ploidy = phase_ploidy
                             elif phase_ploidy != self.ploidy:
                                 print(f"phase= {phase}")
-                                raise PloidyError(
-                                    "Phasing information contains inconsistent ploidy ({} and "
-                                    "{})".format(self.ploidy, phase_ploidy)
-                                )
+                                raise Exception(f"Phasing information contains inconsistent ploidy ({self.ploidy} and {phase_ploidy})")
                     phases.append(phase)
             else:
                 phases = [None] * len(record.samples)
@@ -509,16 +468,11 @@ class VcfReader:
                         continue
                     geno_ploidy = len(geno)
                     if geno_ploidy > get_max_genotype_ploidy():
-                        raise PloidyError(
-                            "Ploidies higher than {} are not supported."
-                            "".format(get_max_genotype_ploidy())
-                        )
+                        raise Exception(f"Ploidies higher than {get_max_genotype_ploidy()} are not supported.")
                     elif self.ploidy is None:
                         self.ploidy = geno_ploidy
                     elif geno_ploidy != self.ploidy:
-                        raise PloidyError(
-                            "Inconsistent ploidy ({} and " "{})".format(self.ploidy, geno_ploidy)
-                        )
+                        raise Exception(f"Inconsistent ploidy ({self.ploidy} and {geno_ploidy})")
 
                 genotypes = [genotype_code(geno_list) for geno_list in genotype_lists]
             else:
@@ -609,14 +563,14 @@ def augment_header(header: VariantHeader, contigs: List[str], formats: List[str]
         try:
             h = PREDEFINED_FORMATS[fmt]
         except KeyError:
-            raise VcfError("FORMAT {!r} not defined in VCF header".format(fmt)) from None
+            raise Exception(f"FORMAT {fmt} not defined in VCF header")
         header.add_line(h.line())
 
     for info in infos:
         try:
             h = PREDEFINED_INFOS[info]
         except KeyError:
-            raise VcfError("INFO {!r} not defined in VCF header".format(info)) from None
+            raise Exception(f"INFO {info} not defined in VCF header")
         header.add_line(h.line())
 
 
@@ -643,7 +597,7 @@ def missing_headers(path: str) -> Tuple[List[str], List[str], List[str]]:
             h = PREDEFINED_FORMATS[fmt]
             if v.number != h.number or v.type != h.typ:
                 if fmt == "PS" and v.type != h.typ:
-                    raise VcfError(
+                    raise Exception(
                         "The input VCF/BCF contains phase set ('PS') tags that are of the"
                         " non-standard type '{}' instead of 'Integer'. Giggles cannot"
                         " overwrite these as it could produce inconsistent files."

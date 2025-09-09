@@ -3,42 +3,11 @@
 import sys
 import pkgutil
 import importlib
-import logging
 
 import giggles.cli as cli_package
+from giggles.logger import logger
 from . import __version__
 from .args import HelpfulArgumentParser
-
-
-class CommandLineError(Exception):
-    pass
-
-logger = logging.getLogger(__name__)
-
-
-class NiceFormatter(logging.Formatter):
-    """
-    Do not prefix "INFO:" to info-level log messages (but do it for all other
-    levels).
-
-    Based on http://stackoverflow.com/a/9218261/715090 .
-    """
-
-    def format(self, record):
-        if record.levelno != logging.INFO:
-            record.msg = "{}: {}".format(record.levelname, record.msg)
-        return super().format(record)
-
-
-def setup_logging(debug):
-    """
-    Set up logging. If debug is True, then DEBUG level messages are printed.
-    """
-    handler = logging.StreamHandler()
-    handler.setFormatter(NiceFormatter())
-    root = logging.getLogger()
-    root.addHandler(handler)
-    root.setLevel(logging.DEBUG if debug else logging.INFO)
 
 
 def ensure_pysam_version():
@@ -53,7 +22,7 @@ def main(argv=sys.argv[1:]):
     ensure_pysam_version()
     parser = HelpfulArgumentParser(description=__doc__, prog="giggles")
     parser.add_argument("--version", action="version", version="%(prog)s " + __version__)
-    parser.add_argument("--debug", action="store_true", default=False, help="Print debug messages")
+    parser.add_argument("--logging-level", default="INFO", choices=["INFO", "DEBUG", "TRACE"], help="Set the logging level. (Level: INFO < DEBUG < TRACE)")
     subparsers = parser.add_subparsers()
 
     # Import each module that implements a subcommand and add a subparser for it.
@@ -71,7 +40,7 @@ def main(argv=sys.argv[1:]):
         module.add_arguments(subparser)
 
     args = parser.parse_args(argv)
-    setup_logging(args.debug)
+    logger.set_level(args.logging_level)
 
     if not hasattr(args, "module"):
         parser.error("Please provide the name of a subcommand to run")
@@ -82,12 +51,11 @@ def main(argv=sys.argv[1:]):
             args.module.validate(args, subparser)
         del args.subparser
         del args.module
-        del args.debug
+        del args.logging_level
         try:
             module.main(args)
-        except CommandLineError as e:
-            logger.error("giggles error: %s", str(e))
-            logger.debug("Command line error. Traceback:", exc_info=True)
+        except Exception as e:
+            logger.error(f"giggles error: {str(e)}", exc_info=e)
             sys.exit(1)
 
 

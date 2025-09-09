@@ -2,183 +2,67 @@
 
 import sys
 import resource
-import logging
+from giggles.logger import logger
 
-from giggles.bam import (
-    AlignmentFileNotIndexedError,
-    EmptyAlignmentFileError,
-    SampleNotFoundError,
-    ReferenceNotFoundError,
-)
-from giggles.gaf import (
-    AlignmentFileNotIndexedError,
-    EmptyAlignmentFileError,
-    ReferenceNotFoundError,
-)
-from giggles.variants import ReadSetReader, ReadSetError, GAFReader
-from giggles.utils import IndexedFasta, FastaNotIndexedError, detect_file_format
+from giggles.variants import GAFReader
 from giggles.core import ReadSet
 
 
-logger = logging.getLogger(__name__)
-
-
-class CommandLineError(Exception):
-    """An anticipated command-line error occurred. This ends up as a user-visible error message"""
-
-
-def alignment_reader(type, paths, reference, read_fasta, **kwargs):
-    try:
-        if type == "BAM":
-            # here reference is a fasta file
-            readset_reader = ReadSetReader(paths, reference, **kwargs)
-        elif type == "GAF":
-            # here reference is a gfa file
-            readset_reader = GAFReader(paths, reference, read_fasta, **kwargs)
-    except OSError as e:
-        raise CommandLineError(e)
-    except AlignmentFileNotIndexedError as e:
-        raise CommandLineError(
-            "The file '{}' is not indexed. Please create the appropriate BAM/CRAM "
-            'index with "samtools index"'.format(e.args[0])
-        )
-    except EmptyAlignmentFileError as e:
-        raise CommandLineError(
-            "No reads could be retrieved from '{}'. If this is a CRAM file, possibly the "
-            "reference could not be found. Try to use --reference=... or check your "
-            "$REF_PATH/$REF_CACHE settings".format(e.args[0])
-        )
-    return readset_reader
-
-
-class PhasedInputReader:
+class ReadSetCreator:
     def __init__(
         self,
-        bam_or_gaf_paths,
-        reference_fasta,
+        alignment_files,
         gfa,
-        read_fasta,
-        **kwargs,  # passed to ReadSetReader constructor
+        read_fasta_files,
+        **kwargs,  # passed to GAFReader constructor
     ):
-        self._bam_paths, self._gaf_paths = self._split_input_file_list(bam_or_gaf_paths)
-        if self._bam_paths and self._gaf_paths:
-            raise CommandLineError("Unable to process both BAM and GAF files together. Please provide one.")
-        if self._bam_paths:
-            self._type="BAM"
-            reference = reference_fasta
-        else:
-            self._type="GAF"
-            reference = gfa
-        logger.info("Detected %s file given as input..." %(self._type))
-        self._reference_fasta = self._open_reference(reference_fasta) if reference_fasta else None
-        self._readset_reader = alignment_reader(self._type, bam_or_gaf_paths, reference, read_fasta, **kwargs)
-    
-    def __enter__(self):
-        return self
+        self.readset_reader = GAFReader(alignment_files, gfa, read_fasta_files, **kwargs)
 
-    def __exit__(self):
-        if self._reference_fasta is not None:
-            self._reference_fasta.close()
-
-    @property
-    def has_vcfs(self):
-        return bool(self._vcf_paths)
-
-    @property
-    def has_alignments(self) -> bool:
-        """Whether any of the input files are BAM or CRAM"""
-        return bool(self._bam_paths)
-
-    @staticmethod
-    def _split_input_file_list(paths):
-        bams = []
-        gafs = []
-        for path in paths:
-            try:
-                file_format = detect_file_format(path)
-            except OSError as e:
-                raise CommandLineError(e)
-            if file_format in ("BAM", "CRAM"):
-                bams.append(path)
-            elif file_format == "GAF":
-                gafs.append(path)
-            else:
-                raise CommandLineError("Unable to determine type of input file {!r}".format(path))
-        return bams, gafs
-
-    @staticmethod
-    def _open_reference(path):
-        try:
-            indexed_fasta = IndexedFasta(path)
-        except OSError as e:
-            raise CommandLineError("Error while opening FASTA reference file: {}".format(e))
-        except FastaNotIndexedError as e:
-            raise CommandLineError(
-                "An index file (.fai) for the reference FASTA {!r} "
-                "could not be found. Please create one with "
-                '"samtools faidx".'.format(e)
-            )
-        return indexed_fasta
 
     def read(self, chromosome, variants, haplotags, keep_untagged):
         """
-        Return a pair (readset, vcf_source_ids) where readset is a sorted ReadSet.
-
-        Set read_vcf to False to not read phased blocks from the VCFs
+        Returns a ReadSet object with haplotags
         """
-        readset_reader = self._readset_reader
-        logger.info("Reading alignments and detecting alleles ...")
-        reference = None
-        if self._type == "BAM":
-            try:
-                reference = self._reference_fasta[chromosome] if self._reference_fasta else None
-            except KeyError:
-                raise CommandLineError(
-                    f"Chromosome {chromosome} present in VCF file, but not in the reference FASTA {self._reference_fasta.filename}"
-                )
-            if reference == None:
-                raise CommandLineError(
-                    f"No reference sequence found for Chromosomes {chromosome}. Please provide the reference file with the chromosomes."
-                )
-        
-        try:
-            readset = readset_reader.read(chromosome, variants, reference)
-            if readset is None:
-                readset = ReadSet()
-        except SampleNotFoundError:
-            logger.warning("Sample not found in any BAM/CRAM file.")
-            readset = ReadSet()
-        except ReadSetError as e:
-            raise CommandLineError(e)
-        except ReferenceNotFoundError:
-            if chromosome.startswith("chr"):
-                alternative = chromosome[3:]
-            else:
-                alternative = "chr" + chromosome
-            message = f"The chromosome {chromosome} was not found in the BAM/CRAM file."
-            if readset_reader.has_reference(alternative):
-                message += f" Found {alternative} instead"
-            raise CommandLineError(message)
 
+        logger.info("Reading alignments and detecting alleles ...")
+        readset = self.readset_reader.read(chromosome, variants)
+        if readset is None:
+            readset = ReadSet()
+        
         new_readset = ReadSet()
         for read in readset:
-            if not keep_untagged:
-                if haplotags[read.name].hp != "none":
-                    assert haplotags[read.name].hp == "H1" or haplotags[read.name].hp == "H2"
+            read_id = (read.source_id, read.name)
+            try:
+                haplotag = haplotags[read_id]
+                if not keep_untagged:
+                    if haplotag.hp != 'none':
+                        assert haplotag.hp == 'H1' or haplotag.hp == 'H2'
+                        read.sort()
+                        read.add_haplotag(haplotag.hp, haplotag.ps)
+                        new_readset.add(read)
+                else:
                     read.sort()
-                    read.add_haplotag(haplotags[read.name].hp, haplotags[read.name].ps)
+                    read.add_haplotag(haplotag.hp, haplotag.ps)
                     new_readset.add(read)
-            else:
+            except KeyError:
+                logger.warning(f'Could not find haplotag for read {read_id[1]} from source file {read[0]}')
+                if keep_untagged:
+                    read.sort()
+                    read.add_haplotag('none', -1)
+                    new_readset.add(read)
+            except TypeError:
+                assert haplotags is None
+                assert keep_untagged
                 read.sort()
-                read.add_haplotag(haplotags[read.name].hp, haplotags[read.name].ps)
+                read.add_haplotag('none', -1)
                 new_readset.add(read)
+
         new_readset.sort()
 
-        logger.info(
-            "Found %d reads covering %d variants", len(new_readset), len(new_readset.get_positions())
-        )
-        
+        logger.info(f'Found {len(new_readset)} reads covering {len(new_readset.get_positions())} variants')
+
         return new_readset
+
 
 class Haplotag:
     def __init__(self, hp, ps, chr):
@@ -186,7 +70,8 @@ class Haplotag:
         self.ps = ps
         self.chr = chr
 
-def read_haplotags(file):
+
+def read_haplotags(files):
     """
     Function to read the haplotag file.
     The file should be tab-separated with the following column information:
@@ -199,24 +84,25 @@ def read_haplotags(file):
     This is the standard output for `whatshap haplotag`. Check documentation for more information.
     """
 
-    logger.info("Reading Haplotag TSV File")
-    out = None
-    if file == None:
-        return out
-    with open(file, 'r') as f:
-        out = dict()
-        while True:
-            line = f.readline()
-            if not line:
-                break
-            if line[0] == "#":
-                continue
-            rn, hp, ps, chr = line.rstrip().split('\t')[0:4]
-            if ps == 'none':
-                ps = -1
-            assert hp in ['H1', 'H2', 'none']
-            out[rn] = Haplotag(hp=hp, ps=int(ps), chr=chr)
-    return out
+    haplotags = {}
+    if files == None:
+        logger.info("No haplotag files provided.")
+        return None
+    for index, file in enumerate(files):
+        with open(file, 'r') as f:
+            while True:
+                line = f.readline()
+                if not line:
+                    break
+                if line[0] == "#":
+                    continue
+                rn, hp, ps, chr = line.rstrip().split('\t')[0:4]
+                if ps == 'none':
+                    ps = -1
+                assert hp in ['H1', 'H2', 'none']
+                haplotags[(index, rn)] = Haplotag(hp=hp, ps=int(ps), chr=chr)
+    logger.info(f"Found {len(haplotags)} haplotags.")
+    return haplotags
 
 
 
@@ -229,4 +115,4 @@ def log_memory_usage(include_children=False):
             )
         else:
             memory_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-        logger.info("Maximum memory usage: %.3f GB", memory_kb / 1e6)
+        logger.info(f"Maximum memory usage: {memory_kb / 1e6:.3f} GB")

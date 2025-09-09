@@ -1,26 +1,17 @@
 # Code taken from WhatsHap (https://github.com/whatshap/whatshap)
 
 import gzip
-import logging
 import itertools
-from collections import defaultdict
-from typing import DefaultDict, Sequence
+from typing import Sequence
 import pyfaidx
 from abc import ABC, abstractmethod
 
+from giggles.logger import logger
 from giggles import __version__
 from giggles.core import (
     readselection,
     Genotype
 )
-
-class FastaNotIndexedError(Exception):
-    pass
-
-
-class InvalidRegion(Exception):
-    pass
-
 
 def detect_file_format(path):
     """
@@ -51,35 +42,14 @@ def IndexedFasta(path):
     try:
         f = pyfaidx.Fasta(path, as_raw=True, sequence_always_upper=True, build_index=False)
     except pyfaidx.IndexNotFoundError:
-        raise FastaNotIndexedError(path)
+        raise Exception(f"FASTA file {path} is not indexed")
     return f
 
-
-_warning_count: DefaultDict[str, int] = defaultdict(int)
-
-
-def warn_once(logger, msg: str, *args) -> None:
-    if _warning_count[msg] == 0 and not logger.isEnabledFor(logging.DEBUG):
-        logger.warning(msg + " Hiding further warnings of this type, use --debug to show", *args)
-    else:
-        logger.debug(msg, *args)
-    _warning_count[msg] += 1
-
-
-logger = logging.getLogger(__name__)
-
-
 def select_reads(readset, max_coverage, preferred_source_ids=None):
-    logger.info(
-        "Reducing coverage to at most %dX by selecting most informative reads ...", max_coverage
-    )
+    logger.info(f"Reducing coverage to at most {max_coverage}X by selecting most informative reads ...")
     selected_indices = readselection(readset, max_coverage, preferred_source_ids)
     selected_reads = readset.subset(selected_indices)
-    logger.info(
-        "Selected %d reads covering %d variants",
-        len(selected_reads),
-        len(selected_reads.get_positions()),
-    )
+    logger.info(f"Selected {len(selected_reads)} reads covering {len(selected_reads.get_positions())} variants")
 
     return selected_reads
 

@@ -2,43 +2,20 @@ import os
 from abc import ABC
 from urllib.parse import urlparse
 from typing import Iterator
-from .utils import warn_once, reverse_complement, reverse_cigar
+from .utils import reverse_complement, reverse_cigar
+from .logger import logger, warn_once
 
 import re
 import pysam
-import logging
 import gzip
-from collections import namedtuple
 from dataclasses import dataclass
 import pickle as pkl
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass
 class AlignmentWithSourceID:
     source_id: int
     bam_alignment: pysam.AlignedSegment
-
-
-class CommandLineError(Exception):
-    pass
-
-
-class AlignmentFileNotIndexedError(Exception):
-    pass
-
-
-class SampleNotFoundError(Exception):
-    pass
-
-
-class ReferenceNotFoundError(Exception):
-    pass
-
-
-class EmptyAlignmentFileError(Exception):
-    pass
 
 
 def is_local(path):
@@ -49,8 +26,6 @@ def detect_gzip(path):
     with open(path, 'rb') as test_f:
         return (test_f.read(2) == b'\x1f\x8b')
 
-class GafParser(ABC):
-    pass
 
 class GafAlignment:
     """
@@ -276,50 +251,48 @@ class GafAlignment:
         pass
 
 
-class SampleGafParser(GafParser):
+class GafParser:
     """
     Parsing the GAF file and extracting the alignment informartion.
     Since GAF files don't have sample specifications or multisample support, it will be assumed that all reads are for the same sample.
     """
     def __init__(
         self,
-        path,
+        alignment_files,
         reference,
-        read_fasta,
+        read_fasta_files,
         mapq,
-        source_id = 1
     ):
         """
         path -- path to the GAF file
         reference -- rGFA for the realignment
         """
-        self.source_id = source_id
         self._mapq = mapq
-        path = os.path.abspath(path)
+        self._files = []
+        self._fastas = []
+        self._indexes = []
+        self._alignment_files = alignment_files
+        alignment_files = [os.path.abspath(f) for f in alignment_files]
+        read_fasta_files = [os.path.abspath(f) for f in read_fasta_files]
         self._reference = reference
-        if read_fasta != None:
-            logger.info("Parsing FASTA file with read seqeunces.")
-            # TODO: Problem with parallel processing
-            self._read_sequences = pysam.FastaFile(read_fasta)
-
-        else:
-            raise CommandLineError("FASTA file not given. Assuming the read sequences will be provided in GAF File.")
-        gzipped = detect_gzip(path)
-        if gzipped:
-            # TODO: problem with parallel processing
-            self._file = pysam.libcbgzf.BGZFile(path, "rb")
-            pass
-        else:
-            self._file = open(path, "r")
-        logger.info("Parsing GAF File.")
-        self._index = self.process_index_file(path)
-
+        assert len(alignment_files) == len(read_fasta_files)
+        for path in alignment_files:
+            if detect_gzip(path):
+                self._files.append(pysam.libcbgzf.BGZFile(path, "rb"))
+            else:
+                self._files.append(open(path, "r"))
+            self._indexes.append(self.process_index_file(path))
+        for path in read_fasta_files:
+            self._fastas.append(pysam.FastaFile(path))
+        logger.info("Completed initializing GAF files, along with their indexes and read FASTA files.")
+ 
     def process_index_file(self, path):
         try:
+            logger.info(f"Processing index file for {path}")
             with open(path+".gsi", 'rb') as f:
                 return pkl.load(f)
         except FileNotFoundError:
-            raise AlignmentFileNotIndexedError("No index file found for GAF file. Run gaftools scaffold-sort and create index.")
+            raise Exception(f"No index file found for {path}. Run gaftools sort and create index.")
 
     def __call__(self, contig):
         self._contig_iter = contig
@@ -330,32 +303,45 @@ class SampleGafParser(GafParser):
         """
         Fetch GafAlignment from specified contig
         """
-        try:
-            # Contains offset of first line of alignment and last line of alignment for a particular contig
-            offsets = self._index[self._contig_iter]
-        except KeyError:
-            yield None
-        it = True
-        file = self._file
-        file.seek(offsets[0])
-        while it == True:
-            line = file.readline()
-            if not line:
-                break
-            if file.tell() == offsets[1]:
-                it = False
-            a = GafAlignment(line, self.source_id, self._read_sequences)
-            if a.mapping_quality < self._mapq:
+        for source_id, alignment_file in enumerate(self._files):
+            try:
+                # Contains offset of first line of alignment and last line of alignment for a particular contig
+                offsets = self._indexes[source_id][self._contig_iter]
+            except KeyError:
+                logger.debug(f"No alignments found for contig {self._contig_iter} in file {self._alignment_files[source_id]}.")
+                yield None
                 continue
-            if a.tags['tp'] != "P":
-                continue
-            if a.tags['sn'] != self._contig_iter:
-                assert a.tags['sn'] == 'unknown', "GAF is not properly sorted."
-                continue
-            if a.tags['iv'] == 1:
-                continue
-            yield a
+            alignment_file.seek(offsets[0])
+            iterator = True
+            while iterator:
+                line = alignment_file.readline()
+                if not line:
+                    break
+                if alignment_file.tell() == offsets[1]:
+                    iterator = False
+                a = GafAlignment(line, source_id, self._fastas[source_id])
+                if a.mapping_quality < self._mapq:
+                    continue
+                if a.tags['tp'] != "P":
+                    continue
+                if a.tags['sn'] != self._contig_iter:
+                    assert a.tags['sn'] == 'unknown', "GAF is not properly sorted."
+                    continue
+                # TODO: What to do with this inversion case?
+                if a.tags['iv'] == 1:
+                    continue
+                yield a
 
+    def __exit__(self):
+        self.close()
+
+    def close(self):
+        for f in self._files:
+            f.close()
+        for f in self._fastas:
+            f.close()
+        for f in self._indexes:
+            del f
 
 class Node:
     def __init__(self, sequence, start, contig, rank, tags):

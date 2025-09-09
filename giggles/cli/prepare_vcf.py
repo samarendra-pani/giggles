@@ -3,13 +3,12 @@ Create VCFs using assembly-to-graph alignments.
 '''
 
 import sys
-import logging
 from collections import defaultdict, namedtuple, abc
 import gzip
 import re
 from copy import deepcopy
 
-logger = logging.getLogger(__name__)
+from giggles.logger import logger
 
 VariantRecord = namedtuple('VariantRecord', ['CHROM', 'POS', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER', 'INFO', 'FORMAT'])
 
@@ -116,7 +115,7 @@ def label_ext_variants(ext_variants, scaffold_nodes, nodes):
     # iterating through the external variants and checking if they fall on the scaffold nodes
     for chrom in ext_variants:
         if chrom not in scaffold_coordiantes:
-            logger.error(f"Chromosome {chrom} in external variants not found in scaffold nodes. Skipping.")
+            logger.warning(f"Chromosome {chrom} in external variants not found in scaffold nodes. Skipping.")
             continue
         variants = ext_variants[chrom]
         scaffold_pointer = 0
@@ -198,9 +197,9 @@ def read_gfa(gfa, node, edges):
         node[fields[1]] = node[fields[1]]._replace(BO=BO, NO=NO, SO=SO, SR=SR, SN=SN, LN=LN, Seq=fields[2])
         if node[fields[1]].LN == -1:
             node[fields[1]] = node[fields[1]]._replace(LN = len(fields[2]))
-    logger.info("\t%d total Nodes Processed"%(total_nodes))
-    logger.info("\t%d nodes with tags"%(tagged_nodes))
-    
+    logger.info(f"\t{total_nodes} total Nodes Processed")
+    logger.info(f"\t{tagged_nodes} nodes with tags")
+
     reader.seek(0)
     while True:
         line = reader.readline()
@@ -241,7 +240,7 @@ def read_assemblies(assembly_list, scaffold_nodes, nodes):
         bubble = ">%s>%s"%(scaffold_nodes[i], scaffold_nodes[i+1])
         bubbles.append(bubble)
         variants[bubble] = {}
-    logger.info("\nNumber of possible bubbles = %d"%(len(bubbles)))
+    logger.info(f"\nNumber of possible bubbles = {len(bubbles)}")
     gaf_files = []
     with open(assembly_list, 'r') as f:
         for line in f:
@@ -269,7 +268,7 @@ def find_variant_alleles(gaf, variants, nodes, haplotype):
         if not alignment:
             break
         alignment = alignment.split('\t')
-        logger.debug("\tProcessing contig %s"%(alignment[0]))
+        logger.debug(f"\tProcessing contig {alignment[0]}")
         path = list(filter(None, re.split('(>)|(<)', alignment[5])))
         rv = False
         confused = False
@@ -398,7 +397,7 @@ def find_variant_alleles(gaf, variants, nodes, haplotype):
         except KeyError:
             counts['Number of Variant Bubbles not found in the alignments'] += 1
     for key, value in counts.items():
-        logger.info("\t%s: %d"%(key, value))
+        logger.info(f"\t{key}: {value}")
     reader.close()
 
 
@@ -747,9 +746,9 @@ def write_records(writer, variants, ref_alleles, haplotypes, nodes, keep_all_rec
                     pass
                 ext_var_pointer += 1
 
-    logger.info("\nNumber of variant records lacking alternate alleles or unavailable alleles: %d", num_variants['skipped'])
-    logger.info("Number of variant records in the VCF: %d", num_variants['processed'])
-        
+    logger.info(f"\nNumber of variant records lacking alternate alleles or unavailable alleles: {num_variants['skipped']}")
+    logger.info(f"Number of variant records in the VCF: {num_variants['processed']}")
+
 
 def get_reference_alleles(edges, bubbles):
     ref_alleles = {}
