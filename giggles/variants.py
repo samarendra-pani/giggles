@@ -3,21 +3,19 @@ Detect variants in reads.
 """
 # Code modified from WhatsHap (https://github.com/whatshap/whatshap)
 
-from giggles.logger import logger
-import itertools
 import math
-from collections import defaultdict, Counter, namedtuple
-from typing import Iterable, Iterator, List, Optional
 import re
+from collections import defaultdict, Counter, namedtuple
+from typing import Iterable, Iterator, List
 from pywfa import WavefrontAligner
 
+from giggles.logger import logger
 from giggles.core import Read, ReadSet
 from giggles.gaf import GafParser, rGFA, GafAlignment
 from giggles.align import edit_distance
 from giggles._variants import _iterate_cigar
 
 
-# Keeping this
 class AlignmentReader:
     """
     Superclass for the GAF Readers (and any other alignment file readers)
@@ -173,6 +171,10 @@ class AlignmentReader:
         gap_start, gap_extend -- use these parameters for affine gap cost alignment
         default_mismatch -- use this as mismatch cost in case no base qualities are in alignment
         emission_parameters -- a list which contains the probabilities of the cigar being match, mismatch, insertion, and deletion.
+
+        Return a tuple (allele, scores) where
+        allele -- allele index with the max score
+        scores -- list of alignment scores for all alleles (first is reference, then alternatives)
         """
         # Do not process symbolic alleles like <DEL>, <DUP>, etc.
         if any([alt.startswith("<") for alt in variant.alternative_allele]):
@@ -182,12 +184,50 @@ class AlignmentReader:
         # In the previous code, the CIGAR is against the reference always and hence we need to realign only for the alternate alleles.
         # With GAF, the CIGAR is not always against the reference (sometimes it is not against ref or any of the alt and can be with a path that is not an allele traversal)
         # So we need to generalize the process to realign using the variant record and the cigar tuples.
-
         left_cigar, right_cigar = AlignmentReader.split_cigar(cigartuples, i, consumed)
 
-        left_ref_bases, left_query_bases = AlignmentReader.cigar_prefix_length(
-            left_cigar[::-1], overhang
-        )
+        if not variant.is_sv():
+            # this is an external variant
+            # overhang is set to 10
+            left_ref_bases, left_query_bases = AlignmentReader.cigar_prefix_length(cigar=left_cigar[::-1], reference_bases=10)
+            if variant.reference_allele == "*":
+                ref_allele = ""
+            else:
+                ref_allele = variant.reference_allele
+            # This should not be len(ref_allele)! This should be whatever path is followed in the node path!
+            right_ref_bases, right_query_bases = AlignmentReader.cigar_prefix_length(cigar=right_cigar, reference_bases=variant.length_on_path + 10)
+
+            assert variant.position - left_ref_bases >= 0
+            assert variant.position + right_ref_bases <= len(reference)
+
+            query = read.query_sequence[query_pos - left_query_bases : query_pos + right_query_bases]
+            
+            left_overhang = reference[variant.position - left_ref_bases : variant.position]
+            right_overhang = reference[variant.position + right_ref_bases - 10 : variant.position + right_ref_bases]
+
+            ref = left_overhang + ref_allele + right_overhang
+            
+            alts = []
+            for alt_allele in variant.alternative_allele:
+                if alt_allele != "*":
+                    alt = left_overhang + alt_allele + right_overhang
+                else:
+                    alt = left_overhang + right_overhang
+                alts.append(alt)
+
+            scores = []
+            max_score = -1e15
+            max_allele = None
+            for index, allele in enumerate([ref]+alts):
+                scores.append(edit_distance(query, allele))
+                if scores[index] > max_score:
+                    max_score = scores[index]
+                    max_allele = index
+
+            return max_allele, scores
+
+        # This is a SV variant
+        left_ref_bases, left_query_bases = AlignmentReader.cigar_prefix_length(cigar=left_cigar[::-1], reference_bases=overhang)
         
         if variant.reference_allele == "*":
             ref_allele = ""
@@ -195,23 +235,16 @@ class AlignmentReader:
             ref_allele = variant.reference_allele
 
         # This should not be len(ref_allele)! This should be whatever path is followed in the node path!
-        # TODO: Make it BAM Compatible
-        right_ref_bases, right_query_bases = AlignmentReader.cigar_prefix_length(
-            right_cigar, variant.length_on_path + overhang
-        )
+        right_ref_bases, right_query_bases = AlignmentReader.cigar_prefix_length(cigar=right_cigar, reference_bases=variant.length_on_path + overhang)
 
         assert variant.position - left_ref_bases >= 0
         assert variant.position + right_ref_bases <= len(reference)
 
-        query = read.query_sequence[
-            query_pos - left_query_bases : query_pos + right_query_bases
-        ]
+        query = read.query_sequence[query_pos - left_query_bases : query_pos + right_query_bases]
         
         left_overhang = reference[variant.position - left_ref_bases : variant.position]
         right_overhang = reference[variant.position + right_ref_bases - overhang : variant.position + right_ref_bases]
-        
         ref = left_overhang + ref_allele + right_overhang
-        
         alts = []
         for alt_allele in variant.alternative_allele:
             if alt_allele != "*":
@@ -219,28 +252,27 @@ class AlignmentReader:
             else:
                 alt = left_overhang + right_overhang
             alts.append(alt)
-        
-        prob = []
-        max_prob = -1e15
+
+        scores = []
+        max_score = -1e15
         max_allele = None
         for index, allele in enumerate([ref]+alts):
             if (abs(len(query) - len(allele)) > 5000 ) and (len(query)/len(allele) > 1.5 or len(query)/len(allele) < 1/1.5):
                 # If the distance between the allele and query is too much, add a known low value
-                prob.append(-1e10)
+                scores.append(-1e10)
             else:
                 if mode == "edit":
-                    prob.append(-aligner(query, allele))    #edit distance is positive. Need to change to negative.
+                    scores.append(aligner(query, allele))    #edit distance is positive.
                 elif mode == "wfa_score":
-                    prob.append(aligner(query, allele).score)
+                    scores.append(aligner(query, allele).score)
                 elif mode == "wfa_full":
-                    prob.append(AlignmentReader.calculate_emission_log_probability(aligner(query, allele).cigartuples, emission_parameters))
-            if prob[index] > max_prob:
-                max_prob = prob[index]
+                    scores.append(AlignmentReader.calculate_emission_log_probability(aligner(query, allele).cigartuples, emission_parameters))
+            if scores[index] > max_score:
+                max_score = scores[index]
                 max_allele = index
-        base_qual_score = 30
 
-        return max_allele, prob, base_qual_score
-        
+        return max_allele, scores
+
     @staticmethod
     def calculate_emission_log_probability(cg, params):
         """
@@ -300,7 +332,7 @@ class AlignmentReader:
         if not cigartuples:
             return
         for index, i, consumed, query_pos in _iterate_cigar(variants, j, read, cigartuples):
-            allele, emission, quality = AlignmentReader.realign(
+            allele, scores = AlignmentReader.realign(
                 aligner,
                 variants[index],
                 read,
@@ -315,9 +347,9 @@ class AlignmentReader:
             )
 
             if allele is not None:
-                yield (index, allele, emission, quality)
+                yield (index, allele, scores)
 
-# Keeping this
+
 class GAFReader(AlignmentReader):
     """
     Associate VCF variant with GAF Read.
@@ -440,8 +472,8 @@ class GAFReader(AlignmentReader):
         # end_node_index returns the the index in alignment.path which is the first last node in the path 
         alignment_end_on_ref, end_node_index, end_scaffold_node = GafAlignment.get_alignment_end_on_ref(alignment, rgfa)
 
-        logger.debug(f"Start of alignment on reference: {alignment_start_on_ref}")
-        logger.debug(f"End of alignment on reference: {alignment_end_on_ref}")
+        logger.trace(f"Start of alignment on reference: {alignment_start_on_ref}")
+        logger.trace(f"End of alignment on reference: {alignment_end_on_ref}")
 
         variants_in_alignment = []
         if alignment_start_on_ref is not None:
@@ -491,13 +523,13 @@ class GAFReader(AlignmentReader):
             assert alignment_end_on_ref is not None
             # This alignment ends before the first unprocessed variant starts
             if alignment_end_on_ref < variants[variant_pointer].position_on_ref:
-                logger.debug(f'Alignment end: {alignment_end_on_ref}, < variants[variant_pointer].position_on_ref: {variants[variant_pointer].position_on_ref}')
-                logger.debug(f'Alignment ends before the first unprocessed variant. No variants found in read {alignment.read_id}!')
+                logger.trace(f'Alignment end: {alignment_end_on_ref}, < variants[variant_pointer].position_on_ref: {variants[variant_pointer].position_on_ref}')
+                logger.trace(f'Alignment ends before the first unprocessed variant. No variants found in read {alignment.read_id}!')
                 return None
 
             # This alignment starts after the last variant on the chromosome
             if (variant_pointer == len(variants) - 1) and (alignment_start_on_ref > variants[variant_pointer].position_on_ref + len(variants[variant_pointer].reference_allele)):
-                logger.debug(f'Alignment starts after the last variant. No variants found in read {alignment.read_id}!\n')
+                logger.trace(f'Alignment starts after the last variant. No variants found in read {alignment.read_id}!\n')
                 return None
         else:
             # If the alignment has no reference nodes and hence has no start or end on reference
@@ -509,21 +541,21 @@ class GAFReader(AlignmentReader):
             if variants[variant_pointer].get_variant_bo(rgfa) is not None:
                 # the variant pointer is currently at a SV variant
                 if bo_tag < variants[variant_pointer].get_variant_bo(rgfa):
-                    logger.debug(f'Alignment ends before the first unprocessed variant. No variants found in read {alignment.read_id}!')
+                    logger.trace(f'Alignment ends before the first unprocessed variant. No variants found in read {alignment.read_id}!')
                     return None
             else:
                 # the variant pointer is currently at an external variant
                 assert variant_pointer == 0, "This case should only happen when the alignment is before the first variant. There is some potential issues in sorting."
-                logger.debug(f'Alignment ends before the first unprocessed variant. No variants found in read {alignment.read_id}!')
+                logger.trace(f'Alignment ends before the first unprocessed variant. No variants found in read {alignment.read_id}!')
                 return None
             # the alignment starts after the last variant in the chromosomes
             if (variant_pointer == len(variants) - 1) and (variants[variant_pointer].get_variant_bo(rgfa) == None):
                 # if the last variant is a external variant. If this has been reached, then no variants can be found
-                logger.debug(f'Alignment starts after the last variant. No variants found in read {alignment.read_id}!\n')
+                logger.trace(f'Alignment starts after the last variant. No variants found in read {alignment.read_id}!\n')
                 return None
             if (variant_pointer == len(variants) - 1) and (bo_tag > variants[variant_pointer].get_variant_bo(rgfa)):
                 # if the last variant is a bubble variant.
-                logger.debug(f'Alignment starts after the last variant. No variants found in read {alignment.read_id}!\n')
+                logger.trace(f'Alignment starts after the last variant. No variants found in read {alignment.read_id}!\n')
                 return None
             
 
@@ -551,7 +583,7 @@ class GAFReader(AlignmentReader):
                     # to distinguish between the two cases, we look if the alignment starts before or after the first variant
                     partial_bubble_start_of_chrom = True
 
-            if 'EXT' in variants_in_alignment[0].id:
+            if not variants_in_alignment[0].is_sv():
                 variants[0].length_on_path = len(variants[0].reference_allele)
                 count_ext += 1
             else:
@@ -559,7 +591,7 @@ class GAFReader(AlignmentReader):
             while (end_pointer+1 < len(variants) and (variants[end_pointer+1].position_on_ref <= alignment_end_on_ref)):
                 end_pointer += 1
                 variants_in_alignment.append(variants[end_pointer])
-                if 'EXT' in variants[end_pointer].id:
+                if not variants[end_pointer].is_sv():
                     variants[end_pointer].length_on_path = len(variants[end_pointer].reference_allele)  # This is the length of the variant on the alignment path.
                     count_ext += 1
                 else:
@@ -577,7 +609,7 @@ class GAFReader(AlignmentReader):
             assert end_scaffold_node is None
             partial_bubble_end_of_chrom = False
             partial_bubble_start_of_chrom = False
-            assert 'EXT' not in variants[variant_pointer].id, "The variant has to be a bubble variant"
+            assert variants[variant_pointer].is_sv(), "The variant has to be a bubble variant"
             count_sv += 1
 
         return variants_in_alignment, alignment_start_on_ref, variant_pointer, start_scaffold_node, end_scaffold_node, count_ext, count_sv, partial_bubble_start_of_chrom, partial_bubble_end_of_chrom
@@ -604,9 +636,8 @@ class GAFReader(AlignmentReader):
             # determine what variants are present in the alignment
             # returns an alignment in the correct orientation.
             alignment, _ = GafAlignment.check_reverse(alignment, rgfa)
-            logger.debug("")
             logger.debug(f"Processing alignment {alignment.read_id} on {alignment.source_id}")
-            logger.debug("Alignment Path: "+''.join(alignment.path))
+            logger.trace(f"Alignment Path: {''.join(alignment.path)}")
             result = GAFReader.find_variants_in_alignment(alignment, variants, rgfa, variant_pointer)
             # in the case None is returned.
             if result is None:
@@ -615,9 +646,9 @@ class GAFReader(AlignmentReader):
             variants_in_alignment, alignment_start_on_ref, variant_pointer, start_scaffold_node_index_on_path, end_scaffold_node_index_on_path, count_ext, count_sv, partial_bubble_start_of_chrom, partial_bubble_end_of_chrom = result
             # need a copy of this since we are setting partial_bubble_start_of_chrom to False if it is True.
             partial_bubble_start_of_chrom_copy = partial_bubble_start_of_chrom
-            logger.debug(f"Found variants in alignment: {variants_in_alignment}")
-            logger.debug(f"Number of variants: {len(variants_in_alignment)}, #EXT: {count_ext}, #SV: {count_sv}")
-            logger.debug(f"Detected partial bubbles at chromosome ends: start={partial_bubble_start_of_chrom}, end={partial_bubble_end_of_chrom}")
+            logger.trace(f"Found variants in alignment: {variants_in_alignment}")
+            logger.trace(f"Number of variants: {len(variants_in_alignment)}, #EXT: {count_ext}, #SV: {count_sv}")
+            logger.trace(f"Detected partial bubbles at chromosome ends: start={partial_bubble_start_of_chrom}, end={partial_bubble_end_of_chrom}")
             assert (count_sv + count_ext) == len(variants_in_alignment), "The number of SV and EXT bubbles in the alignment does not match the number of variants found in the alignment."
 
             # initializing booleans for path starts and ends with scaffold
@@ -644,17 +675,11 @@ class GAFReader(AlignmentReader):
                 # keeping track of reference length before updating (to identify where the bubbles start)
                 prev_ref_len = len(reference)
                 # Reference updated
-                if alignment.read_id == 'read2':
-                    print(f"\nProcessing node {n} found at index {index} of path")
-                    print(f'Previous reference length is {prev_ref_len}')
-                    print(f'Adding node {n} to reference')
                 if orient == '<':
                     reference += GAFReader.reverse_complement(node.sequence)
                 else:
                     reference += node.sequence
-                if alignment.read_id == 'read2':
-                    print(f'Current reference length is {len(reference)}')
-                while (active_pointer < len(variants_in_alignment)) and ('EXT' in variants_in_alignment[active_pointer].id):
+                while (active_pointer < len(variants_in_alignment)) and (not variants_in_alignment[active_pointer].is_sv()):
                     # if the current variant is an extension variant
                     # going to the next variant since we only need the SV bubble variants
                     ext_counter += 1
@@ -672,7 +697,7 @@ class GAFReader(AlignmentReader):
                 if node.tags['NO'] == 0:
                     if partial_bubble_start_of_chrom:
                         # the alignment spans the start of the chromosome where the bubble is not defined.
-                        logger.debug(f"Partial bubble found at the start of the chromosome. Bubble variant is not defined. Skipping.")
+                        logger.trace(f"Partial bubble found at the start of the chromosome. Bubble variant is not defined. Skipping.")
                         len_on_path = 0
                         partial_bubble_start_of_chrom = False   # setting it as false
                         continue
@@ -682,9 +707,6 @@ class GAFReader(AlignmentReader):
                         assert active_pointer == 0, "Active pointer should be at the start when considering partial bubble."
                         variants_in_alignment[active_pointer].length_on_path = len_on_path - alignment.p_start
                         variants_in_alignment[active_pointer].position = alignment.p_start
-                        if alignment.read_id == 'read2':
-                            print(f'\t[1] Adding {variants_in_alignment[active_pointer]} at active pointer = {active_pointer}')
-                            print(f'\t[1] Index: {index}, Position: {variants_in_alignment[active_pointer].position}, Length: {variants_in_alignment[active_pointer].length_on_path}')
                         active_pointer += 1
                         sv_counter += 1
                         len_on_path = 0
@@ -695,9 +717,6 @@ class GAFReader(AlignmentReader):
                     # the -1 in the position is to consider the same and shift the start of the allele by 1bp
                     variants_in_alignment[active_pointer].length_on_path = len_on_path + 1
                     variants_in_alignment[active_pointer].position = prev_ref_len - len_on_path - 1     # the position where the variant starts is the point where the reference (before being updated in this node step) ends minus the length the variant has on the path
-                    if alignment.read_id == 'read2':
-                        print(f'\t[2] Adding {variants_in_alignment[active_pointer]} at active pointer = {active_pointer}')
-                        print(f'\t[2] Index: {index}, Position: {variants_in_alignment[active_pointer].position}, Length: {variants_in_alignment[active_pointer].length_on_path}')
                     len_on_path = 0
                     #logger.debug(f"Found SV variant {variants_in_alignment[active_pointer].id}. Now active_pointer is {active_pointer+1}")
                     active_pointer += 1
@@ -707,7 +726,7 @@ class GAFReader(AlignmentReader):
                     if partial_bubble_end_of_chrom:
                         # this is the case where there is a partial alignment to the final bubble on the chromosome
                         # but the bubble is not defined due to no scaffold nodes at the end.
-                        logger.debug(f"Partial bubble found at the end of the chromosome. Bubble variant is not defined. Skipping.")
+                        logger.trace(f"Partial bubble found at the end of the chromosome. Bubble variant is not defined. Skipping.")
                         assert active_pointer == len(variants_in_alignment), "Active pointer should be out of bounds since there are no more variants"
                         continue
                     # if the alignment does not end with a scaffold node and has a partial alignment to a defined bubble.
@@ -715,25 +734,17 @@ class GAFReader(AlignmentReader):
                     # this also requires to take into consideration where the alignment ends on the path
                     assert active_pointer == len(variants_in_alignment)-1, "Active pointer is out of bounds when storing alignment to partial bubble at the end."
                     assert sv_counter == count_sv - 1, "Active pointer is not at the last SV when storing alignment to partial bubble at the end."
-                    logger.debug(f"Found SV variant {variants_in_alignment[active_pointer].id} as partial bubble alignment.")
+                    logger.trace(f"Found SV variant {variants_in_alignment[active_pointer].id} as partial bubble alignment.")
                     if start_scaffold_node_index_on_path is not None:
                         # the +1 in the length is to keep in consideration that the bubble variants always contain the last nucleotide of the previous node. Done to avoid blank alleles when there are no nodes between the scaffold node.
                         # the -1 in the position is to consider the same and shift the start of the allele by 1bp
                         variants_in_alignment[active_pointer].length_on_path = len_on_path - (alignment.p_len - alignment.p_end) + 1
                         variants_in_alignment[active_pointer].position = len(reference) - len_on_path - 1
-                        if alignment.read_id == 'read2':
-                            print(f'\t[3] Adding {variants_in_alignment[active_pointer]} at active pointer = {active_pointer}')
-                            print(f'\t[3] Index: {index}, Position: {variants_in_alignment[active_pointer].position}, Length: {variants_in_alignment[active_pointer].length_on_path}')
-                        
                     else:
                         # this is the case where the alignment is only inside a bubble
                         assert len(variants_in_alignment) == 1, "There should be only one variant in the alignment since it is only inside a bubble"
                         variants_in_alignment[active_pointer].length_on_path = alignment.p_end - alignment.p_start + 1
                         variants_in_alignment[active_pointer].position = alignment.p_start
-                        if alignment.read_id == 'read2':
-                            print(f'\t[4] Adding {variants_in_alignment[active_pointer]} at active pointer = {active_pointer}')
-                            print(f'\t[4] Index: {index}, Position: {variants_in_alignment[active_pointer].position}, Length: {variants_in_alignment[active_pointer].length_on_path}')
-                        
                     sv_counter += 1
             # only asserting for sv counter.
             # does not make sense for ext variants since the ext variants after the last sv are not considered.
@@ -744,12 +755,12 @@ class GAFReader(AlignmentReader):
             position_tracker = None
             for index, variant in enumerate(variants_in_alignment):
                 # this is an SV variant. its information should already be stored.
-                if 'EXT' not in variant.id:
+                if variant.is_sv():
                     position_tracker = variant.position + variant.length_on_path
                     continue
                 if index == 0:
                     # the first variant
-                    assert 'EXT in variant.id'
+                    assert not variant.is_sv(), "The first variant in the alignment cannot be a SV variant"
                     # determine external variants position in its scaffold node
                     start_scaffold_node = alignment.path[start_scaffold_node_index_on_path]
                     assert ((variant.position_on_ref >= rgfa.get_node(start_scaffold_node).start) and (variant.position_on_ref < rgfa.get_node(start_scaffold_node).start+rgfa.get_node(start_scaffold_node).tags['LN'])), "First external variant in the alignment is found out of bounds from the first scaffold node"
@@ -763,7 +774,7 @@ class GAFReader(AlignmentReader):
                     position_tracker += position_on_scaffold
                     variant.position = position_tracker
                     continue
-                if 'EXT' in variants_in_alignment[index-1].id:
+                if not variants_in_alignment[index-1].is_sv():
                     # if the previous variant was an external variant
                     # the position of the current external variant simply is the distance between the previous the last ext variant and this one
                     position_tracker += variant.position_on_ref - variants_in_alignment[index-1].position_on_ref
@@ -775,7 +786,7 @@ class GAFReader(AlignmentReader):
                     # updating the position tracker with the position of the variant on the scaffold node
                     position_tracker += variant.position_on_ref - rgfa.get_node(scaffold_node).start
                     variant.position = position_tracker
-            logger.debug(f"Positions of Variants in Alignment: {', '.join(f'{variant.id}: {variant.position}' for variant in variants_in_alignment)}")
+            logger.trace(f"Positions of Variants in Alignment: {', '.join(f'{variant.id}: {variant.position}' for variant in variants_in_alignment)}")
 
             #if alignment.read_id == 'read2':
             #    exit()
@@ -813,18 +824,11 @@ class GAFReader(AlignmentReader):
             # This new variable is created to make the gaf alignments compatible with the old code.
             processed_alignment = Alignment(cigartuples=cg_tuples, reference_start=alignment.p_start, query_sequence=gaf_aligned_segment)
             
-            barcode = ""
-            if alignment.has_tag("BX"):
-                barcode = alignment.get_tag("BX")
-            
             read = Read(
                 alignment.read_id,
                 alignment.mapping_quality,
                 alignment.source_id,
                 alignment_start_on_ref,
-                barcode,
-                self._reg_const,
-                self._base_const
             )
             
             detected = self.detect_alleles_by_alignment(
@@ -836,8 +840,8 @@ class GAFReader(AlignmentReader):
                 self._realign_mode,
                 self._overhang,
                 self._em_params)
-            for j, allele, em, quality in detected:
-                read.add_variant(variants_in_alignment[j].position_on_ref, allele, em, quality)
+            for j, allele, scores in detected:
+                read.add_variant(variants_in_alignment[j].position_on_ref, allele, scores)
             if read:  # At least one variant covered and detected
                 yield read
 
@@ -845,10 +849,14 @@ class GAFReader(AlignmentReader):
         return self
 
     def __exit__(self, *args):
+        logger.debug("Closing GAFReader")
         self.close()
 
     def close(self):
-        self._aligner.__dealloc__()
+        if type(self._aligner) is WavefrontAligner:
+            logger.debug("Deallocating WavefrontAligner")
+            self._aligner.__dealloc__()
+        logger.debug("Closing GAFParser")
         self._reader.close()
 
 # TODO: Do I need this?
