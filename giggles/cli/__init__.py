@@ -18,13 +18,18 @@ class ReadSetCreator:
     ):
         self.readset_reader = GAFReader(alignment_files, gfa, read_fasta_files, **kwargs)
 
+    def __exit__(self, *args):
+        self.readset_reader.close()
+
+    def __enter__(self):
+        return self
 
     def read(self, chromosome, variants, haplotags, keep_untagged):
         """
         Returns a ReadSet object with haplotags
         """
 
-        logger.info("Reading alignments and detecting alleles ...")
+        logger.info("Reading alignments and detecting alleles.")
         readset = self.readset_reader.read(chromosome, variants)
         if readset is None:
             readset = ReadSet()
@@ -45,7 +50,7 @@ class ReadSetCreator:
                     read.add_haplotag(haplotag.hp, haplotag.ps)
                     new_readset.add(read)
             except KeyError:
-                logger.warning(f'Could not find haplotag for read {read_id[1]} from source file {read[0]}')
+                logger.warning(f'Could not find haplotag for read {read_id[1]} from source file {read[0]}.')
                 if keep_untagged:
                     read.sort()
                     read.add_haplotag('none', -1)
@@ -58,8 +63,6 @@ class ReadSetCreator:
                 new_readset.add(read)
 
         new_readset.sort()
-
-        logger.info(f'Found {len(new_readset)} reads covering {len(new_readset.get_positions())} variants')
 
         return new_readset
 
