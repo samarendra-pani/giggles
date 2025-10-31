@@ -11,7 +11,7 @@
 
 class Read {
 public:
-	Read(const std::string& name, int mapq, int source_id, int reference_start = -1, const std::string& BX_tag = "", int reg_const = 10, double base_const = 2.718);
+	Read(const std::string& name, int mapq, int source_id, int reference_start = -1);
 	virtual ~Read() {}
 	std::string toString();
 	void addHaplotag(std::string hp, int ps);
@@ -19,7 +19,7 @@ public:
     int getPhaseSet() const;
 	bool hasHaplotag() const;
 	bool hasPhaseSet() const;
-	void addVariant(int position, int allele, std::vector<double> em, int quality);
+	void addVariant(int position, int allele, std::vector<unsigned int> scores);
 	void sortVariants();
 	/** Returns the position of the first variant. **/
 	int firstPosition() const;
@@ -32,11 +32,9 @@ public:
 	int getPosition(size_t variant_idx) const;
 	void setPosition(size_t variant_idx, int position);
 	int getAllele(size_t variant_idx) const;
-	void setAllele(size_t variant_idx, int allele);
-	std::vector<long double> getEmissionProbability(size_t variant_idx) const;
-	void setEmissionProbability(size_t variant_idx, std::vector<double> emission);
-	int getQuality(size_t variant_idx) const;
-	void setQuality(size_t variant_idx, int quality);
+	void setAllele(size_t variant_idx, unsigned int allele);
+	std::vector<unsigned int> getScores(size_t variant_idx) const;
+	void setScores(size_t variant_idx, std::vector<unsigned int> scores);
 	const Entry* getEntry(size_t variant_idx) const;
 	int getVariantCount() const;
 	const std::string& getName() const;
@@ -44,25 +42,27 @@ public:
 	void addMapq(int mapq);
 	int getSourceID() const;
 	int getReferenceStart() const;
-	const std::string& getBXTag() const;
-	int getRegConst() const;
-	double getBaseConst() const;
 	bool isSorted() const;
-	bool hasBXTag() const;
+	bool isSelected() const; // is this read selected for phasing?
+	void setSelected(bool selected); // set whether this read is selected for phasing
 	
 	
 private:
 	typedef struct enriched_entry_t {
-		Entry entry;
-		int position;
-		enriched_entry_t(int position, int allele, std::vector<double> em, int quality, int reg_const, double base_const) :
-			entry(0,allele,em,quality, reg_const, base_const), position(position) {}
+		int position; // position on the reference
+		int index; // zero-based index for multi-allelic variants
+		Entry entry; // the record entry
+		enriched_entry_t(int position, int allele, std::vector<unsigned int> scores) :
+			entry(0,allele,scores), position(position) {}
 	} enriched_entry_t;
 	
 	typedef struct entry_comparator_t {
 		entry_comparator_t() {}
 		bool operator()(const enriched_entry_t& e1, const enriched_entry_t& e2) {
-			return e1.position < e2.position;
+			if (e1.position != e2.position) {
+				return e1.position < e2.position;
+			}
+			return e1.index < e2.index;
 		}
 	} entry_comparator_t;
 
@@ -71,12 +71,10 @@ private:
 	int source_id;
 	int id;
 	int reference_start;
-	std::string BX_tag;
 	std::vector<enriched_entry_t> variants;
+	bool selected;
 	int hp;
 	int ps;
-	int reg_const;
-	double base_const;
 };
 
 #endif

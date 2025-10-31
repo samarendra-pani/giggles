@@ -3,8 +3,6 @@
 #include <iostream>
 #include <cassert>
 
-#include "phredgenotypelikelihoods.h"
-
 using namespace std;
 
 TransitionProbabilityComputer::TransitionProbabilityComputer(const float& recombcost, const vector<int>& next_allele_reference) {

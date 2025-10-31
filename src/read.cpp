@@ -10,14 +10,11 @@
 
 using namespace std;
 
-Read::Read(const std::string& name, int mapq, int source_id, int reference_start, const std::string& BX_tag, int reg_const, double base_const): 
+Read::Read(const std::string& name, int mapq, int source_id, int reference_start): 
 	name(name),
 	mapqs(1, mapq),
 	source_id(source_id),
-	reference_start(reference_start),
-	BX_tag(BX_tag),
-	reg_const(reg_const),
-	base_const(base_const) {
+	reference_start(reference_start) {
 	this->id = -1;
 	hp = -1;
 	ps = -1;
@@ -65,8 +62,8 @@ bool Read::hasPhaseSet() const {
 	return ps != -1;
 }
 
-void Read::addVariant(int position, int allele, vector<double> em, int quality) {
-	variants.push_back(enriched_entry_t(position, allele, em, quality, reg_const, base_const));
+void Read::addVariant(int position, int allele, vector<unsigned int> scores) {
+	variants.push_back(enriched_entry_t(position, allele, scores));
 }
 
 
@@ -133,33 +130,23 @@ int Read::getAllele(size_t variant_idx) const {
 }
 
 
-void Read::setAllele(size_t variant_idx, int allele) {
+void Read::setAllele(size_t variant_idx, unsigned int allele) {
 	assert(variant_idx < variants.size());
-	variants[variant_idx].entry.set_allele_type(allele);
+	variants[variant_idx].entry.set_allele(allele);
 }
 
 
-std::vector<long double> Read::getEmissionProbability(size_t variant_idx) const {
+std::vector<unsigned int> Read::getScores(size_t variant_idx) const {
 	assert(variant_idx < variants.size());
-	return variants[variant_idx].entry.get_emission_score();
+	return variants[variant_idx].entry.get_scores();
 }
 
 
-void Read::setEmissionProbability(size_t variant_idx, std::vector<double> emission) {
+void Read::setScores(size_t variant_idx, std::vector<unsigned int> scores) {
 	assert(variant_idx < variants.size());
-	variants[variant_idx].entry.set_emission_score(emission, reg_const, base_const);
+	variants[variant_idx].entry.set_scores(scores);
 }
 
-int Read::getQuality(size_t variant_idx) const {
-	assert(variant_idx < variants.size());
-	return variants[variant_idx].entry.get_quality();
-}
-
-
-void Read::setQuality(size_t variant_idx, int quality) {
-	assert(variant_idx < variants.size());
-	variants[variant_idx].entry.set_quality(quality);
-}
 
 const Entry* Read::getEntry(size_t variant_idx) const {
 	return &(variants[variant_idx].entry);
@@ -195,18 +182,6 @@ int Read::getReferenceStart() const {
 	return reference_start;
 }
 
-const std::string& Read::getBXTag() const {
-	return BX_tag; 
-}
-
-int Read::getRegConst() const {
-	return reg_const;
-}
-
-double Read::getBaseConst() const {
-	return base_const;
-}
-
 bool Read::isSorted() const {
 	entry_comparator_t comparator;
 	for (size_t i=1; i<variants.size(); ++i) {
@@ -217,6 +192,10 @@ bool Read::isSorted() const {
 	return true;
 }
 
-bool Read::hasBXTag() const {
-	return (BX_tag != "");
+bool Read::isSelected() const {
+	return selected;
+}
+
+void Read::setSelected(bool selected) {
+	this->selected = selected;
 }

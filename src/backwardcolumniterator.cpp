@@ -9,11 +9,11 @@
 
 using namespace std;
 
-BackwardColumnIterator::BackwardColumnIterator(const ReadSet& set, const std::vector<unsigned int>* positions) : set(set) {
-	if (positions == nullptr) {
-		this->positions = set.get_positions();
-	} else {
-		this->positions = new vector<unsigned int>(positions->begin(), positions->end());
+BackwardColumnIterator::BackwardColumnIterator(const ReadSet& set, const std::vector<GenotypingAlgorithm::variant_information_t>* variant_info_table) : set(set) {
+	
+	positions = new vector<unsigned int>(variant_info_table->size());
+	for (size_t i=0; i<variant_info_table->size(); ++i){
+		positions->at(i) = variant_info_table->at(i).position;
 	}
 
     this->n = (int)this->positions->size()-1;
@@ -109,7 +109,7 @@ unique_ptr<vector<const Entry*> > BackwardColumnIterator::get_next() {
 		} 
 		else {
 			// if not, generate a blank entry
-			Entry* e = new Entry(read->getID(), -1);
+			Entry* e = new Entry(read->getID(), Entry::BLANK, std::vector<unsigned int>{0});
 			blank_entries.push_back(e);
 			result->push_back(e);
 		}

@@ -7,6 +7,11 @@
 
 class TransitionProbabilityComputer {
 private:
+    // stores the transition probability if no recombination occurs (Need to check)
+    double pr;
+    // stores the transition probability if recombination occurs (Need to check)
+    double qr;
+
     std::vector<Vector2D<long double> > transition_probability_matrices;
 
     /* Maps the values in the group of states (representing one allele pair) to the r_indices values.
@@ -17,8 +22,10 @@ private:
 
 public:
     TransitionProbabilityComputer(const float& recombcost, const std::vector<int>& next_allele_reference);
-    double pr;
-    double qr;
+
+    double get_pr() const { return pr; }
+    double get_qr() const { return qr; }
+
 };
 
 #endif // TRANSITIONPROBABILITYCOMPUTER_H

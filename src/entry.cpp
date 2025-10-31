@@ -7,47 +7,17 @@ using namespace std;
 
 #include "entry.h"
 
-Entry::Entry(unsigned int r, int m, std::vector<double> e, int q, int reg_const, double base_const) {
-	read_id = r;
-	allele = m;
-	set_emission_score(e, reg_const, base_const);
-	quality = q; 
-}
+Entry::Entry(unsigned int r, unsigned int a, std::vector<unsigned int> s) : 
+	read_id(r), allele(a), scores(s), is_sv(false) {}
 
-Entry::Entry(unsigned int r, int m) {
-	read_id = r;
-	allele = m;
-}
+Entry::Entry(unsigned int r, allele_t a, std::vector<unsigned int> s) : 
+	read_id(r), allele((unsigned int)a), scores(s), is_sv(false) {}
 
-unsigned int Entry::get_read_id() const {
-	return read_id;
-}
+Entry::Entry() : read_id(0), allele(2), scores({}), is_sv(false) {}
 
-
-int Entry::get_allele_type() const {
-	return allele;
-}
-
-
-std::vector<long double> Entry::get_emission_score() const {
-	return emission_score;
-}
-
-int Entry::get_quality() const {
-	return quality;
-}
-
-void Entry::set_read_id(unsigned int r) {
-	read_id = r;
-}
-
-
-void Entry::set_allele_type(int m) {
-	allele = m;
-}
-
-
-void Entry::set_emission_score(std::vector<double> e, int reg_const, double base_const) {
+/*
+Previous conversion from distance scores to emission probabilities
+{
 	emission_score.resize(e.size());
 	int i = 0;
 	double normalization = 0.0L;
@@ -62,18 +32,30 @@ void Entry::set_emission_score(std::vector<double> e, int reg_const, double base
 	}
 	transform((emission_score).begin(), (emission_score).end(), (emission_score).begin(), std::bind2nd(std::divides<long double>(), normalization));
 }
-		
+*/	
 
-void Entry::set_quality(int q) {
-	quality = q;
+Entry::allele_t Entry::get_allele_type() const {
+	if (scores.size() > 1) {
+		// this record is multi-allelic, so we cannot assign a single allele type
+		// this should never happen in the phasing algorithm
+		throw std::runtime_error("Error: cannot determine allele type for multi-allelic variant.");
+	}
+	switch (allele) {
+		case 0: return REF_ALLELE;
+		case 1: return ALT_ALLELE;
+		case 2: return BLANK;
+		case 3: return EQUAL_SCORES;
+		default: throw std::runtime_error("Error: invalid allele type.");
+	}
 }
 
 std::ostream& operator<<(std::ostream& out, const Entry& e) {
 	out << "Entry(" << e.read_id ;
 	out << ","<< e.allele << ",(";
-	for (auto i : e.emission_score) {
+	for (auto i : e.scores) {
 		out << i << ",";
 	}
-	out << ")," << e.quality << ")" << std::endl;
+	out << ")" << std::endl;
 	return out;
 }
+

@@ -45,18 +45,15 @@
  * 1 -> 0/0/0/1, 2 -> 0/0/1/1, 3 -> 0/1/1/1, 4 -> 1/1/1/1
  * 5 -> 0/0/0/2, 6 -> 0/0/1/2, 7 -> 0/1/1/2, 8 -> 1/1/1/2, 9 -> 0/0/2/2, 10 -> 0/1/2/2, 11 -> 1/1/2/2, 12 -> 0/2/2/2, 13 -> 1/2/2/2, 14 -> 2/2/2/2
  * etc.
+ * 
+ * Note: The ploidy is hard set to 2 in this implementation. The code is computationally unfeasible for higher ploidy.
  */
 class Genotype{
 	public:
 		/**
-		 * The maximum supported number of alleles
+		 * The maximum supported number of alleles = 2^16
 		 */
 		const static uint32_t MAX_ALLELES = 65536;
-	
-		/**
-		 * The maximum supported ploidy
-		 */
-		const static uint32_t MAX_PLOIDY = 2;
 	
 		/**
 		 * Creates an empty genotype with no alleles.
@@ -66,7 +63,7 @@ class Genotype{
 		/**
 		 * Creates a genotype of given ploidy using the canonical index (see class description).
 		 */
-		Genotype(uint32_t index, uint32_t ploidy);
+		Genotype(uint32_t index);
 	
 		/**
 		 * Creates a genotype from a list of given alleles.
@@ -103,11 +100,6 @@ class Genotype{
 		 */
 		bool is_diploid_and_biallelic() const;
 	
-		/**
-		 * Returns the ploidy of the genotype.
-		 */
-		uint32_t get_ploidy() const;
-	
 		// operators
 		friend bool operator== (const Genotype &g1, const Genotype &g2);
 		friend bool operator!= (const Genotype &g1, const Genotype &g2);
@@ -115,12 +107,11 @@ class Genotype{
 
 	private:
 		/**
-		 * Bitstring for storage. Each allele is encoded in 4 bits with a total ploidy
-		 * of 15 (=60 bits). The following 4 bits encode the ploidy, with 0 indicating
-		 * an invalid genotype. The remaining bits are special flags.
+		 * Bitstring for storage. Each allele is encoded in 16 bits.
+		 * Since the ploidy is fixed to 2, we only need 32 bits in total.
 		 */
 		uint32_t gt;
-		uint32_t pl;
+		bool is_empty;
 	
 		// general manipulation methods
 		uint32_t get_position(const uint32_t pos) const;
@@ -128,14 +119,9 @@ class Genotype{
 };
 
 /**
- * Creates a sorted vector of alleles from a given canonical index and ploidy.
+ * Creates a sorted vector of alleles from a given canonical index and ploidy=2.
  */
-std::vector<uint32_t> convert_index_to_alleles(uint32_t index, uint32_t ploidy);
-
-/**
- * Returns the maximum supported ploidy for genotypes
- */
-uint32_t get_max_genotype_ploidy();
+std::vector<uint32_t> convert_index_to_alleles(uint32_t index);
 
 /**
  * Returns the maximum supported number of alleles per variant for genotypes

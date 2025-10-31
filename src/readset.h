@@ -34,6 +34,8 @@ public:
 	 *  creates a COPY of each read.
 	 */
 	ReadSet* subset(const IndexSet* indices) const;
+	/** Marks reads as selected/unselected based on the given indices. */
+	void assign_selection_status(const IndexSet* indices);
 	/** Assigns read_ids to all instances of Entry stored in the reads such that
 	 *  each read_id matches the index of the corresponding read in the ReadSet. */
 	void reassignReadIds();

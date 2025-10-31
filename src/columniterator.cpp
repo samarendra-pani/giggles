@@ -9,13 +9,11 @@
 
 using namespace std;
 
-ColumnIterator::ColumnIterator(const ReadSet& set, const std::vector<unsigned int>* positions) : set(set) {
+ColumnIterator::ColumnIterator(const ReadSet& set, const std::vector<GenotypingAlgorithm::variant_information_t>* variant_info_table) : set(set) {
 	this->n = 0;
-	this->next_read_index = 0;
-	if (positions == nullptr) {
-		this->positions = set.get_positions();
-	} else {
-		this->positions = new vector<unsigned int>(positions->begin(), positions->end());
+	positions = new vector<unsigned int>(variant_info_table->size());
+	for (size_t i=0; i<variant_info_table->size(); ++i){
+		positions->at(i) = variant_info_table->at(i).position;
 	}
 	// create a mapping of genomic positions to column indices
 	std::unordered_map<unsigned int, size_t> position_map;
@@ -131,7 +129,7 @@ unique_ptr<vector<const Entry*> > ColumnIterator::get_next() {
 		} 
 		else {
 			// if not, generate a blank entry
-			Entry* e = new Entry(read->getID(), -1);
+			Entry* e = new Entry(read->getID(), Entry::BLANK, std::vector<unsigned int>{0});
 			blank_entries.push_back(e);
 			result->push_back(e);
 		}

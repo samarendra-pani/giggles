@@ -94,6 +94,16 @@ ReadSet* ReadSet::subset(const IndexSet* indices) const {
 }
 
 
+void ReadSet::assign_selection_status(const IndexSet* indices) {
+	IndexSet::const_iterator it = indices->begin();
+	std::unordered_set<int> index_set;
+	for (; it != indices->end(); ++it) {
+		reads[*it]->setSelected(true);
+	}
+
+}
+
+
 void ReadSet::reassignReadIds() {
 	for (size_t i=0; i<reads.size(); ++i) {
 		reads[i]->setID(i);
