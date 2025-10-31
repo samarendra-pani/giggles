@@ -53,12 +53,16 @@ def select_reads(readset, max_coverage, preferred_source_ids=None):
 
     return selected_reads
 
-class RecombinationCostComputer(ABC):
-    @abstractmethod
-    def compute(self, positions):
-        pass
+def update_reads_with_selected(readset, max_coverage, preferred_source_ids=None):
+    """Given the original readset and a subset of selected reads,
+    update the original readset to mark reads as selected/unselected
+    based on the selected reads.
+    """
+    selected_indices = readselection(readset, max_coverage, preferred_source_ids)
+    readset.assign_selection_status(selected_indices)
+    
 
-class UniformRecombinationCostComputer(RecombinationCostComputer):
+class UniformRecombinationCostComputer:
     def __init__(self, recombination_rate, eff_pop_size):
         self._recombination_rate = recombination_rate
         self._eff_pop_size = eff_pop_size
@@ -70,8 +74,8 @@ class UniformRecombinationCostComputer(RecombinationCostComputer):
         # return a list "results" of the same length as "positions" such that
         # results[i] is the phred-scaled recombination probability between
         # positions[i-1] and positions[i].
-        
-        return [(positions[i] - positions[i - 1])*recombrate*eff_pop_size*(4/(pow(10,6))) for i in range(1, len(positions))]
+
+        return [(positions[i] - positions[i - 1])*recombrate * eff_pop_size * 4 * 1e-6 for i in range(1, len(positions))]
 
     def compute(self, positions):
         return self.uniform_recombination_map(self._recombination_rate, self._eff_pop_size, positions)
