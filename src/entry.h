@@ -19,7 +19,6 @@ class Entry {
 		void set_allele(unsigned int a) { allele = a; }
 		void set_scores(const std::vector<unsigned int>& s) { scores = s; }
 		void set_is_sv(bool is_sv) { this->is_sv = is_sv; }
-		void set_phred_scores(const std::vector<unsigned int>& s) { phred_scores = s; }
 		
 		unsigned int get_read_id() const { return read_id; }
 		unsigned int get_allele() const { return allele; }
@@ -28,6 +27,8 @@ class Entry {
 		unsigned int get_phred_score() const { return 30; } // Currently hardcoded to 30 since Whatshap uses fixed quality scores for phasing.
 
 		allele_t get_allele_type() const;
+		void convert_scores_to_probability();
+		//void convert_scores_to_softmin_probability(unsigned int temperature);
 
 		friend std::ostream& operator<<(std::ostream& out, const Entry& e);
 
@@ -36,7 +37,7 @@ class Entry {
 		unsigned int read_id; // zero-based read identifier
 		unsigned int allele; // allele type
 		std::vector<unsigned int> scores; // distance scores for all alleles
-		std::vector<unsigned int> phred_scores; // phred-scaled scores for all alleles
+		std::vector<long double> emission_scores; // emission probabilities for all alleles used for genotyping
 };
 
 #endif
