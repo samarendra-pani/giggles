@@ -21,18 +21,15 @@ from collections import namedtuple
 from cython.operator cimport dereference as deref
 
 cdef class Read:
-	def __cinit__(self, str name = None, int mapq = 0, int source_id = 0, int reference_start = -1, str BX_tag = None, reg_const = 10, base_const = 2.718):
+	def __cinit__(self, str name = None, int mapq = 0, int source_id = 0, int reference_start = -1):
 		cdef string _name = b''
-		cdef string _BX_tag = b''
 		if name is None:
 			self.thisptr = NULL
 			self.ownsptr = False
 		else:
 			# TODO: Is this the best way to handle string arguments?
 			_name = name.encode('UTF-8')
-			if BX_tag is not '' and BX_tag is not None:
-				_BX_tag = BX_tag.encode('UTF-8')
-			self.thisptr = new cpp.Read(_name, mapq, source_id, reference_start, _BX_tag, reg_const, base_const)
+			self.thisptr = new cpp.Read(_name, mapq, source_id, reference_start)
 			self.ownsptr = True
 
 	def __dealloc__(self):
@@ -42,8 +39,8 @@ cdef class Read:
 
 	def __repr__(self):
 		assert self.thisptr != NULL
-		return 'Read(name={!r}, mapq={}, source_id={}, reference_start={},  BX_tag={}, variants={})'.format(
-			self.name, self.mapqs, self.source_id, self.reference_start, self.BX_tag, list(self))
+		return 'Read(name={!r}, mapq={}, source_id={}, reference_start={}, variants={})'.format(
+			self.name, self.mapqs, self.source_id, self.reference_start, list(self))
 
 	property mapqs:
 		def __get__(self):
@@ -64,21 +61,6 @@ cdef class Read:
 		def __get__(self):
 			assert self.thisptr != NULL
 			return self.thisptr.getReferenceStart()
-
-	property BX_tag:
-		def __get__(self):
-			assert self.thisptr != NULL
-			return self.thisptr.getBXTag().decode('utf-8')
-
-	property base_const:
-		def __get__(self):
-			assert self.thisptr != NULL
-			return self.thisptr.getBaseConst()
-
-	property reg_const:
-		def __get__(self):
-			assert self.thisptr != NULL
-			return self.thisptr.getRegConst()
 
 	def __iter__(self):
 		"""Iterate over all variants in this read"""
@@ -105,8 +87,7 @@ cdef class Read:
 		return Variant(
 			position=self.thisptr.getPosition(key),
 			allele=self.thisptr.getAllele(key),
-			emission=self.thisptr.getEmissionProbability(key),
-			quality=self.thisptr.getQuality(key)
+			scores=self.thisptr.getScores(key),
 		)
 
 	def __setitem__(self, index, variant):
@@ -120,8 +101,7 @@ cdef class Read:
 			raise ValueError('Expected instance of Variant, but found {}'.format(type(variant)))
 		self.thisptr.setPosition(index, variant.position)
 		self.thisptr.setAllele(index, variant.allele)
-		self.thisptr.setEmissionProbability(index, variant.emission)
-		self.thisptr.setQuality(index, variant.quality)
+		self.thisptr.setScores(index, variant.scores)
 
 	def __contains__(self, position):
 		"""Return whether this read contains a variant at the given position.
@@ -136,39 +116,36 @@ cdef class Read:
 	
 	def __getstate__(self):
 		mapqs = [mapq for mapq in self.mapqs]
-		variants = [(var.position, var.allele, var.emission, var.quality) for var in self]
-		return (mapqs, self.name, self.source_id, self.reference_start, self.BX_tag, self.reg_const, self.base_const, variants)
-	
+		variants = [(var.position, var.allele, var.scores) for var in self]
+		return (mapqs, self.name, self.source_id, self.reference_start, variants)
+
 	def __setstate__(self, state):
-		mapqs, name, source_id, reference_start, BX_tag, reg_const, base_const, variants = state
-		
+		mapqs, name, source_id, reference_start, variants = state
+
 		# TODO: Duplicated code from __cinit__ is ugly, but cinit cannot be used here directly
 		cdef string _name = b''
-		cdef string _BX_tag = b''
 		if name is None:
 			self.thisptr = NULL
 			self.ownsptr = False
 		else:
 			# TODO: Is this the best way to handle string arguments?
 			_name = name.encode('UTF-8')
-			if BX_tag is not b'' and BX_tag is not None:
-				_BX_tag = BX_tag.encode('UTF-8')
-			self.thisptr = new cpp.Read(_name, mapqs[0] if len(mapqs) > 0 else 0, source_id, reference_start, _BX_tag, reg_const, base_const)
+			self.thisptr = new cpp.Read(_name, mapqs[0] if len(mapqs) > 0 else 0, source_id, reference_start)
 			self.ownsptr = True
 
 		for mapq in mapqs[1:]:
 			self.add_mapq(mapq)
-		for (pos, allele, emission, quality) in variants:
-			self.add_variant(pos, allele, emission, quality)
+		for (pos, allele, scores) in variants:
+			self.add_variant(pos, allele, scores)
 
-	def add_variant(self, int position, int allele, em, int quality):
+	def add_variant(self, int position, int allele, vector[unsigned int] scores):
 		assert self.thisptr != NULL
-		cdef vector[double] emProb
-		emProb.resize(len(em))
-		for i in range(len(em)):
-			emProb[i] = em[i]
-		self.thisptr.addVariant(position, allele, emProb, quality)
-		
+		cdef vector[unsigned int] c_scores
+		c_scores.resize(len(scores))
+		for i in range(len(scores)):
+			c_scores[i] = scores[i]
+		self.thisptr.addVariant(position, allele, c_scores)
+
 	def add_haplotag(self, str hp, int ps):
 		cdef string _hp = b''
 		_hp = hp.encode('UTF-8')
@@ -185,10 +162,6 @@ cdef class Read:
 	def is_sorted(self):
 		assert self.thisptr != NULL
 		return self.thisptr.isSorted()
-
-	def has_BX_tag(self):
-		assert self.thisptr != NULL
-		return self.thisptr.hasBXTag()
 
 
 cdef class ReadSet:
@@ -262,6 +235,14 @@ cdef class ReadSet:
 		result.thisptr = self.thisptr.subset(index_set)
 		del index_set
 		return result
+	
+	def assign_selection_status(self, reads_to_select):
+		cdef cpp.IndexSet* index_set = new cpp.IndexSet()
+		cdef int i
+		for i in reads_to_select:
+			index_set.add(i)
+		self.thisptr.assign_selection_status(index_set)
+		del index_set
 
 	def get_positions(self):
 		cdef vector[unsigned int]* v = self.thisptr.get_positions()
@@ -269,10 +250,9 @@ cdef class ReadSet:
 		del v
 		return result
 
-
-cdef class PhredGenotypeLikelihoods:
-	def __cinit__(self, vector[double] gl, unsigned int ploidy=2, unsigned int nr_alleles=2):
-		self.thisptr = new cpp.PhredGenotypeLikelihoods(gl, ploidy, nr_alleles)
+cdef class GenotypeLikelihoods:
+	def __cinit__(self, vector[long double] gl, unsigned int num_alleles):
+		self.thisptr = new cpp.GenotypeLikelihoods(gl, num_alleles)
 
 	def __dealloc__(self):
 		del self.thisptr
@@ -282,8 +262,7 @@ cdef class PhredGenotypeLikelihoods:
 
 	def __getitem__(self, Genotype genotype):
 		assert self.thisptr != NULL
-		# assert genotype.is_diploid_and_biallelic()
-		return self.thisptr.get(genotype.thisptr[0])
+		return self.thisptr.get_by_genotype(genotype.thisptr[0])
 
 	def __len__(self):
 		return self.thisptr.size()
@@ -292,7 +271,7 @@ cdef class PhredGenotypeLikelihoods:
 		for genotype in self.genotypes():
 			yield self[genotype]
 			
-	def __eq__(self, PhredGenotypeLikelihoods other):
+	def __eq__(self, GenotypeLikelihoods other):
 		if self.genotypes() != other.genotypes():
 			return False
 		for genotype in self.genotypes():
@@ -315,7 +294,6 @@ def binomial_coefficient(int n, int k):
 cdef class Genotype:
 	def __cinit__(self, vector[uint32_t] alleles):
 		self.thisptr = new cpp.Genotype(alleles)
-		self.ploidy = self.thisptr.get_ploidy()
 		self.index = self.thisptr.get_index()
 
 	def __dealloc__(self):
@@ -340,15 +318,6 @@ cdef class Genotype:
 			result.append(allele)
 		return alleles
 
-	def is_homozygous(self):
-		return self.thisptr.is_homozygous()
-	
-	def is_diploid_and_biallelic(self):
-		return self.thisptr.is_diploid_and_biallelic()
-	
-	def get_ploidy(self):
-		return self.thisptr.get_ploidy()
-
 	def __eq__(self, Genotype g):
 		return self.thisptr[0] == g.thisptr[0]
 
@@ -364,49 +333,59 @@ cdef class Genotype:
 	def __reduce__(self):
 		# a tuple as specified in the pickle docs - (class_or_constructor, 
 		# (tuple, of, args, to, constructor))
-		cdef vector[uint32_t] alleles = cpp.convert_index_to_alleles(self.index, self.ploidy)
+		cdef vector[uint32_t] alleles = cpp.convert_index_to_alleles(self.index)
 		return (self.__class__, tuple([alleles]))
 	
-	
-def get_max_genotype_ploidy():
-	return cpp.get_max_genotype_ploidy()
 
 
-def get_max_genotype_alleles():
-	return cpp.get_max_genotype_alleles()
-
-
-cdef class GenotypeHMM:
-	def __cinit__(self, ReadSet readset, recombcost, n_samples, positions = None, n_allele_positions = None, allele_references = None):
-		"""Build the DP table from the given read set which is assumed to be sorted;
-		that is, the variants in each read must be sorted by position and the reads
-		in the read set must also be sorted (by position of their left-most variant).
+cdef class GenotypingAlgorithm:
+	def __cinit__(self, ReadSet readset, recombcost, n_haplotypes, positions, n_allele_positions, allele_references, is_sv):
 		"""
-		cdef vector[unsigned int]* c_positions = NULL
-		cdef vector[unsigned int]* c_n_allele_positions = NULL
-		cdef vector[vector[int]]* c_allele_references = NULL
-		cdef unsigned int n_references = n_samples
+		The GenotypingAlgorithm performs an iterative phasing-genotyping algorithm
+		using the following ReadSet at positions specified.
+		"""
+		# Prepare C++ vectors for optional arguments
+		cdef vector[unsigned int] c_positions_stack
+		cdef vector[unsigned int] c_n_allele_positions_stack
+		cdef vector[vector[int]] c_allele_references_stack
+		cdef vector[bool] c_is_sv_stack
+		
+		# Prepare pointers for optional arguments
+		cdef vector[unsigned int]* c_positions_ptr = NULL
+		cdef vector[unsigned int]* c_n_allele_positions_ptr = NULL
+		cdef vector[vector[int]]* c_allele_references_ptr = NULL
+		cdef vector[bool]* c_is_sv_ptr = NULL
+		
+		cdef unsigned int n_references = n_haplotypes
+		
+		# Fill C++ vectors and set pointers
 		if positions is not None:
-			c_positions = new vector[unsigned int]()
 			for pos in positions:
-				c_positions.push_back(pos)
+				c_positions_stack.push_back(pos)
+			c_positions_ptr = &c_positions_stack
 		if n_allele_positions is not None:
-			c_n_allele_positions = new vector[unsigned int]()
 			for pos in n_allele_positions:
-				c_n_allele_positions.push_back(pos)
+				c_n_allele_positions_stack.push_back(pos)
+			c_n_allele_positions_ptr = &c_n_allele_positions_stack
 		if allele_references is not None:
-			c_allele_references = new vector[vector[int]]()
-			c_allele_references.resize(len(allele_references))
+			c_allele_references_stack.resize(len(allele_references))
 			for ix, pos in enumerate(allele_references):
 				for hap in pos:
-					c_allele_references.at(ix).push_back(hap)
-		self.thisptr = new cpp.GenotypeHMM(readset.thisptr, recombcost,  n_references, c_positions, c_n_allele_positions, c_allele_references)
+					c_allele_references_stack.at(ix).push_back(hap)
+			c_allele_references_ptr = &c_allele_references_stack
+		if is_sv is not None:
+			for sv in is_sv:
+				c_is_sv_stack.push_back(sv)
+			c_is_sv_ptr = &c_is_sv_stack
 		
+		# Finally, create the C++ object
+		self.thisptr = new cpp.GenotypingAlgorithm(readset.thisptr, recombcost, n_references, c_positions_ptr, c_n_allele_positions_ptr, c_allele_references_ptr, c_is_sv_ptr)
+
 	def __dealloc__(self):
 		del self.thisptr
 
-	def get_genotype_likelihoods(self, unsigned int pos, unsigned int nr_allele):
-		return PhredGenotypeLikelihoods(self.thisptr.get_genotype_likelihoods(pos), nr_alleles = nr_allele)
+	def get_genotype_likelihoods(self, unsigned int pos, unsigned int num_allele):
+		return GenotypeLikelihoods(self.thisptr.get_genotype_likelihoods(pos), num_alleles = num_allele)
 
 
 include 'readselect.pyx'

@@ -13,41 +13,25 @@ from libcpp.unordered_map cimport unordered_map
 
 cdef extern from "../src/read.h":
 	cdef cppclass Read:
-		Read(string, int, int, int, string, int, double) except +
+		Read(string, int, int, int) except +
 		Read(Read) except +
-		string toString() except +
-		void addHaplotag(string, int) except +
-		void addVariant(int, int, vector[double], int) except +
-		string getName() except +
 		vector[int] getMapqs() except +
-		void addMapq(int) except +
-		int getPosition(int) except +
-		void setPosition(int, int)  except +
-		int getAllele(int) except +
-		void setAllele(int, int) except +
-		int getVariantCount() except +
-		void sortVariants() except +
-		bool isSorted() except +
+		string getName() except +
 		int getSourceID() except +
 		int getReferenceStart() except +
-		string getBXTag() except +
-		bool hasBXTag() except +
-		vector[long double] getEmissionProbability(int) except +
-		void setEmissionProbability(int, vector[double]) except +
-		int getQuality(int) except +
-		void setQuality(int, int) except +
-		int getRegConst() except +
-		double getBaseConst() except +
-
-
-cdef extern from "../src/indexset.h":
-	cdef cppclass IndexSet:
-		IndexSet() except +
-		bool contains(int) except +
-		void add(int) except +
-		int size() except +
-		string toString() except +
-
+		int getVariantCount() except +
+		int getPosition(int) except +
+		int getAllele(int) except +
+		vector[unsigned int] getScores(int) except +
+		void setPosition(int, int)  except +
+		void setAllele(int, int) except +
+		void setScores(int, vector[unsigned int]) except +
+		void addVariant(int, int, vector[unsigned int]) except +
+		void addHaplotag(string, int) except +
+		void addMapq(int) except +
+		void sortVariants() except +
+		bool isSorted() except +
+		
 
 cdef extern from "../src/readset.h":
 	cdef cppclass ReadSet:
@@ -55,12 +39,22 @@ cdef extern from "../src/readset.h":
 		void add(Read*) except +
 		string toString() except +
 		int size() except +
-		void sort() except +
 		Read* get(int) except +
 		Read* getByName(string, int) except +
+		void sort() except +
 		ReadSet* subset(IndexSet*) except +
+		void assign_selection_status(IndexSet*) except +
 		# TODO: Check why adding "except +" here doesn't compile
-		vector[unsigned int]* get_positions()
+		vector[unsigned int]* get_positions() except +
+
+
+cdef extern from "../src/genotypelikelihoods.h":
+	cdef cppclass GenotypeLikelihoods:
+		GenotypeLikelihoods(vector[long double], unsigned int) except +
+		string toString() except +
+		long double get_by_genotype(Genotype) except +
+		void get_genotypes(vector[Genotype]&) except +
+		unsigned int size() except +
 
 
 cdef extern from "../src/binomial.h":
@@ -71,46 +65,23 @@ cdef extern from "../src/genotype.h":
 	cdef cppclass Genotype:
 		Genotype() except +
 		Genotype(vector[uint32_t]) except +
-		Genotype(Genotype) except +
 		vector[uint32_t] as_vector() except +
 		bool is_none() except +
 		uint64_t get_index() except +
 		string toString() except +
-		bool is_homozygous() except +
-		bool is_diploid_and_biallelic() except +
-		uint32_t get_ploidy() except +
 	cdef bool operator==(Genotype,Genotype) except +
 	cdef bool operator!=(Genotype,Genotype) except +
 	cdef bool operator<(Genotype,Genotype) except +
-	cdef vector[uint32_t] convert_index_to_alleles(uint64_t index, uint32_t ploidy) except +
-	cdef uint32_t get_max_genotype_ploidy() except +
-	cdef uint32_t get_max_genotype_alleles() except +
+	cdef vector[uint32_t] convert_index_to_alleles(uint64_t index) except +
 
 
-cdef extern from "../src/genotypehmm.h":
-	cdef cppclass GenotypeHMM:
-		GenotypeHMM(ReadSet* readset, vector[float] recombcost, unsigned int n_references, vector[unsigned int]* positions, vector[unsigned int]* n_allele_positions, vector[vector[int]]*) except +
+cdef extern from "../src/indexset.h":
+	cdef cppclass IndexSet:
+		IndexSet() except +
+		void add(int) except +
+
+
+cdef extern from "../src/genotypingalgorithm.h":
+	cdef cppclass GenotypingAlgorithm:
+		GenotypingAlgorithm(ReadSet* readset, vector[float] recombcost, unsigned int n_samples, vector[unsigned int]* positions, vector[unsigned int]* n_allele_positions, vector[vector[int]]*, vector[bool]*) except +
 		vector[long double] get_genotype_likelihoods(unsigned int position) except +
-
-
-cdef extern from "../src/phredgenotypelikelihoods.h":
-	cdef cppclass PhredGenotypeLikelihoods:
-		PhredGenotypeLikelihoods(vector[double], unsigned int, unsigned int) except +
-		PhredGenotypeLikelihoods(PhredGenotypeLikelihoods) except +
-		double get(Genotype) except +
-		string toString() except +
-		unsigned int get_ploidy() except +
-		unsigned int get_nr_alleles() except +
-		unsigned int size() except +
-		vector[double] as_vector() except +
-		void get_genotypes(vector[Genotype]&) except +
-
-
-cdef extern from "../src/genotypedistribution.h":
-	cdef cppclass GenotypeDistribution:
-		GenotypeDistribution() except +
-		GenotypeDistribution(unsigned int nr_allele) except +
-		GenotypeDistribution(vector[vector[double]] p_wrong_vector, int allele) except +
-		GenotypeDistribution(vector[double] d, int nr_allele) except +
-		double probabilityOf(unsigned int genotype) except +
-		int getSize() except +

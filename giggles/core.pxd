@@ -13,15 +13,14 @@ cdef class ReadSet:
 	cdef cpp.ReadSet *thisptr
 
 
-cdef class PhredGenotypeLikelihoods:
-	cdef cpp.PhredGenotypeLikelihoods *thisptr
+cdef class GenotypeLikelihoods:
+	cdef cpp.GenotypeLikelihoods *thisptr
 	
 	
 cdef class Genotype:
 	cdef cpp.Genotype *thisptr
 	cdef uint64_t index
-	cdef uint32_t ploidy
 
 
-cdef class GenotypeHMM:
-	cdef cpp.GenotypeHMM *thisptr
+cdef class GenotypingAlgorithm:
+	cdef cpp.GenotypingAlgorithm *thisptr
