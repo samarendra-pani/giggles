@@ -12,7 +12,7 @@ Original filename: src/columniterator.cpp
 
 using namespace std;
 
-PhasingColumnIterator::PhasingColumnIterator(const ReadSet& set, const std::vector<GenotypingAlgorithm::variant_information_t>* variant_info_table) : set(set) {
+PhasingColumnIterator::PhasingColumnIterator(const ReadSet& set, const std::vector<GenotypingAlgorithm::variant_information_t>* variant_info_table, bool is_first_phasing_round) : set(set), is_first_phasing_round(is_first_phasing_round) {
 	n = 0;
 	next_read_index = 0;
 	positions = new vector<unsigned int>(variant_info_table->size());
@@ -22,6 +22,10 @@ PhasingColumnIterator::PhasingColumnIterator(const ReadSet& set, const std::vect
 	n_active_alleles = new vector<unsigned int>(variant_info_table->size());
 	for (size_t i=0; i<variant_info_table->size(); ++i){
 		n_active_alleles->at(i) = variant_info_table->at(i).count_active_alleles();
+	}
+	sv_flag = new vector<bool>(variant_info_table->size());
+	for (size_t i=0; i<variant_info_table->size(); ++i){
+		sv_flag->at(i) = variant_info_table->at(i).is_sv;
 	}
 	// create a mapping of genomic positions to column indices
 	std::unordered_map<unsigned int, size_t> position_map;
@@ -74,6 +78,7 @@ PhasingColumnIterator::~PhasingColumnIterator() {
 	blank_entries.clear();
 	delete positions;
 	delete n_active_alleles;
+	delete sv_flag;
 }
 
 
@@ -142,6 +147,13 @@ unique_ptr<vector<const Entry*> > PhasingColumnIterator::get_next() {
 		if (n_active_alleles->at(n) > 2) {
 			// the position has multiple possible alleles.
 			// cannot phase
+			Entry* e = new Entry((unsigned int)read->getID(), Entry::BLANK, std::vector<unsigned int>{0});
+			blank_entries.push_back(e);
+			result->push_back(e);
+			continue;
+		}
+		if (is_first_phasing_round && sv_flag->at(n)) {
+			// in the first phasing round, we do not consider structural variants
 			Entry* e = new Entry((unsigned int)read->getID(), Entry::BLANK, std::vector<unsigned int>{0});
 			blank_entries.push_back(e);
 			result->push_back(e);

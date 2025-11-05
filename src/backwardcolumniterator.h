@@ -11,6 +11,7 @@
 #include "readset.h"
 #include "genotypingalgorithm.h"
 
+class GenotypingAlgorithm;
 
 class BackwardColumnIterator {
 	

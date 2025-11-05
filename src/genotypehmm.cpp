@@ -11,7 +11,6 @@
 #include "columnindexingiterator.h"
 #include "transitionprobabilitycomputer.h"
 #include "binomial.h"
-#include "matrixmultiplication.h"
 
 using namespace std;
 

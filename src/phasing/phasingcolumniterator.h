@@ -16,7 +16,7 @@ Original filename: src/columniterator.h
 
 class PhasingColumnIterator {
 public:
-	PhasingColumnIterator(const ReadSet& set, const std::vector<GenotypingAlgorithm::variant_information_t>* variant_info_table);
+	PhasingColumnIterator(const ReadSet& set, const std::vector<GenotypingAlgorithm::variant_information_t>* variant_info_table, bool is_first_phasing_round);
 	~PhasingColumnIterator();
 	/** Returns the total number of columns, i.e. the number of columns
 	 *  that will be returned by get_next. */
@@ -51,10 +51,14 @@ private:
 	std::vector<unsigned int>* positions;
 	// number of active alleles at each position
 	std::vector<unsigned int>* n_active_alleles;
+	// if position is a structural variant
+	std::vector<bool>* sv_flag;
 	// first_reads[k] is the index of the first read (i.e. lowest index) active at column k,
 	// in case no read is active in column k, then first_reads[k] is the index of the first read
 	// that will become active after column k.
 	std::vector<size_t> first_reads;
+	// flag indicating if this is the first phasing round. Not considering SVs in the first round.
+	bool is_first_phasing_round;
 };
 
 #endif

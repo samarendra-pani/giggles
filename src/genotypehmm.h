@@ -15,6 +15,8 @@
 #include "transitionprobabilitycomputer.h"
 #include "genotypingalgorithm.h"
 
+class GenotypingAlgorithm;
+
 class GenotypeHMM {
 	private:
 		// number of reference samples
@@ -98,8 +100,8 @@ class GenotypeHMM {
 		 * @param read_set   DP table is constructed for the given reads. Ownership is retained by caller.
 		 *			Pointer must remain valid during the lifetime of this GenotypeDPTable.
 		* @param recombcost phred scaled recombination probabilities
-		* @param positions positions to work on. If 0, all positions given in the read_set are used.
-		* 		      caller retains ownership.
+		* @param n_references number of reference haplotypes in the graph
+		* @param variant_info_table contains information about each variant position which is to be genotyped.
 		*/
 		GenotypeHMM(ReadSet* read_set, const std::vector<float>& recombcost, const unsigned int& n_references, std::vector<GenotypingAlgorithm::variant_information_t>* variant_info_table);
 		~GenotypeHMM();

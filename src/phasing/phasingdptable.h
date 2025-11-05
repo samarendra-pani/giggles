@@ -19,6 +19,8 @@ Original filename: src/pedigreedptable.h
 #include "../genotypelikelihoods.h"
 #include "../genotypingalgorithm.h"
 
+class GenotypingAlgorithm;
+
 typedef struct index_and_inheritance_t {
 	unsigned int index;
 	unsigned int inheritance_value;
@@ -27,6 +29,7 @@ typedef struct index_and_inheritance_t {
 
 class PhasingDPTable {
 	private:
+		// pointer to the read set
 		ReadSet* read_set;
 		/* pointer to the variant information table from genotyping algorithm.
 		* contains information about each variant position, including its genotype likelihoods.
@@ -82,12 +85,11 @@ class PhasingDPTable {
 		/** Constructor.
 		 *  @param read_set DP table is constructed for the contained reads. Ownership is retained
 		 *                  by caller. Pointer must remain valid during the lifetime of this PhasingDPTable.
-		 *  @param distrust_genotypes If true, then the genotypes may be changed at costs given as genotype likelihoods
-		 *                            (in the given pedigree object).
-		 *  @param positions Positions to work on. If 0, then all positions given in read_set will be used. Caller retains
-		 *                   ownership.
+		 *  @param variant_info_table Contains information about each variant position, including its genotype likelihoods.
+		 *  @param first_phasing_round Indicates whether this is the first phasing round (not considering SVs) or not (considering SVs).
+		 *  
 		 */
-		PhasingDPTable(ReadSet* read_set, const std::vector<GenotypingAlgorithm::variant_information_t>* variant_info_table);
+		PhasingDPTable(ReadSet* read_set, const std::vector<GenotypingAlgorithm::variant_information_t>* variant_info_table, bool first_phasing_round);
 	
 		~PhasingDPTable();
 

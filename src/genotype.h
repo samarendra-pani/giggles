@@ -123,9 +123,4 @@ class Genotype{
  */
 std::vector<uint32_t> convert_index_to_alleles(uint32_t index);
 
-/**
- * Returns the maximum supported number of alleles per variant for genotypes
- */
-uint32_t get_max_genotype_alleles();
-
 #endif // GENOTYPE_H

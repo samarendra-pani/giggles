@@ -1,0 +1,21 @@
+This text file contains a brief description of what all the codes in this directory do.
+
+phasingcolumncostcomputer
+-------------------------
+* 
+
+phasingcolumnindexingiterator
+-----------------------------
+* 
+
+phasingcolumnindexingscheme
+---------------------------
+* 
+
+phasingcolumniterator
+---------------------
+*
+
+phasingdptable
+--------------
+* 

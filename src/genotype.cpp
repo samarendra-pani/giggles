@@ -120,7 +120,6 @@ string Genotype::toString() const {
 bool Genotype::is_homozygous() const {
 	// homozygous <=> all alleles identical
 	if (is_none()) return false;
-
 	uint32_t ploidy = 2;
 	uint32_t allele = get_position(0);
 	for (uint32_t i = 1; i < ploidy; i++) {
@@ -133,8 +132,6 @@ bool Genotype::is_homozygous() const {
 
 bool Genotype::is_diploid_and_biallelic() const{
 	uint32_t ploidy = 2;
-	if (ploidy != 2)
-		return false;
 	for (uint32_t i = 0; i < ploidy; i++) {
 		if (get_position(i) > 1) {
 			return false;
@@ -211,7 +208,6 @@ std::vector<uint32_t> convert_index_to_alleles(uint32_t index) {
 	return genotype;
 }
 
-
-uint32_t get_max_genotype_alleles() {
-	return Genotype::MAX_ALLELES;
+bool Genotype::is_none() const {
+	return is_empty;
 }

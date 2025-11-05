@@ -18,12 +18,10 @@ class Entry {
 		void set_read_id(unsigned int r) { read_id = r; }
 		void set_allele(unsigned int a) { allele = a; }
 		void set_scores(const std::vector<unsigned int>& s) { scores = s; }
-		void set_is_sv(bool is_sv) { this->is_sv = is_sv; }
 		
 		unsigned int get_read_id() const { return read_id; }
 		unsigned int get_allele() const { return allele; }
 		std::vector<unsigned int> get_scores() const { return scores; }
-		bool get_is_sv() const { return is_sv; }
 		unsigned int get_phred_score() const { return 30; } // Currently hardcoded to 30 since Whatshap uses fixed quality scores for phasing.
 
 		allele_t get_allele_type() const;

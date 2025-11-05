@@ -17,11 +17,11 @@ Original filename: src/pedigreedptable.cpp
 
 using namespace std;
 
-PhasingDPTable::PhasingDPTable(ReadSet* read_set, const vector<GenotypingAlgorithm::variant_information_t>* variant_info_table) :
+PhasingDPTable::PhasingDPTable(ReadSet* read_set, const vector<GenotypingAlgorithm::variant_information_t>* variant_info_table, bool first_phasing_round) :
 	read_set(read_set),
 	optimal_score(0u),
 	optimal_score_index(0u),
-	input_column_iterator(*read_set, variant_info_table),
+	input_column_iterator(*read_set, variant_info_table, first_phasing_round),
 	variant_info_table(variant_info_table)
 {	
 	// assign reads inside the read_set numerical ids

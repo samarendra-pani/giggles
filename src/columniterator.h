@@ -11,6 +11,8 @@
 #include "readset.h"
 #include "genotypingalgorithm.h"
 
+class GenotypingAlgorithm;
+
 class ColumnIterator {
 public:
 	ColumnIterator(const ReadSet& set, const std::vector<GenotypingAlgorithm::variant_information_t>* variant_info_table);
