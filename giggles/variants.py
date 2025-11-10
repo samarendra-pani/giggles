@@ -28,21 +28,14 @@ class AlignmentReader:
             overhang: int,
             gap_start: int,
             gap_extend: int,
-            default_mismatch: int,
-            em_prob_params: List[float],
-            reg_const: int,
-            base_const: float):
+            default_mismatch: int):
 
         self._path = path
         self._mapq_threshold = mapq_threshold
         self._realign_mode = realign_mode
         if realign_mode == "edit":
             self._aligner = edit_distance
-        elif realign_mode == "wfa_full":
-            self._aligner = WavefrontAligner(mismatch=default_mismatch, 
-                                         gap_opening=gap_start,
-                                         gap_extension=gap_extend)
-        elif realign_mode == "wfa_score":
+        elif realign_mode == "wfa":
             self._aligner = WavefrontAligner(mismatch=default_mismatch, 
                                          gap_opening=gap_start,
                                          gap_extension=gap_extend,
@@ -51,9 +44,6 @@ class AlignmentReader:
         self._gap_extend = gap_extend
         self._default_mismatch = default_mismatch
         self._overhang = overhang
-        self._em_params = em_prob_params
-        self._reg_const = reg_const
-        self._base_const = base_const
         
     @property
     def n_paths(self):
@@ -154,8 +144,7 @@ class AlignmentReader:
             query_pos,
             reference,
             mode,
-            overhang,
-            emission_parameters):
+            overhang):
         """
         Realign a read to the two alleles of a single variant.
         i and consumed describe where to split the cigar into a part before the
@@ -263,46 +252,13 @@ class AlignmentReader:
             else:
                 if mode == "edit":
                     scores.append(aligner(query, allele))    #edit distance is positive.
-                elif mode == "wfa_score":
+                elif mode == "wfa":
                     scores.append(aligner(query, allele).score)
-                elif mode == "wfa_full":
-                    scores.append(AlignmentReader.calculate_emission_log_probability(aligner(query, allele).cigartuples, emission_parameters))
             if scores[index] > max_score:
                 max_score = scores[index]
                 max_allele = index
 
         return max_allele, scores
-
-    @staticmethod
-    def calculate_emission_log_probability(cg, params):
-        """
-        CIGAR Operation to Number Conversion (https://github.com/kcleal/pywfa/tree/master):
-        M: 0
-        I: 1
-        D: 2
-        N: 3
-        S: 4
-        H: 5
-        =: 7
-        X: 8
-        B: 9
-
-        The output cigar considers M as match.
-        """
-        prob = 0
-        count = {'M': 0, 'X': 0, 'I': 0, 'D': 0}
-        for op,c in cg:
-            if op == 0:
-                count['M'] += c
-            elif op == 1:
-                count['I'] += c
-            elif op == 2:
-                count['D'] += c
-            elif op == 8:
-                count['X'] += c
-        for i, op in enumerate(count.keys()):
-            prob += count[op]*math.log(params[i])
-        return prob
 
     @staticmethod
     def detect_alleles_by_alignment(
@@ -313,7 +269,6 @@ class AlignmentReader:
         reference,
         mode,
         overhang=10,
-        emission_parameters=None
     ):
         """
         Detect which alleles the given bam_read covers. Detect the correct
@@ -342,8 +297,7 @@ class AlignmentReader:
                 query_pos,
                 reference,
                 mode,
-                overhang,
-                emission_parameters
+                overhang
             )
 
             if allele is not None:
@@ -366,9 +320,6 @@ class GAFReader(AlignmentReader):
         gap_start: int = 3,
         gap_extend: int = 1,
         default_mismatch: int = 2,
-        em_prob_params: List[float] = [0.85, 0.05, 0.05, 0.05],
-        reg_const = 10,
-        base_const = math.e
     ):
         super().__init__(
             alignment_files, 
@@ -377,10 +328,7 @@ class GAFReader(AlignmentReader):
             overhang, 
             gap_start, 
             gap_extend, 
-            default_mismatch, 
-            em_prob_params, 
-            reg_const, 
-            base_const)
+            default_mismatch)
 
         self._reader = GafParser(alignment_files=alignment_files, reference=reference, read_fasta_files=read_fasta_files, mapq=self._mapq_threshold)
 
@@ -414,7 +362,7 @@ class GAFReader(AlignmentReader):
         logger.debug("Grouping Reads into ReadSet Object")
         grouped_reads = self._remove_duplicate_reads(reads)
         logger.debug("ReadSet Object Successfully Created")
-        readset = self._make_readset_from_grouped_reads(grouped_reads, self._reg_const, self._base_const)
+        readset = self._make_readset_from_grouped_reads(grouped_reads)
         return readset      
 
     @staticmethod
@@ -838,8 +786,7 @@ class GAFReader(AlignmentReader):
                 processed_alignment,
                 reference,
                 self._realign_mode,
-                self._overhang,
-                self._em_params)
+                self._overhang)
             for j, allele, scores in detected:
                 read.add_variant(variants_in_alignment[j].position_on_ref, allele, scores)
             if read:  # At least one variant covered and detected
