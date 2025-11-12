@@ -17,7 +17,8 @@ from pysam import VariantFile, VariantHeader, VariantRecord
 from .core import (
     GenotypeLikelihoods,
     Genotype,
-    binomial_coefficient
+    binomial_coefficient,
+    get_max_genotype_alleles
 )
 from .logger import logger, warn_once
 
@@ -169,7 +170,6 @@ class VcfReader:
         self,
         path: Union[str, PathLike],
         indels: bool = False,
-        ploidy: int = 2,
         required_chr: List = None,
     ):
         """
@@ -185,7 +185,6 @@ class VcfReader:
         self._vcf_reader = VariantFile(os.fspath(path))
         self._path = path
         self.vcf_samples = list(self._vcf_reader.header.samples)
-        self.ploidy = ploidy
         self.required_chr = required_chr
         
     def __enter__(self):
@@ -294,7 +293,8 @@ class VcfReader:
                 
             pos, ref = record.start, str(record.ref)
             alts = record.alts
-            if len(alts) > 15:
+            if len(alts) >= get_max_genotype_alleles():
+                # logger.warning(f'Skipping position {pos} of chromosome {chromosome}. Position has more alleles than currently supported.')
                 n_skip += 1
                 continue
             allele_origin = []
