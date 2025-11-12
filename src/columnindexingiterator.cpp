@@ -47,7 +47,7 @@ void ColumnIndexingIterator::advance(int* bit_changed) {
 	
 	assert(graycodes->has_next());
 	int graycode_bit_changed = -1;
-	unsigned int graycode_binaryindex = graycodes->get_next(&graycode_bit_changed);
+	uint32_t graycode_binaryindex = graycodes->get_next(&graycode_bit_changed);
 	vector<int> graycode_binaryvector = graycodes->toBinary(graycode_binaryindex);
 	
 	// This indicates which bit in the gray code has been changed.
@@ -88,7 +88,7 @@ void ColumnIndexingIterator::advance(int* bit_changed) {
 	}
 }
 
-unsigned int ColumnIndexingIterator::get_b_index() {
+uint32_t ColumnIndexingIterator::get_b_index() {
 	return this->b_index;
 }
 

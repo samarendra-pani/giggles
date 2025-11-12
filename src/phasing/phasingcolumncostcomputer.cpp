@@ -24,12 +24,12 @@ PhasingColumnCostComputer::PhasingColumnCostComputer(const std::vector <const En
 {
 	// Enumerate all possible assignments of alleles to haplotypes and 
 	// store those that are compatible with genotypes.
-	for (unsigned int i = 0; i < (1<<2); ++i) {
+	for (uint32_t i = 0; i < (1<<2); ++i) {
 		bool genotypes_compatible = true;
-		unsigned int cost = 0;
-		unsigned int allele0 = (i >> 0) & 1;
-		unsigned int allele1 = (i >> 1) & 1;
-		Genotype genotype(vector<unsigned int>{allele0,allele1});
+		uint32_t cost = 0;
+		uint32_t allele0 = (i >> 0) & 1;
+		uint32_t allele1 = (i >> 1) & 1;
+		Genotype genotype(vector<uint32_t>{allele0,allele1});
 		const GenotypeLikelihoods* gls = &variant_info_table->at(column_index).genotype_likelihoods;
 		assert(gls != nullptr);
 		cost += gls->getPhredScore(genotype);
@@ -40,13 +40,13 @@ PhasingColumnCostComputer::PhasingColumnCostComputer(const std::vector <const En
 }
 
 
-void PhasingColumnCostComputer::set_partitioning(unsigned int partitioning) {
+void PhasingColumnCostComputer::set_partitioning(uint32_t partitioning) {
 	cost_partition.assign(2, {0,0});	// two partitions, each with cost for ref and alt
 
 	partitioning = partitioning;
 	for (vector < const Entry * >::const_iterator it = column.begin(); it != column.end(); ++it) {
 		auto & entry = **it;
-		bool entry_in_partition1 = (partitioning & ((unsigned int) 1)) == 0;
+		bool entry_in_partition1 = (partitioning & ((uint32_t) 1)) == 0;
 		switch (entry.get_allele_type()) {
 			case Entry::REF_ALLELE:
 				(entry_in_partition1 ? cost_partition[0] :cost_partition[1])[1] += entry.get_phred_score();
@@ -66,9 +66,9 @@ void PhasingColumnCostComputer::set_partitioning(unsigned int partitioning) {
 
 void PhasingColumnCostComputer::update_partitioning(int bit_to_flip) {
 	const Entry & entry = *column[bit_to_flip];
-	partitioning = partitioning ^ (((unsigned int) 1) << bit_to_flip);
-	bool entry_in_partition1 = (partitioning & (((unsigned int) 1) << bit_to_flip)) == 0;
-	unsigned int ind_id = 0; // only one individual in the pedigree
+	partitioning = partitioning ^ (((uint32_t) 1) << bit_to_flip);
+	bool entry_in_partition1 = (partitioning & (((uint32_t) 1) << bit_to_flip)) == 0;
+	uint32_t ind_id = 0; // only one individual in the pedigree
 	switch (entry.get_allele_type()) {
 		case Entry::REF_ALLELE:
 			(entry_in_partition1 ? cost_partition[1] : cost_partition[0])[1] -= entry.get_phred_score();
@@ -86,13 +86,13 @@ void PhasingColumnCostComputer::update_partitioning(int bit_to_flip) {
 }
 
 
-unsigned int PhasingColumnCostComputer::get_cost() {
-	unsigned int best_cost = numeric_limits < unsigned int >::max();
+uint32_t PhasingColumnCostComputer::get_cost() {
+	uint32_t best_cost = numeric_limits < uint32_t >::max();
 	for (const allele_assignment_t& a : allele_assignments) {
-		unsigned int cost = a.cost;
+		uint32_t cost = a.cost;
 		// there are only two partitions
 		for (size_t p = 0; p < 2; ++p) {
-			unsigned int allele = (a.assignment >> p) & 1;
+			uint32_t allele = (a.assignment >> p) & 1;
 			cost += cost_partition[p][allele];
 		}
 		if (cost < best_cost) {
@@ -104,15 +104,15 @@ unsigned int PhasingColumnCostComputer::get_cost() {
 
 
 PhasingColumnCostComputer::phased_variant_t PhasingColumnCostComputer::get_alleles() {
-	unsigned int best_cost = numeric_limits < unsigned int >::max();
-	unsigned int second_best_cost = numeric_limits < unsigned int >::max();
+	uint32_t best_cost = numeric_limits < uint32_t >::max();
+	uint32_t second_best_cost = numeric_limits < uint32_t >::max();
 	phased_variant_t haps;
 	// best_cost_for_allele[haplotype][to_allele] is the best cost for flipping
-	vector<array<unsigned int,2>> best_cost_for_allele(2, {numeric_limits<unsigned int>::max(),numeric_limits<unsigned int>::max()});
+	vector<array<uint32_t,2>> best_cost_for_allele(2, {numeric_limits<uint32_t>::max(),numeric_limits<uint32_t>::max()});
 	for (const allele_assignment_t& a : allele_assignments) {
-		unsigned int cost = a.cost;
+		uint32_t cost = a.cost;
 		for (size_t p = 0; p < 2; ++p) {
-			unsigned int allele = (a.assignment >> p) & 1;
+			uint32_t allele = (a.assignment >> p) & 1;
 			cost += cost_partition[p][allele];
 		}
 		bool new_best = false;
@@ -120,10 +120,10 @@ PhasingColumnCostComputer::phased_variant_t PhasingColumnCostComputer::get_allel
 			best_cost = cost;
 			new_best = true;
 		}
-		unsigned int partition0 = 0;
-		unsigned int partition1 = 1;
-		unsigned int allele0 = (a.assignment >> 0) & 1;
-		unsigned int allele1 = (a.assignment >> partition1) & 1;
+		uint32_t partition0 = 0;
+		uint32_t partition1 = 1;
+		uint32_t allele0 = (a.assignment >> 0) & 1;
+		uint32_t allele1 = (a.assignment >> partition1) & 1;
 		if (new_best) {
 			haps = phased_variant_t(
 				(allele0 == 0)?Entry::REF_ALLELE:Entry::ALT_ALLELE,
@@ -139,14 +139,14 @@ PhasingColumnCostComputer::phased_variant_t PhasingColumnCostComputer::get_allel
 		
 	}
 
-	if (best_cost == numeric_limits < unsigned int >::max()) {
+	if (best_cost == numeric_limits < uint32_t >::max()) {
 		throw std::runtime_error("Error: Mendelian conflict");
 	}
 
 	// Test whether some of the allele assignments are ambiguous
 	for (size_t haplotype = 0; haplotype < 2; ++haplotype) {
 		int quality = abs(((int)(best_cost_for_allele.at(haplotype)[0])) - ((int)(best_cost_for_allele.at(haplotype)[1])));
-		haps.quality = (unsigned int)quality;
+		haps.quality = (uint32_t)quality;
 		if (quality == 0) {
 			if (haplotype == 0) {
 				haps.allele0 = Entry::EQUAL_SCORES;

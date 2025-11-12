@@ -23,11 +23,11 @@ public:
 	/** Returns the set of SNP positions. To create this set,
 	 *  this method iterates over all contained reads.
 	 *  Caller owns the returned pointer. */
-	std::vector<unsigned int>* get_positions() const;
-	unsigned int size() const;
+	std::vector<uint32_t>* get_positions() const;
+	uint32_t size() const;
 	std::string toString();
 	/** Access a read in the set. Ownership stays with the ReadSet. */
-	Read* get(int i) const;
+	Read* get(uint32_t i) const;
 	/** Access a read in the set by its name. Ownership stays with the ReadSet. */
 	Read* getByName(std::string name, int source_id) const;
 	/** Creates a subset of reads as given by the set of indices. Note that this

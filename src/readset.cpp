@@ -53,23 +53,23 @@ void ReadSet::sort() {
 }
 
 
-vector<unsigned int>* ReadSet::get_positions() const {
-	unordered_set<unsigned int> position_set;
+vector<uint32_t>* ReadSet::get_positions() const {
+	unordered_set<uint32_t> position_set;
 	for (size_t i=0; i<reads.size(); ++i) {
 		reads[i]->addPositionsToSet(&position_set);
 	}
-	vector<unsigned int>* positions = new vector<unsigned int>(position_set.begin(), position_set.end());
+	vector<uint32_t>* positions = new vector<uint32_t>(position_set.begin(), position_set.end());
 	std::sort(positions->begin(), positions->end());
 	return positions;
 }
 
 
-unsigned int ReadSet::size() const {
+uint32_t ReadSet::size() const {
 	return reads.size();
 }
 
 
-Read* ReadSet::get(int i) const {
+Read* ReadSet::get(uint32_t i) const {
 	return reads[i];
 }
 

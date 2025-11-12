@@ -13,7 +13,7 @@ Wrappers for core C++ classes.
 from libcpp cimport bool
 from libcpp.string cimport string
 from libcpp.vector cimport vector
-from libc.stdint cimport uint32_t, uint64_t
+from libc.stdint cimport uint32_t
 from . cimport cpp
 
 from .variant import Variant
@@ -23,13 +23,15 @@ from cython.operator cimport dereference as deref
 cdef class Read:
 	def __cinit__(self, str name = None, int mapq = 0, int source_id = 0, int reference_start = -1):
 		cdef string _name = b''
+		cdef uint32_t _mapq = mapq
+		cdef uint32_t _source_id = source_id
 		if name is None:
 			self.thisptr = NULL
 			self.ownsptr = False
 		else:
 			# TODO: Is this the best way to handle string arguments?
 			_name = name.encode('UTF-8')
-			self.thisptr = new cpp.Read(_name, mapq, source_id, reference_start)
+			self.thisptr = new cpp.Read(_name, _mapq, _source_id, reference_start)
 			self.ownsptr = True
 
 	def __dealloc__(self):
@@ -79,7 +81,7 @@ cdef class Read:
 		if isinstance(key, slice):
 			raise NotImplementedError("Read does not support slices")
 		assert isinstance(key, int)
-		cdef int n = self.thisptr.getVariantCount()
+		cdef uint32_t n = self.thisptr.getVariantCount()
 		if not (-n <= key < n):
 			raise IndexError('Index out of bounds: {}'.format(key))
 		if key < 0:
@@ -92,7 +94,7 @@ cdef class Read:
 
 	def __setitem__(self, index, variant):
 		assert self.thisptr != NULL
-		cdef int n = self.thisptr.getVariantCount()
+		cdef uint32_t n = self.thisptr.getVariantCount()
 		if not (-n <= index < n):
 			raise IndexError('Index out of bounds: {}'.format(index))
 		if index < 0:
@@ -138,13 +140,15 @@ cdef class Read:
 		for (pos, allele, scores) in variants:
 			self.add_variant(pos, allele, scores)
 
-	def add_variant(self, int position, int allele, vector[unsigned int] scores):
+	def add_variant(self, int position, int allele, vector[uint32_t] scores):
 		assert self.thisptr != NULL
-		cdef vector[unsigned int] c_scores
-		c_scores.resize(len(scores))
+		cdef vector[uint32_t] _scores
+		cdef uint32_t _position = position
+		cdef uint32_t _allele = allele
+		_scores.resize(len(scores))
 		for i in range(len(scores)):
-			c_scores[i] = scores[i]
-		self.thisptr.addVariant(position, allele, c_scores)
+			_scores[i] = scores[i]
+		self.thisptr.addVariant(_position, _allele, _scores)
 
 	def add_haplotag(self, str hp, int ps):
 		cdef string _hp = b''
@@ -245,14 +249,14 @@ cdef class ReadSet:
 		del index_set
 
 	def get_positions(self):
-		cdef vector[unsigned int]* v = self.thisptr.get_positions()
+		cdef vector[uint32_t]* v = self.thisptr.get_positions()
 		result = list(v[0])
 		del v
 		return result
 
 cdef class GenotypeLikelihoods:
-	def __cinit__(self, vector[long double] gl, unsigned int num_alleles):
-		self.thisptr = new cpp.GenotypeLikelihoods(gl, num_alleles)
+	def __cinit__(self, vector[long double] gl, uint32_t ploidy, uint32_t num_alleles):
+		self.thisptr = new cpp.GenotypeLikelihoods(gl, ploidy, num_alleles)
 
 	def __dealloc__(self):
 		del self.thisptr
@@ -294,6 +298,7 @@ def binomial_coefficient(int n, int k):
 cdef class Genotype:
 	def __cinit__(self, vector[uint32_t] alleles):
 		self.thisptr = new cpp.Genotype(alleles)
+		self.ploidy = self.thisptr.get_ploidy()
 		self.index = self.thisptr.get_index()
 
 	def __dealloc__(self):
@@ -311,12 +316,18 @@ cdef class Genotype:
 	def get_index(self):
 		return self.thisptr.get_index()
 
+	def get_ploidy(self):
+		return self.thisptr.get_ploidy()
+
 	def as_vector(self):
 		result = []
 		cdef vector[uint32_t] alleles = self.thisptr.as_vector()
 		for allele in alleles:
 			result.append(allele)
 		return alleles
+
+	def get_ploidy(self):
+		return self.thisptr.get_ploidy()
 
 	def __eq__(self, Genotype g):
 		return self.thisptr[0] == g.thisptr[0]
@@ -333,30 +344,38 @@ cdef class Genotype:
 	def __reduce__(self):
 		# a tuple as specified in the pickle docs - (class_or_constructor, 
 		# (tuple, of, args, to, constructor))
-		cdef vector[uint32_t] alleles = cpp.convert_index_to_alleles(self.index)
+		cdef vector[uint32_t] alleles = cpp.convert_index_to_alleles(self.index, self.ploidy)
 		return (self.__class__, tuple([alleles]))
-	
+
+
+def get_max_genotype_ploidy():
+	return cpp.get_max_genotype_ploidy()
+
+
+def get_max_genotype_alleles():
+	return cpp.get_max_genotype_alleles()
 
 
 cdef class GenotypingAlgorithm:
-	def __cinit__(self, ReadSet readset, recombcost, n_haplotypes, positions, n_allele_positions, allele_references, is_sv):
+	def __cinit__(self, ReadSet readset, recombcost, n_haplotypes, ploidy, positions, n_allele_positions, allele_references, is_sv):
 		"""
 		The GenotypingAlgorithm performs an iterative phasing-genotyping algorithm
 		using the following ReadSet at positions specified.
 		"""
 		# Prepare C++ vectors for optional arguments
-		cdef vector[unsigned int] c_positions_stack
-		cdef vector[unsigned int] c_n_allele_positions_stack
+		cdef vector[uint32_t] c_positions_stack
+		cdef vector[uint32_t] c_n_allele_positions_stack
 		cdef vector[vector[int]] c_allele_references_stack
 		cdef vector[bool] c_is_sv_stack
 		
 		# Prepare pointers for optional arguments
-		cdef vector[unsigned int]* c_positions_ptr = NULL
-		cdef vector[unsigned int]* c_n_allele_positions_ptr = NULL
+		cdef vector[uint32_t]* c_positions_ptr = NULL
+		cdef vector[uint32_t]* c_n_allele_positions_ptr = NULL
 		cdef vector[vector[int]]* c_allele_references_ptr = NULL
 		cdef vector[bool]* c_is_sv_ptr = NULL
 		
-		cdef unsigned int n_references = n_haplotypes
+		cdef uint32_t n_references = n_haplotypes
+		cdef uint32_t c_ploidy = ploidy
 		
 		# Fill C++ vectors and set pointers
 		if positions is not None:
@@ -379,13 +398,13 @@ cdef class GenotypingAlgorithm:
 			c_is_sv_ptr = &c_is_sv_stack
 		
 		# Finally, create the C++ object
-		self.thisptr = new cpp.GenotypingAlgorithm(readset.thisptr, recombcost, n_references, c_positions_ptr, c_n_allele_positions_ptr, c_allele_references_ptr, c_is_sv_ptr)
+		self.thisptr = new cpp.GenotypingAlgorithm(readset.thisptr, recombcost, n_references, c_ploidy, c_positions_ptr, c_n_allele_positions_ptr, c_allele_references_ptr, c_is_sv_ptr)
 
 	def __dealloc__(self):
 		del self.thisptr
-
-	def get_genotype_likelihoods(self, unsigned int pos, unsigned int num_allele):
-		return GenotypeLikelihoods(self.thisptr.get_genotype_likelihoods(pos), num_alleles = num_allele)
+	
+	def get_genotype_likelihoods(self, uint32_t pos, uint32_t ploidy, uint32_t num_allele):
+		return GenotypeLikelihoods(self.thisptr.get_genotype_likelihoods(pos), ploidy = ploidy, num_alleles = num_allele)
 
 
 include 'readselect.pyx'

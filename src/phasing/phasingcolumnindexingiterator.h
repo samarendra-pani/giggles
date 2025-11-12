@@ -17,8 +17,8 @@ class PhasingColumnIndexingIterator {
 	private:
 		const PhasingColumnIndexingScheme* parent;
 		GrayCodes* graycodes;
-		unsigned int index;
-		unsigned int forward_projection;
+		uint32_t index;
+		uint32_t forward_projection;
 
 	public:
 		PhasingColumnIndexingIterator(const PhasingColumnIndexingScheme* parent);
@@ -36,22 +36,22 @@ class PhasingColumnIndexingIterator {
 		void advance(int* bit_changed = 0);
 
 		/** Index of the projection of the current read set onto the intersection between current and next read set. */
-		unsigned int get_forward_projection();
+		uint32_t get_forward_projection();
 
 		/** Index of the projection of the current read set onto the intersection between previous and the current read set. */
-		unsigned int get_backward_projection();
+		uint32_t get_backward_projection();
 
 		/** Row index in the DP table (within the current column). */
-		unsigned int get_index();
+		uint32_t get_index();
 
 		/** Bit-wise representation of the partitioning corresponding to the current index. */
-		unsigned int get_partition();
+		uint32_t get_partition();
 
 		/** get index's backward projection (given index i), so that we don't have to iterate up to it, just to get it */
-		unsigned int index_backward_projection(unsigned int i);
+		uint32_t index_backward_projection(uint32_t i);
 
 		/** get index's forward projection */
-		unsigned int index_forward_projection(unsigned int i);
+		uint32_t index_forward_projection(uint32_t i);
 };
 
 #endif

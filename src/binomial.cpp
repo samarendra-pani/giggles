@@ -2,9 +2,9 @@
 
 #include "binomial.h"
 
-int binomial_coefficient(int n, int k){
+uint32_t binomial_coefficient(int n, int k){
 	if (k < 0 || n < 0 || n < k) return 0;
-	int result = 1;
+	uint32_t result = 1;
 	if (k > n-k) k = n-k;
 
 	for (int i = 0; i < k; i++){

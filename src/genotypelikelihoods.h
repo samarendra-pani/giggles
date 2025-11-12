@@ -11,36 +11,37 @@ Original filename: src/phredgenotypelikelihoods.h
 
 class GenotypeLikelihoods {
 public:
-	GenotypeLikelihoods(const std::vector<long double>& gl, unsigned int num_alleles);
-	GenotypeLikelihoods(unsigned int num_alleles);
+	GenotypeLikelihoods(const std::vector<long double>& gl, uint32_t ploidy, uint32_t num_alleles);
+	GenotypeLikelihoods(uint32_t num_alleles, uint32_t ploidy);
 	GenotypeLikelihoods();
 
 	long double get_by_genotype(Genotype genotype) const;	// get likelihood for given genotype
 	void set_by_genotype(Genotype genotype, long double value);	// set likelihood for given genotype
 
-	long double get_by_index(unsigned int index) const;	// get likelihood for given index
-	void set_by_index(unsigned int index, long double value);	// set likelihood for given index
+	long double get_by_index(uint32_t index) const;	// get likelihood for given index
+	void set_by_index(uint32_t index, long double value);	// set likelihood for given index
 
-	void increment_by_index(unsigned int index, long double value);	// increment likelihood for given index
+	void increment_by_index(uint32_t index, long double value);	// increment likelihood for given index
 
 	std::string toString() const;	// string representation
 
-	unsigned int get_num_alleles() const;	// get number of alleles
+	uint32_t get_num_alleles() const;	// get number of alleles
 
-	unsigned int size() const;
+	uint32_t size() const;
 
 	const std::vector<long double>& as_vector() const;
 
 	void get_genotypes(std::vector<Genotype>& genotypes) const;
 
-	std::vector<unsigned int> getPhredScores() const;
-	unsigned int getPhredScore(Genotype genotype) const;
+	std::vector<uint32_t> getPhredScores() const;
+	uint32_t getPhredScore(Genotype genotype) const;
 
 	void divide_likelihoods_by(long double& val);
 
 private:
 	std::vector<long double> gl;
-	unsigned int num_alleles;
+	uint32_t num_alleles;
+	uint32_t ploidy;
 };
 
 

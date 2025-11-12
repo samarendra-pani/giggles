@@ -48,58 +48,48 @@
  * 
  * Note: The ploidy is hard set to 2 in this implementation. The code is computationally unfeasible for higher ploidy.
  */
-class Genotype{
+class Genotype {
 	public:
-		/**
-		 * The maximum supported number of alleles = 2^16
-		 */
-		const static uint32_t MAX_ALLELES = 65536;
-	
-		/**
-		 * Creates an empty genotype with no alleles.
-		 */
+		
+		// maximum supported number of alleles = 2^15
+		const static uint32_t MAX_ALLELES = 32768;
+
+		// maximum supported ploidy = 2
+		const static uint32_t MAX_PLOIDY = 2;
+
+		// creates an empty genotype with no alleles.
 		Genotype();
-	
-		/**
-		 * Creates a genotype of given ploidy using the canonical index (see class description).
-		 */
-		Genotype(uint32_t index);
-	
-		/**
-		 * Creates a genotype from a list of given alleles.
-		 */
+
+		// creates a genotype of given ploidy using the canonical index (see class description).
+		Genotype(uint32_t index, uint32_t ploidy);
+
+		// creates a genotype from a list of given alleles.
 		Genotype(std::vector<uint32_t> alleles);
 	
-		/**
-		 * Returns the genotype's alleles as a vector.
-		 */
+		// returns the genotype's alleles as a vector.
 		std::vector<uint32_t> as_vector() const;
-	
-		/**
-		 * Returns whether the genotype is empty (i.e. invalid).
-		 */
+
+		// returns whether the genotype is empty (i.e. invalid).
 		bool is_none() const;
 	
-		/**
-		 * Returns the canonical index of the genotype (see class description).
-		 */
+		// returns the canonical index of the genotype (see class description).
 		uint32_t get_index() const;
-	
-		/**
-		 * Returns the genotype as readable string.
-		 */
+
+		// returns the ploidy.
+		uint32_t get_ploidy() const;
+
+		// set the ploidy
+		void set_ploidy(const uint32_t ploidy);
+
+		// returns the genotype as readable string.
 		std::string toString() const;
-	
-		/**
-		 * Returns whether the genotype is homozygous.
-		 */
+
+		// returns whether the genotype is homozygous.
 		bool is_homozygous() const;
-	
-		/**
-		 * Returns whether the genotype has ploidy 2 and only alleles 0 and 1.
-		 */
+
+		// returns whether the genotype has ploidy 2 and only alleles 0 and 1.
 		bool is_diploid_and_biallelic() const;
-	
+
 		// operators
 		friend bool operator== (const Genotype &g1, const Genotype &g2);
 		friend bool operator!= (const Genotype &g1, const Genotype &g2);
@@ -107,11 +97,12 @@ class Genotype{
 
 	private:
 		/**
-		 * Bitstring for storage. Each allele is encoded in 16 bits.
-		 * Since the ploidy is fixed to 2, we only need 32 bits in total.
+		 * Bitstring for storage. Each allele is encoded in 15 bits.
+		 * We support ploidy of 1 (for chrY) or 2. 
+		 * 		- we use 30 bits for alleles.
+		 * 		- we use 2 bits for ploidy (00 is considered as uninitialized genotype and 11 is not allowed).
 		 */
 		uint32_t gt;
-		bool is_empty;
 	
 		// general manipulation methods
 		uint32_t get_position(const uint32_t pos) const;
@@ -119,8 +110,15 @@ class Genotype{
 };
 
 /**
- * Creates a sorted vector of alleles from a given canonical index and ploidy=2.
+ * Creates a sorted vector of alleles from a given canonical index and ploidy.
  */
-std::vector<uint32_t> convert_index_to_alleles(uint32_t index);
+std::vector<uint32_t> convert_index_to_alleles(uint32_t index, uint32_t ploidy);
+
+// get maximum supported ploidy
+uint32_t get_max_genotype_ploidy();
+
+// get maximum supported alleles
+uint32_t get_max_genotype_alleles();
+
 
 #endif // GENOTYPE_H

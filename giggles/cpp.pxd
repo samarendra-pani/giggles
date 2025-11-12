@@ -7,7 +7,7 @@ from libcpp cimport bool
 from libcpp.string cimport string
 from libcpp.vector cimport vector
 from libcpp.pair cimport pair
-from libc.stdint cimport uint32_t, uint64_t
+from libc.stdint cimport uint32_t
 from libcpp.unordered_map cimport unordered_map
 
 
@@ -22,11 +22,11 @@ cdef extern from "../src/read.h":
 		int getVariantCount() except +
 		int getPosition(int) except +
 		int getAllele(int) except +
-		vector[unsigned int] getScores(int) except +
+		vector[uint32_t] getScores(int) except +
 		void setPosition(int, int)  except +
 		void setAllele(int, int) except +
-		void setScores(int, vector[unsigned int]) except +
-		void addVariant(int, int, vector[unsigned int]) except +
+		void setScores(int, vector[uint32_t]) except +
+		void addVariant(int, int, vector[uint32_t]) except +
 		void addHaplotag(string, int) except +
 		void addMapq(int) except +
 		void sortVariants() except +
@@ -38,23 +38,23 @@ cdef extern from "../src/readset.h":
 		ReadSet() except +
 		void add(Read*) except +
 		string toString() except +
-		int size() except +
-		Read* get(int) except +
+		uint32_t size() except +
+		Read* get(uint32_t) except +
 		Read* getByName(string, int) except +
 		void sort() except +
 		ReadSet* subset(IndexSet*) except +
 		void assign_selection_status(IndexSet*) except +
 		# TODO: Check why adding "except +" here doesn't compile
-		vector[unsigned int]* get_positions() except +
+		vector[uint32_t]* get_positions() except +
 
 
 cdef extern from "../src/genotypelikelihoods.h":
 	cdef cppclass GenotypeLikelihoods:
-		GenotypeLikelihoods(vector[long double], unsigned int) except +
+		GenotypeLikelihoods(vector[long double], uint32_t, uint32_t) except +
 		string toString() except +
 		long double get_by_genotype(Genotype) except +
 		void get_genotypes(vector[Genotype]&) except +
-		unsigned int size() except +
+		uint32_t size() except +
 
 
 cdef extern from "../src/binomial.h":
@@ -66,13 +66,16 @@ cdef extern from "../src/genotype.h":
 		Genotype() except +
 		Genotype(vector[uint32_t]) except +
 		vector[uint32_t] as_vector() except +
+		uint32_t get_ploidy() except +
 		bool is_none() except +
-		uint64_t get_index() except +
+		uint32_t get_index() except +
 		string toString() except +
 	cdef bool operator==(Genotype,Genotype) except +
 	cdef bool operator!=(Genotype,Genotype) except +
 	cdef bool operator<(Genotype,Genotype) except +
-	cdef vector[uint32_t] convert_index_to_alleles(uint64_t index) except +
+	cdef vector[uint32_t] convert_index_to_alleles(uint32_t index, uint32_t ploidy) except +
+	cdef uint32_t get_max_genotype_ploidy() except +
+	cdef uint32_t get_max_genotype_alleles() except +
 
 
 cdef extern from "../src/indexset.h":
@@ -83,5 +86,5 @@ cdef extern from "../src/indexset.h":
 
 cdef extern from "../src/genotypingalgorithm.h":
 	cdef cppclass GenotypingAlgorithm:
-		GenotypingAlgorithm(ReadSet* readset, vector[float] recombcost, unsigned int n_samples, vector[unsigned int]* positions, vector[unsigned int]* n_allele_positions, vector[vector[int]]*, vector[bool]*) except +
-		vector[long double] get_genotype_likelihoods(unsigned int position) except +
+		GenotypingAlgorithm(ReadSet* readset, vector[float] recombcost, uint32_t n_samples, uint32_t ploidy, vector[uint32_t]* positions, vector[uint32_t]* n_allele_positions, vector[vector[int]]*, vector[bool]*) except +
+		vector[long double] get_genotype_likelihoods(uint32_t position) except +

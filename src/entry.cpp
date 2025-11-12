@@ -7,13 +7,13 @@ using namespace std;
 
 #include "entry.h"
 
-Entry::Entry(unsigned int r, unsigned int a, std::vector<unsigned int> s) : 
+Entry::Entry(uint32_t r, uint32_t a, std::vector<uint32_t> s) : 
 	read_id(r), allele(a), scores(s), is_sv(false) {
 		convert_scores_to_probability();
 	}
 
-Entry::Entry(unsigned int r, allele_t a, std::vector<unsigned int> s) : 
-	read_id(r), allele((unsigned int)a), scores(s), is_sv(false) {
+Entry::Entry(uint32_t r, allele_t a, std::vector<uint32_t> s) : 
+	read_id(r), allele((uint32_t)a), scores(s), is_sv(false) {
 		convert_scores_to_probability();
 	}
 
@@ -43,7 +43,7 @@ void Entry::convert_scores_to_probability() {
 * conversion of distance scores to emission probabilities using softmin-like function
 * given temperature parameter T, emission probability = exp(-score / T) / sum_over_all_alleles(exp(-score / T))
 
-void Entry::convert_scores_to_softmin_probability(unsigned int temperature) {
+void Entry::convert_scores_to_softmin_probability(uint32_t temperature) {
 	assert(scores.size() > 0);
 	long double min_score = *std::min_element(scores.begin(), scores.end());
 	long double sum_scores = 0.0L;

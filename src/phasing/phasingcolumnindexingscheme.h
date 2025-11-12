@@ -16,19 +16,19 @@ class PhasingColumnIndexingIterator;
 
 class PhasingColumnIndexingScheme {
 private:
-	std::vector<unsigned int> read_ids;
+	std::vector<uint32_t> read_ids;
 	const PhasingColumnIndexingScheme* previous_column;
 	const PhasingColumnIndexingScheme* next_column;
-	unsigned int backward_projection_width;
-	unsigned int forward_projection_width;
-	std::vector<unsigned int>* forward_projection_mask;
+	uint32_t backward_projection_width;
+	uint32_t forward_projection_width;
+	std::vector<uint32_t>* forward_projection_mask;
 
 public:
 	
 	/** Constructor.
 	 * @param previousReadIDs IDs of reads active
 	 */
-	PhasingColumnIndexingScheme(const PhasingColumnIndexingScheme* previous_column, const std::vector<unsigned int>& read_ids);
+	PhasingColumnIndexingScheme(const PhasingColumnIndexingScheme* previous_column, const std::vector<uint32_t>& read_ids);
 
 	~PhasingColumnIndexingScheme();
 
@@ -38,19 +38,19 @@ public:
 
 	std::unique_ptr<PhasingColumnIndexingIterator> get_iterator();
 
-	unsigned int column_size();
+	uint32_t column_size();
 
-	unsigned int forward_projection_size();
+	uint32_t forward_projection_size();
  
-	unsigned int get_forward_projection_width();
+	uint32_t get_forward_projection_width();
 
-	unsigned int get_backward_projection_width();
+	uint32_t get_backward_projection_width();
 
 	// return a const pointer to the read ids
-	const std::vector<unsigned int> * get_read_ids();
+	const std::vector<uint32_t> * get_read_ids();
 
 	// return const forward projection mask (for debugging)
-	const std::vector<unsigned int> * get_forward_projection_mask();
+	const std::vector<uint32_t> * get_forward_projection_mask();
 
 	friend class PhasingColumnIndexingIterator;
 };

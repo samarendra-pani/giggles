@@ -14,8 +14,8 @@ class ColumnIndexingIterator {
 	private:
 		Column* parent;
 		GrayCodes* graycodes;
-		unsigned int r_index;
-		unsigned int b_index;
+		uint32_t r_index;
+		uint32_t b_index;
 		// This contains the bipartition information for all the reads (0/1/-1)
 		std::vector<int> binaryVector;
 		bool hasBipartition;
@@ -38,7 +38,7 @@ class ColumnIndexingIterator {
 		void advance(int* bit_changed = 0);
 
 		// Returns the index for the current bipartition of untagged active reads IDs that the iterator has processed
-		unsigned int get_b_index();
+		uint32_t get_b_index();
 
 		// Returns the binary vector of all the active reads at the position indicating the bipartitions they are in.
 		std::vector<int> get_binary_vector() const;

@@ -15,11 +15,11 @@ using namespace std;
 PhasingColumnIterator::PhasingColumnIterator(const ReadSet& set, const std::vector<GenotypingAlgorithm::variant_information_t>* variant_info_table, bool is_first_phasing_round) : set(set), is_first_phasing_round(is_first_phasing_round) {
 	n = 0;
 	next_read_index = 0;
-	positions = new vector<unsigned int>(variant_info_table->size());
+	positions = new vector<uint32_t>(variant_info_table->size());
 	for (size_t i=0; i<variant_info_table->size(); ++i){
 		positions->at(i) = variant_info_table->at(i).position;
 	}
-	n_active_alleles = new vector<unsigned int>(variant_info_table->size());
+	n_active_alleles = new vector<uint32_t>(variant_info_table->size());
 	for (size_t i=0; i<variant_info_table->size(); ++i){
 		n_active_alleles->at(i) = variant_info_table->at(i).count_active_alleles();
 	}
@@ -28,7 +28,7 @@ PhasingColumnIterator::PhasingColumnIterator(const ReadSet& set, const std::vect
 		sv_flag->at(i) = variant_info_table->at(i).is_sv;
 	}
 	// create a mapping of genomic positions to column indices
-	std::unordered_map<unsigned int, size_t> position_map;
+	std::unordered_map<uint32_t, size_t> position_map;
 	for (size_t i=0; i<positions->size(); ++i) {
 		position_map[positions->at(i)] = i;
 	}
@@ -82,17 +82,17 @@ PhasingColumnIterator::~PhasingColumnIterator() {
 }
 
 
-unsigned int PhasingColumnIterator::get_column_count() {
+uint32_t PhasingColumnIterator::get_column_count() {
 	return positions->size();
 }
 
 
-unsigned int PhasingColumnIterator::get_read_count() {
+uint32_t PhasingColumnIterator::get_read_count() {
 	return set.size();
 }
 
 
-const vector<unsigned int>* PhasingColumnIterator::get_positions() {
+const vector<uint32_t>* PhasingColumnIterator::get_positions() {
 	return positions;
 }
 
@@ -147,14 +147,14 @@ unique_ptr<vector<const Entry*> > PhasingColumnIterator::get_next() {
 		if (n_active_alleles->at(n) > 2) {
 			// the position has multiple possible alleles.
 			// cannot phase
-			Entry* e = new Entry((unsigned int)read->getID(), Entry::BLANK, std::vector<unsigned int>{0});
+			Entry* e = new Entry((uint32_t)read->getID(), Entry::BLANK, std::vector<uint32_t>{0});
 			blank_entries.push_back(e);
 			result->push_back(e);
 			continue;
 		}
 		if (is_first_phasing_round && sv_flag->at(n)) {
 			// in the first phasing round, we do not consider structural variants
-			Entry* e = new Entry((unsigned int)read->getID(), Entry::BLANK, std::vector<unsigned int>{0});
+			Entry* e = new Entry((uint32_t)read->getID(), Entry::BLANK, std::vector<uint32_t>{0});
 			blank_entries.push_back(e);
 			result->push_back(e);
 			continue;
@@ -165,7 +165,7 @@ unique_ptr<vector<const Entry*> > PhasingColumnIterator::get_next() {
 			result->push_back(read->getEntry(list_it->active_entry));
 		} else {
 			// if not, generate a blank entry
-			Entry* e = new Entry((unsigned int)read->getID(), Entry::BLANK, std::vector<unsigned int>{0});
+			Entry* e = new Entry((uint32_t)read->getID(), Entry::BLANK, std::vector<uint32_t>{0});
 			blank_entries.push_back(e);
 			result->push_back(e);
 		}

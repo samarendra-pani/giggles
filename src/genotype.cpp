@@ -8,90 +8,78 @@
 
 using namespace std;
 
-Genotype::Genotype() : gt(0), is_empty(true) {}
+Genotype::Genotype() : gt(0) {}
 
-Genotype::Genotype(uint32_t index) {
+Genotype::Genotype(uint32_t index, uint32_t ploidy) {
 
-	is_empty = false;
-	std::vector<uint32_t> genotype = convert_index_to_alleles(index);
+	std::vector<uint32_t> genotype = convert_index_to_alleles(index, ploidy);
 	std::sort(genotype.begin(), genotype.end());
 	gt = (uint32_t)0;
 	// copy to our representation
-	for (uint32_t i = 0; i < 2; i++) {
+	for (uint32_t i = 0; i < ploidy; i++) {
 		if (genotype[i] >= MAX_ALLELES) {
 			throw std::runtime_error("Error: Maximum alleles for genotype exceeded!");
 		}
-		set_position(1 - i, genotype[i]);
+		set_position(ploidy - i - 1, genotype[i]);
 	}
-	for (uint32_t i = 0; i < 1; i++) {
+	set_ploidy(ploidy);
+	for (uint32_t i = 0; i < ploidy-1; i++) {
 		if (get_position(i)<get_position(i+1)) {
 			throw std::runtime_error("Error: Genotype not sorted! 0 ");
 		}
 	}
-	//std::cout<<"Constructed genotype with index "<<index<<": "<<toString()<<std::endl;
 }
 
 Genotype::Genotype(vector<uint32_t> alleles) {
 	// parameter check
 	gt = 0;
-	if (alleles.size() == 0) {
-		is_empty = true;
+	uint32_t ploidy = alleles.size();
+	if (ploidy > MAX_PLOIDY) {
+		throw std::runtime_error("Error: Maximum ploidy for genotype exceeded!");
 	}
-	else {
-		is_empty = false;
-		uint32_t ploidy = alleles.size();
-		if (ploidy != 2) {
-			throw std::runtime_error("Error: Maximum ploidy for genotype exceeded!");
+	std::sort(alleles.begin(), alleles.end());
+	for (uint32_t i = 0; i < ploidy; i++) {
+		if (alleles[i] >= MAX_ALLELES) {
+			throw std::runtime_error("Error: Maximum alleles for genotype exceeded!");
 		}
-		// sort alleles
-		std::sort(alleles.begin(), alleles.end());
-		for (uint32_t i = 0; i < ploidy; i++) {
-			if (alleles[i] >= MAX_ALLELES) {
-				throw std::runtime_error("Error: Maximum alleles for genotype exceeded!");
-			}
-			set_position(ploidy - i - 1, alleles[i]);
-		}
-		if (ploidy > 0) {
-			for (uint32_t i = 0; i < ploidy-1; i++) {
-				uint32_t first = get_position(i);
-				uint32_t second = get_position(i+1);
-				if (first < second) {
-					std::cout<<"Not sorted at positions "<<i<<" and "<<(i+1)<<" with "<<first<<" < "<<second<<std::endl;
-					std::cout<<"Genotype (vector): ";
-					for (uint32_t i = 0; i < ploidy; i++) {
-						std::cout<<alleles[i]<<" ";
-					}
-					std::cout<<std::endl;
-					std::cout<<"Genotype (bits): ";
-					for (uint32_t i = 0; i < ploidy; i++) {
-						std::cout<<get_position(i)<<" ";
-					}
-					std::cout<<std::endl;
-					throw std::runtime_error("Error: Genotype not sorted! 1 ");
+		set_position(ploidy - i - 1, alleles[i]);
+	}
+	set_ploidy(ploidy);
+	if (ploidy > 0) {
+		for (uint32_t i = 0; i < ploidy-1; i++) {
+			uint32_t first = get_position(i);
+			uint32_t second = get_position(i+1);
+			if (first < second) {
+				std::cout<<"Not sorted at positions "<<i<<" and "<<(i+1)<<" with "<<first<<" < "<<second<<std::endl;
+				std::cout<<"Genotype (vector): ";
+				for (uint32_t i = 0; i < ploidy; i++) {
+					std::cout<<alleles[i]<<" ";
 				}
+				std::cout<<std::endl;
+				std::cout<<"Genotype (bits): ";
+				for (uint32_t i = 0; i < ploidy; i++) {
+					std::cout<<get_position(i)<<" ";
+				}
+				std::cout<<std::endl;
+				throw std::runtime_error("Error: Genotype not sorted! 1 ");
 			}
 		}
-	}	
-	
-}
+	}
+}	
+
 
 vector<uint32_t> Genotype::as_vector() const {
-	if (is_none()) {
-		throw std::runtime_error("Error: Cannot convert empty genotype to vector!");
-	}
 	vector<uint32_t> alleles;
-	for (uint32_t i = 0; i < 2; i++) {
+	uint32_t ploidy = get_ploidy();
+	for (uint32_t i = 0; i < ploidy; i++) {
 		alleles.push_back(get_position(i));
 	}
 	return alleles;
 }
 
 uint32_t Genotype::get_index() const {
-	if (is_none()) {
-		throw std::runtime_error("Error: Cannot get index of empty genotype!");
-	}
 	// use formula given here: https://genome.sph.umich.edu/wiki/Relationship_between_Ploidy,_Alleles_and_Genotypes
-	uint32_t ploidy = 2;
+	uint32_t ploidy = get_ploidy();
 	uint32_t index = 0;
 	uint32_t k = 1;
 	for (uint32_t i = 0; i < ploidy; i++) {
@@ -109,7 +97,7 @@ string Genotype::toString() const {
 		return oss.str();
 	}
 
-	uint32_t ploidy = 2;
+	uint32_t ploidy = get_ploidy();
 	oss << get_position(ploidy-1);
 	for (uint32_t i = 1; i < ploidy; i++) {
 		oss << '/' << get_position(ploidy-i-1);
@@ -117,10 +105,28 @@ string Genotype::toString() const {
 	return oss.str();
 }
 
+uint32_t Genotype::get_ploidy() const {
+	return (gt >> 30) & (uint32_t)3;
+}
+
+void Genotype::set_ploidy(const uint32_t ploidy) {
+	if (ploidy > MAX_PLOIDY) {
+		throw std::runtime_error("Error: Maximum ploidy for genotype exceeded!");
+	}
+	uint32_t ploidy_code = (uint32_t)(ploidy);
+	
+	uint32_t set_mask = (ploidy_code << 30);
+	uint32_t delete_mask = (((uint32_t)(3) << 30) ^ (uint32_t)(-1));
+	
+	gt &= delete_mask;
+	gt |= set_mask;
+}
+
 bool Genotype::is_homozygous() const {
 	// homozygous <=> all alleles identical
 	if (is_none()) return false;
-	uint32_t ploidy = 2;
+	
+	uint32_t ploidy = get_ploidy();
 	uint32_t allele = get_position(0);
 	for (uint32_t i = 1; i < ploidy; i++) {
 		if (get_position(i) != allele)
@@ -131,7 +137,9 @@ bool Genotype::is_homozygous() const {
 }
 
 bool Genotype::is_diploid_and_biallelic() const{
-	uint32_t ploidy = 2;
+	uint32_t ploidy = get_ploidy();
+	if (ploidy != 2)
+		return false;
 	for (uint32_t i = 0; i < ploidy; i++) {
 		if (get_position(i) > 1) {
 			return false;
@@ -162,40 +170,40 @@ bool operator< (const Genotype &g1, const Genotype &g2) {
 }
 	
 uint32_t Genotype::get_position(const uint32_t pos) const {
-	if (pos < 0 || pos > 2)
+	if (pos < 0 || pos > MAX_PLOIDY)
 		throw std::runtime_error("Error: Invalid get position");
-	return (gt >> (pos*16)) & (uint32_t)65535;
+	return (gt >> (pos*15)) & (uint32_t)32767;
 }
 
 void Genotype::set_position(const uint32_t pos, const uint32_t allele) {
-	if (pos < 0 || pos > 2)
+	if (pos < 0 || pos > MAX_PLOIDY)
 		throw std::runtime_error("Error: Invalid set position");
 	if (allele >= MAX_ALLELES)
 		throw std::runtime_error("Error: Invalid set allele");
 	
 	uint32_t code = (uint32_t)(allele);
 	
-	uint32_t set_mask = (code << (pos*16));
-	uint32_t delete_mask = (((uint32_t)(65535) << (pos*16)) ^ (uint32_t)(-1));
+	uint32_t set_mask = (code << (pos*15));
+	uint32_t delete_mask = (((uint32_t)(32767) << (pos*15)) ^ (uint32_t)(-1));
 	
 	gt &= delete_mask;
 	gt |= set_mask;
 }
 
-std::vector<uint32_t> convert_index_to_alleles(uint32_t index) {
+std::vector<uint32_t> convert_index_to_alleles(uint32_t index, uint32_t ploidy) {
 	/* The conversion code was taken from here: 
 	 * https://genome.sph.umich.edu/wiki/Relationship_between_Ploidy,_Alleles_and_Genotypes
 	 */
 	
-	std::vector<uint32_t> genotype(2, 0);
-	uint32_t pth = 2;
+	std::vector<uint32_t> genotype(ploidy, 0);
+	uint32_t pth = ploidy;
 	uint32_t max_allele_index = index;
 	uint32_t leftover_genotype_index = index;
 	while (pth > 0)	{
 	   for (uint32_t allele_index=0; allele_index <= max_allele_index; ++allele_index) {
 		   uint32_t i = binomial_coefficient(pth+allele_index-1, pth);
 		   if (i>=leftover_genotype_index || allele_index==max_allele_index) {
-			   if (i>leftover_genotype_index)
+				if (i>leftover_genotype_index)
 				   --allele_index;
 			   leftover_genotype_index -= binomial_coefficient(pth+allele_index-1, pth);
 			   --pth;
@@ -209,5 +217,13 @@ std::vector<uint32_t> convert_index_to_alleles(uint32_t index) {
 }
 
 bool Genotype::is_none() const {
-	return is_empty;
+	return get_ploidy() == 0;
+}
+
+uint32_t get_max_genotype_ploidy() {
+	return Genotype::MAX_PLOIDY;
+}
+
+uint32_t get_max_genotype_alleles() {
+	return Genotype::MAX_ALLELES;
 }

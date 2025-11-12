@@ -7,7 +7,7 @@
 
 using namespace std;
 
-Column::Column(const unsigned int index, const unsigned int* n_ref, const std::vector<unsigned int>& read_ids, const std::vector<unsigned int>& next_read_ids, ReadSet* set) : read_ids(read_ids), next_read_ids(next_read_ids) {
+Column::Column(const uint32_t index, const uint32_t* n_ref, const std::vector<uint32_t>& read_ids, const std::vector<uint32_t>& next_read_ids, ReadSet* set) : read_ids(read_ids), next_read_ids(next_read_ids) {
 
 	// Finding the untagged read ids from the variant position
 	for (auto read = begin(read_ids); read != end(read_ids); read++) {
@@ -38,8 +38,8 @@ Column::Column(const unsigned int index, const unsigned int* n_ref, const std::v
 	}
 }
 
-unsigned int Column::get_index(unsigned int b_index, unsigned int r_index) {
-	unsigned int index = (n_references*n_references*b_index)+r_index;
+uint32_t Column::get_index(uint32_t b_index, uint32_t r_index) {
+	uint32_t index = (n_references*n_references*b_index)+r_index;
 	assert (index < this->get_column_size());
 	return index;
 }
@@ -48,29 +48,29 @@ unique_ptr<ColumnIndexingIterator> Column::get_iterator(ReadSet* set) {
 	return unique_ptr<ColumnIndexingIterator>(new ColumnIndexingIterator(this, set));
 }
 
-unsigned int Column::get_column_size() {
+uint32_t Column::get_column_size() {
 	return pow(2 ,untagged_read_ids.size()) * pow(n_references,2);
 }
 
-vector<unsigned int> * Column::get_read_ids() {
+vector<uint32_t> * Column::get_read_ids() {
 	return &(this->read_ids);
 }
 
-vector <unsigned int> * Column::get_active_nonterminating_read_ids() {
+vector <uint32_t> * Column::get_active_nonterminating_read_ids() {
 	return &(this->act_nonterminating_read_ids);
 }
 
-vector <unsigned int> * Column::get_active_terminating_read_ids() {
+vector <uint32_t> * Column::get_active_terminating_read_ids() {
 	return &(this->act_terminating_read_ids);
 }
 
-vector <unsigned int> * Column::get_next_read_ids() {
+vector <uint32_t> * Column::get_next_read_ids() {
 	return &(this->next_read_ids);
 }
 
 // Gives the compatible bipartitions in the left column (at position index) given the bipartition index of a bipartition of the right column (at position index + 1)
-vector<unsigned int> Column::get_backward_compatible_bipartitions(int b_index, ReadSet* set) {
-	vector<unsigned int> compatible_bipartition = {0};
+vector<uint32_t> Column::get_backward_compatible_bipartitions(int b_index, ReadSet* set) {
+	vector<uint32_t> compatible_bipartition = {0};
 	int base = 0;
     int count = 0;
 	// This now works with the untagged read IDs (and not with all the reads)

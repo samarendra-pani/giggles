@@ -20,7 +20,7 @@ class GenotypingAlgorithm;
 class GenotypeHMM {
 	private:
 		// number of reference samples
-		unsigned int n_references;
+		uint32_t n_references;
 		
 		/* variant information table
 		* contains information about each variant position which is to be genotyped.
@@ -41,7 +41,7 @@ class GenotypeHMM {
 		std::vector<std::vector<long double>* > forward_pass_column_table;
 		std::vector<std::vector<long double>* > backward_pass_column_table;
 
-		std::vector<std::vector<unsigned int>* > active_reads;
+		std::vector<std::vector<uint32_t>* > active_reads;
 		
 		//iterator used to iterate the columns of the input matrix (forward)
 		ColumnIterator input_column_iterator;
@@ -56,7 +56,7 @@ class GenotypeHMM {
 		std::vector<long double> scaling_parameters;
 
 		// helper to pull read ids out of read column
-		std::unique_ptr<std::vector<unsigned int> > extract_read_ids(const std::vector<const Entry *>& entries);
+		std::unique_ptr<std::vector<uint32_t> > extract_read_ids(const std::vector<const Entry *>& entries);
 		
 		// initializes all members associated with the DP table
 		void clear_forward_table();
@@ -103,11 +103,11 @@ class GenotypeHMM {
 		* @param n_references number of reference haplotypes in the graph
 		* @param variant_info_table contains information about each variant position which is to be genotyped.
 		*/
-		GenotypeHMM(ReadSet* read_set, const std::vector<float>& recombcost, const unsigned int& n_references, std::vector<GenotypingAlgorithm::variant_information_t>* variant_info_table);
+		GenotypeHMM(ReadSet* read_set, const std::vector<float>& recombcost, const uint32_t& n_references, std::vector<GenotypingAlgorithm::variant_information_t>* variant_info_table);
 		~GenotypeHMM();
 
 		// returns the computed genotype likelihoods for a given position
-		std::vector<long double> get_genotype_likelihoods(unsigned int position);
+		std::vector<long double> get_genotype_likelihoods(uint32_t position);
 
 };
 #endif

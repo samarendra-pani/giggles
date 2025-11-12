@@ -11,7 +11,7 @@ Original filename: src/columnindexingscheme.cpp
 
 using namespace std;
 
-PhasingColumnIndexingScheme::PhasingColumnIndexingScheme(const PhasingColumnIndexingScheme* previous_column, const std::vector<unsigned int>& read_ids) : read_ids(read_ids) {
+PhasingColumnIndexingScheme::PhasingColumnIndexingScheme(const PhasingColumnIndexingScheme* previous_column, const std::vector<uint32_t>& read_ids) : read_ids(read_ids) {
 	this->previous_column = previous_column;
 	this->next_column = 0;
 	// assert that read ids are ordered
@@ -46,22 +46,22 @@ PhasingColumnIndexingScheme::~PhasingColumnIndexingScheme() {
 }
 
 
-unsigned int PhasingColumnIndexingScheme::column_size() {
-	return ((unsigned int)1) << read_ids.size();
+uint32_t PhasingColumnIndexingScheme::column_size() {
+	return ((uint32_t)1) << read_ids.size();
 }
 
 
-unsigned int PhasingColumnIndexingScheme::forward_projection_size() {
-	return ((unsigned int)1) << forward_projection_mask->size();
+uint32_t PhasingColumnIndexingScheme::forward_projection_size() {
+	return ((uint32_t)1) << forward_projection_mask->size();
 }
 
 
-unsigned int PhasingColumnIndexingScheme::get_forward_projection_width() {
+uint32_t PhasingColumnIndexingScheme::get_forward_projection_width() {
 	return forward_projection_width;
 }
 
 
-unsigned int PhasingColumnIndexingScheme::get_backward_projection_width() {
+uint32_t PhasingColumnIndexingScheme::get_backward_projection_width() {
 	return backward_projection_width;
 }
 
@@ -71,7 +71,7 @@ void PhasingColumnIndexingScheme::set_next_column(const PhasingColumnIndexingSch
 	this->next_column = next_column;
 	if (forward_projection_mask != 0) delete forward_projection_mask;
 	forward_projection_width = 0;
-	forward_projection_mask = new vector<unsigned int>(read_ids.size(),-1);
+	forward_projection_mask = new vector<uint32_t>(read_ids.size(),-1);
 	int i = 0;
 	int j = 0;
 	int n = 0;
@@ -97,11 +97,11 @@ unique_ptr<PhasingColumnIndexingIterator> PhasingColumnIndexingScheme::get_itera
 }
 
 
-const vector<unsigned int> * PhasingColumnIndexingScheme::get_read_ids() {
+const vector<uint32_t> * PhasingColumnIndexingScheme::get_read_ids() {
 	return &(this->read_ids);
 }
 
 
-const vector<unsigned int> * PhasingColumnIndexingScheme::get_forward_projection_mask() {
+const vector<uint32_t> * PhasingColumnIndexingScheme::get_forward_projection_mask() {
 	return forward_projection_mask;
 }

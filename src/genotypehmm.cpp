@@ -14,7 +14,7 @@
 
 using namespace std;
 
-GenotypeHMM::GenotypeHMM(ReadSet* read_set, const vector<float>& recombcost, const unsigned int& n_references, vector<GenotypingAlgorithm::variant_information_t>* variant_info_table)
+GenotypeHMM::GenotypeHMM(ReadSet* read_set, const vector<float>& recombcost, const uint32_t& n_references, vector<GenotypingAlgorithm::variant_information_t>* variant_info_table)
 	:read_set(read_set),
 	recombcost(recombcost),
 	input_column_iterator(*read_set, variant_info_table),
@@ -53,8 +53,8 @@ void GenotypeHMM::clear_backward_table()
 	init(backward_pass_column_table, column_count);
 }
 
-unique_ptr<vector<unsigned int> > GenotypeHMM::extract_read_ids(const vector<const Entry *>& entries) {
-	unique_ptr<vector<unsigned int> > read_ids(new vector<unsigned int>());
+unique_ptr<vector<uint32_t> > GenotypeHMM::extract_read_ids(const vector<const Entry *>& entries) {
+	unique_ptr<vector<uint32_t> > read_ids(new vector<uint32_t>());
 	for (int i=0; i < entries.size(); i++) {
 		read_ids->push_back(entries[i]->get_read_id());
 	}
@@ -69,8 +69,8 @@ void GenotypeHMM::compute_index(){
 	input_column_iterator.jump_to_column(0);
 	unique_ptr<vector<const Entry*> > current_input_column;
 	unique_ptr<vector<const Entry*> > next_input_column;
-	unique_ptr<vector<unsigned int> > current_read_ids;
-	unique_ptr<vector<unsigned int> > next_read_ids;
+	unique_ptr<vector<uint32_t> > current_read_ids;
+	unique_ptr<vector<uint32_t> > next_read_ids;
 	Column* current_column = nullptr;
 	next_input_column = input_column_iterator.get_next();
 	next_read_ids = extract_read_ids(*next_input_column);
@@ -87,7 +87,7 @@ void GenotypeHMM::compute_index(){
 		} 
 		else {
 			assert (column_index == input_column_iterator.get_column_count() - 1);
-			current_column = new Column(column_index, &n_references, *current_read_ids, vector<unsigned int>{}, read_set); 
+			current_column = new Column(column_index, &n_references, *current_read_ids, vector<uint32_t>{}, read_set); 
 			hmm_columns[column_index] = current_column;
 		}
 	}
@@ -96,7 +96,7 @@ void GenotypeHMM::compute_index(){
 void GenotypeHMM::compute_backward_prob()
 {
 	clear_backward_table();
-	unsigned int column_count = backward_input_column_iterator.get_column_count();
+	uint32_t column_count = backward_input_column_iterator.get_column_count();
 
 	// if no reads are in the read set, nothing to do
 	if(backward_input_column_iterator.get_column_count() == 0){
@@ -106,9 +106,9 @@ void GenotypeHMM::compute_backward_prob()
 	backward_input_column_iterator.jump_to_column(column_count-1);
 	// get the next column (which is left of current one)
 	unique_ptr<vector<const Entry*> > current_input_column;
-	unique_ptr<vector<unsigned int> > current_read_ids;
+	unique_ptr<vector<uint32_t> > current_read_ids;
 	unique_ptr<vector<const Entry*> > next_input_column = backward_input_column_iterator.get_next();
-	unique_ptr<vector<unsigned int> > next_read_ids = extract_read_ids(*next_input_column);
+	unique_ptr<vector<uint32_t> > next_read_ids = extract_read_ids(*next_input_column);
 	// backward pass: create sparse table
 	size_t k = (size_t)sqrt(column_count);
 	for(int column_index = column_count-1; column_index >= 0; --column_index){
@@ -156,13 +156,13 @@ void GenotypeHMM::compute_forward_prob()
 	unique_ptr<vector<const Entry *> > next_input_column;
 	// get the next column ahead of time
 	next_input_column = input_column_iterator.get_next();
-	unique_ptr<vector<unsigned int> > next_read_ids = extract_read_ids(*next_input_column);
+	unique_ptr<vector<uint32_t> > next_read_ids = extract_read_ids(*next_input_column);
 
 	// forward pass: create a sparse table, storing values at every sqrt(#columns)-th position
 	for (size_t column_index=0; column_index < input_column_iterator.get_column_count(); ++column_index) {
 		// make former next column the current one
 		current_input_column = std::move(next_input_column);
-		unique_ptr<vector<unsigned int> > current_read_ids = std::move(next_read_ids);
+		unique_ptr<vector<uint32_t> > current_read_ids = std::move(next_read_ids);
 		// peek ahead and get the next column
 		if (input_column_iterator.has_next()) {
 			next_input_column = input_column_iterator.get_next();
@@ -224,10 +224,10 @@ void GenotypeHMM::compute_backward_column(size_t column_index, unique_ptr<vector
 	Vector2D<long double> emission_probability_computer = Vector2D<long double>(n_alleles, n_alleles);
 	// for scaled version of forward backward alg, keep track of the sum of backward
 	long double scaling_sum = 0.0L;
-	vector<unsigned int> compatible_bipartitions;
-	unsigned int b_index;
-	unsigned int r_index;
-	unsigned int index;
+	vector<uint32_t> compatible_bipartitions;
+	uint32_t b_index;
+	uint32_t r_index;
+	uint32_t index;
 	// iterate over all bipartitions of the column on the right. So we are calculating the values in column current_index - 1
 	if (column_index > 0) {
 		unique_ptr<ColumnIndexingIterator> iterator = current_indexer->get_iterator(read_set);
@@ -251,7 +251,7 @@ void GenotypeHMM::compute_backward_column(size_t column_index, unique_ptr<vector
 			for (int r_index = 0; r_index < pow(n_references,2); r_index++) {
 				// Extract the ref haplotype paths and alleles from r_index
 				int r = r_index;    // Making a copy of r_index to extract R1, R2.
-				vector<unsigned int> ref;
+				vector<uint32_t> ref;
 				vector<int> allele;
 				ref.resize(2);
 				allele.resize(2);
@@ -277,7 +277,7 @@ void GenotypeHMM::compute_backward_column(size_t column_index, unique_ptr<vector
 				for (int r_index = 0; r_index < pow(n_references,2); r_index++) {
 					// Extract the ref haplotype paths and alleles from r_index
 					int r = r_index;    // Making a copy of r_index to extract R1, R2.
-					vector<unsigned int> ref;
+					vector<uint32_t> ref;
 					vector<int> allele_curr;
 					vector<int> allele_prev;
 					ref.resize(2);
@@ -290,7 +290,7 @@ void GenotypeHMM::compute_backward_column(size_t column_index, unique_ptr<vector
 						r = r / n_references;
 					}
 					if ((allele_curr[0] == -1) || (allele_curr[1] == -1)) {continue;}     // Skipping nodes where the allele is not defined.
-					unsigned int index_prev = current_indexer->get_index(b_index, r_index);     // Getting the index of the node from the column column_index. This is needed for the beta value update.
+					uint32_t index_prev = current_indexer->get_index(b_index, r_index);     // Getting the index of the node from the column column_index. This is needed for the beta value update.
 					long double beta_helper_0;
 					if ((allele_prev[0] == -1) || (allele_prev[1] == -1)) {
 						beta_helper_0 = 0.0L;   // If the corresponding node in previous column has unknown allle, make the helper variable from that as 0.
@@ -350,7 +350,7 @@ void GenotypeHMM::compute_forward_column(size_t column_index, unique_ptr<vector<
 	// if column is not stored, recompute it
 	if(backward_probabilities == nullptr){
 		// compute index of next column that has been stored
-		size_t next = std::min((unsigned int) ( ((column_index + k) / k) * k ), input_column_iterator.get_column_count()-1);
+		size_t next = std::min((uint32_t) ( ((column_index + k) / k) * k ), input_column_iterator.get_column_count()-1);
 		for(size_t i = next; i > column_index; --i){
 			transition_probability_table[i-1] = new TransitionProbabilityComputer(recombcost[i-1], variant_info_table->at(i).allele_references);
 			compute_backward_column(i);
@@ -384,9 +384,9 @@ void GenotypeHMM::compute_forward_column(size_t column_index, unique_ptr<vector<
 	int b_index;
 	int allele_1;
 	int allele_2;
-	unsigned int r_index;
-	unsigned int index;
-	vector<unsigned int> compatible_bipartitions;
+	uint32_t r_index;
+	uint32_t index;
+	vector<uint32_t> compatible_bipartitions;
 	vector<int> haplotype_to_allele_curr = variant_info_table->at(column_index).allele_references;     // This contains the haplotype-to-allele mapping for the position column_index
 	vector<int> haplotype_to_allele_prev;
 	if (column_index > 0) {
@@ -411,7 +411,7 @@ void GenotypeHMM::compute_forward_column(size_t column_index, unique_ptr<vector<
 			for (int r_index = 0; r_index < pow(n_references,2); r_index++) {
 				// Extract the ref haplotype paths and alleles from r_index
 				int r = r_index;    // Making a copy of r_index to extract R1, R2.
-				vector<unsigned int> ref;
+				vector<uint32_t> ref;
 				vector<int> allele;
 				ref.resize(2);
 				allele.resize(2);
@@ -433,7 +433,7 @@ void GenotypeHMM::compute_forward_column(size_t column_index, unique_ptr<vector<
 			// Looping through all the compatible bipartitions in column column_index - 1.
 			// Here b is the bipartition index of the previous column!
 			// The bipartition index of the current column is stored in b_index.
-			for (unsigned int b : compatible_bipartitions) {
+			for (uint32_t b : compatible_bipartitions) {
 				long double alpha_helper_1 = 0.0L;       // This helper value is the alpha(*,*) value.
 				vector<long double> alpha_helper_2(n_references, 0.0L);      // This helper value is the alpha(R1,*) value.
 				vector<long double> alpha_helper_3(n_references, 0.0L);      // This helper value is the alpha(*,R2) value.
@@ -441,7 +441,7 @@ void GenotypeHMM::compute_forward_column(size_t column_index, unique_ptr<vector<
 				for (int r_index = 0; r_index < pow(n_references, 2); r_index++) {
 					// Extract the ref haplotype paths and alleles from r_index
 					int r = r_index;    // Making a copy of r_index to extract R1, R2.
-					vector<unsigned int> ref;
+					vector<uint32_t> ref;
 					vector<int> allele;
 					ref.resize(2);
 					allele.resize(2);
@@ -459,11 +459,11 @@ void GenotypeHMM::compute_forward_column(size_t column_index, unique_ptr<vector<
 					alpha_helper_3[ref[1]] += a;
 				}
 				// Looping through all the nodes in bipartition b_index in column_index. Will add all the alpha values in the bipartition coming from bipartition b of column_index -1.
-				unsigned int index_prev = b * pow(n_references,2);      // Base index for the previous bipartition. So this index corresponds to the (0,0) ref haplotype of the bipartition. So to access the rest of the indices, we need to sum index_prev and r_index.
+				uint32_t index_prev = b * pow(n_references,2);      // Base index for the previous bipartition. So this index corresponds to the (0,0) ref haplotype of the bipartition. So to access the rest of the indices, we need to sum index_prev and r_index.
 				for (int r_index = 0; r_index < pow(n_references, 2); r_index++) {
 					// Extract the ref haplotype paths and alleles from r_index
 					int r = r_index;    // Making a copy of r_index to extract R1, R2.
-					vector<unsigned int> ref;
+					vector<uint32_t> ref;
 					vector<int> allele_prev;
 					vector<int> allele_curr;
 					ref.resize(2);
@@ -493,19 +493,19 @@ void GenotypeHMM::compute_forward_column(size_t column_index, unique_ptr<vector<
 	long double forward_backward = 0.0L;
 	
 	assert (current_projection_column->size() == backward_probabilities->size());
-	for (unsigned int i = 0; i < backward_probabilities->size(); i++) {
-		vector<unsigned int> ref;
+	for (uint32_t i = 0; i < backward_probabilities->size(); i++) {
+		vector<uint32_t> ref;
 		ref.resize(2);
-		unsigned int r_index = (unsigned int)(i%(int)pow(n_references,2));
+		uint32_t r_index = (uint32_t)(i%(int)pow(n_references,2));
 		for (int j = 0; j < 2; j++) {
 			ref[1-j] = r_index%n_references;
 			r_index = r_index / n_references;
 		}
-		vector<unsigned int> alleles;
+		vector<uint32_t> alleles;
 		alleles.push_back(variant_info_table->at(column_index).allele_references.at(ref.at(0)));
 		alleles.push_back(variant_info_table->at(column_index).allele_references.at(ref.at(1)));
 		// Get the genotype index
-		unsigned int g_index = 0;
+		uint32_t g_index = 0;
 		for (int allele = 0; allele < 2; allele++) {
 			g_index += binomial_coefficient(allele + alleles.at(allele), 2);
 		}
@@ -533,7 +533,7 @@ void GenotypeHMM::compute_forward_column(size_t column_index, unique_ptr<vector<
 	variant_info_table->at(column_index).genotype_likelihoods.divide_likelihoods_by(normalization);
 }
 
-vector<long double> GenotypeHMM::get_genotype_likelihoods(unsigned int position)
+vector<long double> GenotypeHMM::get_genotype_likelihoods(uint32_t position)
 {
 	assert(position < input_column_iterator.get_column_count());
 	return variant_info_table->at(position).genotype_likelihoods.as_vector();

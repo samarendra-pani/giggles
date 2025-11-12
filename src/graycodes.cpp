@@ -9,9 +9,9 @@
 using namespace std;
 
 GrayCodes::GrayCodes(int l) {
-	assert(l <= numeric_limits<unsigned int>::digits);
+	assert(l <= numeric_limits<uint32_t>::digits);
 	this->length = l;
-	this->s = ~((unsigned int)0);
+	this->s = ~((uint32_t)0);
 	this->c = 0;
 	this->i = -1;
 	this->changed_bit = -1;
@@ -23,14 +23,14 @@ bool GrayCodes::has_next() {
 }
 
 
-unsigned int GrayCodes::get_next(int* changed_bit) {
-	unsigned int result = c;
+uint32_t GrayCodes::get_next(int* changed_bit) {
+	uint32_t result = c;
 	if (changed_bit != 0) {
 		*changed_bit = this->changed_bit;
 	}
 	i = 0;
 	while (i < this->length) {
-		unsigned int mask = ((unsigned int)1) << i;
+		uint32_t mask = ((uint32_t)1) << i;
 		if (((c&mask) ^ (s&mask)) != 0) {
 			c = c ^ mask;
 			this->changed_bit = i;

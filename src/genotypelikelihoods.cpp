@@ -12,17 +12,16 @@ Original filename: src/phredgenotypelikelihoods.cpp
 
 using namespace std;
 
-GenotypeLikelihoods::GenotypeLikelihoods(const vector<long double>& gl, unsigned int num_alleles) : gl(gl), num_alleles(num_alleles) {
-	unsigned int expected_size = binomial_coefficient(num_alleles + 1, 2);
+GenotypeLikelihoods::GenotypeLikelihoods(const vector<long double>& gl, uint32_t ploidy, uint32_t num_alleles) : gl(gl), ploidy(ploidy), num_alleles(num_alleles) {
+	uint32_t expected_size = binomial_coefficient(ploidy + num_alleles - 1, num_alleles - 1);
 	if (expected_size != this->gl.size()) {
 		throw runtime_error("Error: wrong number of given genotype likelihoods given.");
 	}
 }
 
 
-GenotypeLikelihoods::GenotypeLikelihoods(unsigned int num_alleles) {
-	this->num_alleles = num_alleles;
-	this->gl = vector<long double>(binomial_coefficient(num_alleles + 1, 2), 0.0L);
+GenotypeLikelihoods::GenotypeLikelihoods(uint32_t ploidy, uint32_t num_alleles): ploidy(ploidy), num_alleles(num_alleles) {
+	this->gl = vector<long double>(binomial_coefficient(ploidy + num_alleles - 1, num_alleles - 1), 0.0L);
 }
 
 
@@ -32,28 +31,28 @@ GenotypeLikelihoods::GenotypeLikelihoods() {
 }
 
 long double GenotypeLikelihoods::get_by_genotype(Genotype genotype) const {
-	unsigned int index = genotype.get_index();
+	uint32_t index = genotype.get_index();
 	assert(index < this->gl.size());
 	return this->gl[index];
 }
 
 void GenotypeLikelihoods::set_by_genotype(Genotype genotype, long double value) {
-	unsigned int index = genotype.get_index();
+	uint32_t index = genotype.get_index();
 	assert(index < this->gl.size());
 	this->gl[index] = value;
 }
 
-long double GenotypeLikelihoods::get_by_index(unsigned int index) const {
+long double GenotypeLikelihoods::get_by_index(uint32_t index) const {
 	assert(index < this->gl.size());
 	return this->gl[index];
 }
 
-void GenotypeLikelihoods::set_by_index(unsigned int index, long double value) {
+void GenotypeLikelihoods::set_by_index(uint32_t index, long double value) {
 	assert(index < this->gl.size());
 	this->gl[index] = value;
 }
 
-void GenotypeLikelihoods::increment_by_index(unsigned int index, long double value) {
+void GenotypeLikelihoods::increment_by_index(uint32_t index, long double value) {
 	assert(index < this->gl.size());
 	this->gl[index] += value;
 }
@@ -69,11 +68,11 @@ std::string GenotypeLikelihoods::toString() const {
 }
 
 
-unsigned int GenotypeLikelihoods::get_num_alleles() const {
+uint32_t GenotypeLikelihoods::get_num_alleles() const {
 	return this->num_alleles;
 }
 
-unsigned int GenotypeLikelihoods::size() const {
+uint32_t GenotypeLikelihoods::size() const {
 	return this->gl.size();
 }
 
@@ -82,33 +81,33 @@ const vector<long double>& GenotypeLikelihoods::as_vector() const {
 }
 
 void GenotypeLikelihoods::get_genotypes(vector<Genotype>& genotypes) const {
-	for (unsigned int i = 0; i < this->size(); ++i) {
-		genotypes.push_back(Genotype(i));
+	for (uint32_t i = 0; i < this->size(); ++i) {
+		genotypes.push_back(Genotype(i, ploidy));
 	}
 } 
 
 
 // TODO: need to test this phred score calculation
-std::vector<unsigned int> GenotypeLikelihoods::getPhredScores() const {
+std::vector<uint32_t> GenotypeLikelihoods::getPhredScores() const {
 	long double max = 0.0;
 	for (int i=0; i<gl.size(); ++i) {
 		if (gl[i] > max) max = gl[i];
 	}
 	if (max == 0.0) {
-		return std::vector<unsigned int>(gl.size(), 0);
+		return std::vector<uint32_t>(gl.size(), 0);
 	}
-	std::vector<unsigned int> phred_scores;
+	std::vector<uint32_t> phred_scores;
 	for (int i=0; i<gl.size(); ++i) {
 		long double prob = gl[i] / max;
-		unsigned int phred = (unsigned int)(-10.0L * log10(prob));
+		uint32_t phred = (uint32_t)(-10.0L * log10(prob));
 		phred_scores.push_back(phred);
 	}
 	return phred_scores;
 }
 
 // TODO: need to test this phred score calculation
-unsigned int GenotypeLikelihoods::getPhredScore(Genotype genotype) const {
-	unsigned int index = genotype.get_index();
+uint32_t GenotypeLikelihoods::getPhredScore(Genotype genotype) const {
+	uint32_t index = genotype.get_index();
 	assert(index < this->gl.size());
 	long double max = 0.0;
 	for (int i=0; i<gl.size(); ++i) {
@@ -118,7 +117,7 @@ unsigned int GenotypeLikelihoods::getPhredScore(Genotype genotype) const {
 		return 0;
 	}
 	long double prob = gl[index] / max;
-	unsigned int phred = (unsigned int)(-10.0L * log10(prob));
+	uint32_t phred = (uint32_t)(-10.0L * log10(prob));
 	return phred;
 }
 

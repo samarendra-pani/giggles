@@ -20,23 +20,23 @@ class GenotypingAlgorithm {
 		
 		// stores genotyping and phasing information at a given position
 		struct variant_information_t {
-			unsigned int position; // position in the reference genome
+			uint32_t position; // position in the reference genome
 			std::vector<bool> active_alleles; // alleles that were genotyped to be above a certain quality threshold (for use in phasing at further steps)
 			std::vector<int> allele_references; // contains the info of which allele came from which reference path (0 - reference, 1... - assemblies/GRCh38)
 			bool is_sv; // is this variant a structural variant?
 			GenotypeLikelihoods genotype_likelihoods; // stores genotype likelihoods calculated by the HMM
 
 			variant_information_t() : position(0), active_alleles(), genotype_likelihoods() {}
-			variant_information_t(unsigned int pos, const unsigned int n_alleles, const std::vector<int> allele_refs, bool sv_flag)
-				: position(pos), active_alleles(std::vector<bool>(n_alleles, true)), genotype_likelihoods(n_alleles), allele_references(allele_refs), is_sv(sv_flag) {}
+			variant_information_t(uint32_t pos, uint32_t ploidy, const uint32_t n_alleles, const std::vector<int> allele_refs, bool sv_flag)
+				: position(pos), active_alleles(std::vector<bool>(n_alleles, true)), genotype_likelihoods(n_alleles, ploidy), allele_references(allele_refs), is_sv(sv_flag) {}
 
 			// get number of alleles defined at this position
-			unsigned int get_num_alleles() const {
+			uint32_t get_num_alleles() const {
 				return active_alleles.size();
 			}
 			// count number of active alleles
-			unsigned int count_active_alleles() const {
-				unsigned int count = 0;
+			uint32_t count_active_alleles() const {
+				uint32_t count = 0;
 				for (size_t i = 0; i < active_alleles.size(); i++) {
 					if (active_alleles[i]) {
 						count++;
@@ -46,11 +46,11 @@ class GenotypingAlgorithm {
 			}
 		};
 
-		GenotypingAlgorithm(ReadSet* read_set, const std::vector<float>& recombcost, const unsigned int& n_references, const std::vector<unsigned int>* positions, const std::vector<unsigned int>* n_allele_positions, const std::vector<std::vector<int> >* allele_references, const std::vector<bool>* is_sv_position);
+		GenotypingAlgorithm(ReadSet* read_set, const std::vector<float>& recombcost, const uint32_t& n_references, const uint32_t& ploidy, const std::vector<uint32_t>* positions, const std::vector<uint32_t>* n_allele_positions, const std::vector<std::vector<int> >* allele_references, const std::vector<bool>* is_sv_position);
 		~GenotypingAlgorithm();
 
 		// returns the computed genotype likelihoods for a given position
-		std::vector<long double> get_genotype_likelihoods(unsigned int position);
+		std::vector<long double> get_genotype_likelihoods(uint32_t position);
 
 	private:
 
@@ -62,6 +62,7 @@ class GenotypingAlgorithm {
 			return out;
 		}
 
+		uint32_t ploidy;
 		std::vector<variant_information_t> variant_info_table;
 		GenotypeHMM* genotype_hmm;
 		PhasingDPTable* phasing_dp_table;

@@ -11,12 +11,12 @@ using namespace std;
 
 ColumnIterator::ColumnIterator(const ReadSet& set, const std::vector<GenotypingAlgorithm::variant_information_t>* variant_info_table) : set(set) {
 	this->n = 0;
-	positions = new vector<unsigned int>(variant_info_table->size());
+	positions = new vector<uint32_t>(variant_info_table->size());
 	for (size_t i=0; i<variant_info_table->size(); ++i){
 		positions->at(i) = variant_info_table->at(i).position;
 	}
 	// create a mapping of genomic positions to column indices
-	std::unordered_map<unsigned int, size_t> position_map;
+	std::unordered_map<uint32_t, size_t> position_map;
 	for (size_t i=0; i<this->positions->size(); ++i) {
 		position_map[this->positions->at(i)] = i;
 	}
@@ -68,17 +68,17 @@ ColumnIterator::~ColumnIterator() {
 }
 
 
-unsigned int ColumnIterator::get_column_count() {
+uint32_t ColumnIterator::get_column_count() {
 	return positions->size();
 }
 
 
-unsigned int ColumnIterator::get_read_count() {
+uint32_t ColumnIterator::get_read_count() {
 	return set.size();
 }
 
 
-const vector<unsigned int>* ColumnIterator::get_positions() {
+const vector<uint32_t>* ColumnIterator::get_positions() {
 	return positions;
 }
 
@@ -129,7 +129,7 @@ unique_ptr<vector<const Entry*> > ColumnIterator::get_next() {
 		} 
 		else {
 			// if not, generate a blank entry
-			Entry* e = new Entry(read->getID(), Entry::BLANK, std::vector<unsigned int>{0});
+			Entry* e = new Entry(read->getID(), Entry::BLANK, std::vector<uint32_t>{0});
 			blank_entries.push_back(e);
 			result->push_back(e);
 		}

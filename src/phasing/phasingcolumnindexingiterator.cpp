@@ -46,7 +46,7 @@ void PhasingColumnIndexingIterator::advance(int* bit_changed) {
 			// index of bit in the forward_projection
 			int bit_index = parent->forward_projection_mask->at(graycode_bit_changed);
 			if (bit_index >= 0) {
-				forward_projection = forward_projection ^ (((unsigned int)1) << bit_index);
+				forward_projection = forward_projection ^ (((uint32_t)1) << bit_index);
 			}
 		}
 	}
@@ -56,48 +56,48 @@ void PhasingColumnIndexingIterator::advance(int* bit_changed) {
 }
 
 
-unsigned int PhasingColumnIndexingIterator::get_forward_projection() {
+uint32_t PhasingColumnIndexingIterator::get_forward_projection() {
 	assert(index >= 0);
 	return forward_projection;
 }
 
 
-unsigned int PhasingColumnIndexingIterator::get_backward_projection() {
+uint32_t PhasingColumnIndexingIterator::get_backward_projection() {
 	assert(index >= 0);
-	return index & ((((unsigned int)1)<<parent->backward_projection_width) - 1);
+	return index & ((((uint32_t)1)<<parent->backward_projection_width) - 1);
 }
 
 
-unsigned int PhasingColumnIndexingIterator::get_index() {
-	assert(index >= 0);
-	return index;
-}
-
-
-unsigned int PhasingColumnIndexingIterator::get_partition() {
+uint32_t PhasingColumnIndexingIterator::get_index() {
 	assert(index >= 0);
 	return index;
 }
 
 
-unsigned int PhasingColumnIndexingIterator::index_backward_projection(unsigned int i) {
+uint32_t PhasingColumnIndexingIterator::get_partition() {
+	assert(index >= 0);
+	return index;
+}
+
+
+uint32_t PhasingColumnIndexingIterator::index_backward_projection(uint32_t i) {
 	assert(i >= 0); // assert the proper boundaries
-	assert(i < (((unsigned int)1) << parent->read_ids.size()));
+	assert(i < (((uint32_t)1) << parent->read_ids.size()));
 
-	return i & ((((unsigned int)1) << parent->backward_projection_width) -1);
+	return i & ((((uint32_t)1) << parent->backward_projection_width) -1);
 }
 
 
-unsigned int PhasingColumnIndexingIterator::index_forward_projection(unsigned int i) {
+uint32_t PhasingColumnIndexingIterator::index_forward_projection(uint32_t i) {
 	assert(i >= 0);
-	assert(i < (((unsigned int)1) << parent->read_ids.size()));
+	assert(i < (((uint32_t)1) << parent->read_ids.size()));
 
-	unsigned int i_forward_projection = 0;
-	unsigned int s = 1;
+	uint32_t i_forward_projection = 0;
+	uint32_t s = 1;
 	for(int j=0; j< parent->read_ids.size(); ++j) {
-		unsigned int m = parent->forward_projection_mask->at(j);
+		uint32_t m = parent->forward_projection_mask->at(j);
 		if(m != -1) {
-			unsigned int s = (((unsigned int)1) << m);
+			uint32_t s = (((uint32_t)1) << m);
 			i_forward_projection += (s&i);
 		}
 	}
