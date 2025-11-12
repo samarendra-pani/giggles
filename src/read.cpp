@@ -10,7 +10,7 @@
 
 using namespace std;
 
-Read::Read(const std::string& name, int mapq, int source_id, int reference_start): 
+Read::Read(const std::string& name, uint32_t mapq, uint32_t source_id, int reference_start): 
 	name(name),
 	mapqs(1, mapq),
 	source_id(source_id),
@@ -62,7 +62,7 @@ bool Read::hasPhaseSet() const {
 	return ps != -1;
 }
 
-void Read::addVariant(int position, int allele, vector<uint32_t> scores) {
+void Read::addVariant(uint32_t position, uint32_t allele, vector<uint32_t> scores) {
 	variants.push_back(enriched_entry_t(position, allele, scores));
 }
 
@@ -99,7 +99,7 @@ void Read::setID(uint32_t id) {
 }
 
 
-int Read::getID() const {
+uint32_t Read::getID() const {
 	return id;
 }
 
