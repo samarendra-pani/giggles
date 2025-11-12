@@ -315,7 +315,7 @@ class GAFReader(AlignmentReader):
         reference: rGFA,
         read_fasta_files: List[str],
         mapq_threshold: int = 20,
-        realign_mode: str = "wfa_full",
+        realign_mode: str = "edit",
         overhang: int = 10,
         gap_start: int = 3,
         gap_extend: int = 1,
