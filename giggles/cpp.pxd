@@ -13,22 +13,22 @@ from libcpp.unordered_map cimport unordered_map
 
 cdef extern from "../src/read.h":
 	cdef cppclass Read:
-		Read(string, int, int, int) except +
+		Read(string, uint32_t, uint32_t, int) except +
 		Read(Read) except +
-		vector[int] getMapqs() except +
+		vector[uint32_t] getMapqs() except +
 		string getName() except +
-		int getSourceID() except +
+		uint32_t getSourceID() except +
 		int getReferenceStart() except +
-		int getVariantCount() except +
-		int getPosition(int) except +
-		int getAllele(int) except +
-		vector[uint32_t] getScores(int) except +
-		void setPosition(int, int)  except +
-		void setAllele(int, int) except +
-		void setScores(int, vector[uint32_t]) except +
-		void addVariant(int, int, vector[uint32_t]) except +
+		uint32_t getVariantCount() except +
+		uint32_t getPosition(uint32_t) except +
+		uint32_t getAllele(uint32_t) except +
+		vector[uint32_t] getScores(uint32_t) except +
+		void setPosition(uint32_t, uint32_t)  except +
+		void setAllele(uint32_t, uint32_t) except +
+		void setScores(uint32_t, vector[uint32_t]) except +
+		void addVariant(uint32_t, uint32_t, vector[uint32_t]) except +
 		void addHaplotag(string, int) except +
-		void addMapq(int) except +
+		void addMapq(uint32_t) except +
 		void sortVariants() except +
 		bool isSorted() except +
 		
