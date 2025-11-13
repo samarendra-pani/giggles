@@ -21,12 +21,10 @@ cdef extern from "../src/read.h":
 		int getReferenceStart() except +
 		uint32_t getVariantCount() except +
 		uint32_t getPosition(uint32_t) except +
-		uint32_t getAllele(uint32_t) except +
 		vector[uint32_t] getScores(uint32_t) except +
 		void setPosition(uint32_t, uint32_t)  except +
-		void setAllele(uint32_t, uint32_t) except +
 		void setScores(uint32_t, vector[uint32_t]) except +
-		void addVariant(uint32_t, uint32_t, vector[uint32_t]) except +
+		void addVariant(uint32_t, vector[uint32_t]) except +
 		void addHaplotag(string, int) except +
 		void addMapq(uint32_t) except +
 		void sortVariants() except +

@@ -7,6 +7,5 @@ class Variant:
     """A single variant on a read"""
 
     position: int
-    allele: int
     scores: Iterable[int]
     

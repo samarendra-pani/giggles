@@ -50,12 +50,12 @@ class AlignmentReader:
         return len(self._paths)
 
     @staticmethod
-    def _make_readset_from_grouped_reads(groups: Iterable[List[Read]], reg_const: int, base_const: float) -> ReadSet:
+    def _make_readset_from_grouped_reads(groups: Iterable[List[Read]]) -> ReadSet:
         read_set = ReadSet()
         for group in groups:
             if group is None:
                 return None
-            read_set.add(merge_reads(*group, reg_const = reg_const, base_const = base_const))
+            read_set.add(merge_reads(*group))
         return read_set
 
     @staticmethod
@@ -167,7 +167,7 @@ class AlignmentReader:
         """
         # Do not process symbolic alleles like <DEL>, <DUP>, etc.
         if any([alt.startswith("<") for alt in variant.alternative_allele]):
-            return None, None
+            return None
 
         # There is a big difference between the previous implementation and what is needed.
         # In the previous code, the CIGAR is against the reference always and hence we need to realign only for the alternate alleles.
@@ -205,15 +205,10 @@ class AlignmentReader:
                 alts.append(alt)
 
             scores = []
-            max_score = -1e15
-            max_allele = None
             for index, allele in enumerate([ref]+alts):
                 scores.append(edit_distance(query, allele))
-                if scores[index] > max_score:
-                    max_score = scores[index]
-                    max_allele = index
-
-            return max_allele, scores
+                
+            return scores
 
         # This is a SV variant
         left_ref_bases, left_query_bases = AlignmentReader.cigar_prefix_length(cigar=left_cigar[::-1], reference_bases=overhang)
@@ -243,22 +238,17 @@ class AlignmentReader:
             alts.append(alt)
 
         scores = []
-        max_score = -1e15
-        max_allele = None
         for index, allele in enumerate([ref]+alts):
             if (abs(len(query) - len(allele)) > 5000 ) and (len(query)/len(allele) > 1.5 or len(query)/len(allele) < 1/1.5):
-                # If the distance between the allele and query is too much, add a known low value
-                scores.append(-1e10)
+                # If the distance between the allele and query is too much, add a known high distance
+                scores.append(1e8)
             else:
                 if mode == "edit":
-                    scores.append(aligner(query, allele))    #edit distance is positive.
+                    scores.append(aligner(query, allele))    # edit distance is positive.
                 elif mode == "wfa":
-                    scores.append(aligner(query, allele).score)
-            if scores[index] > max_score:
-                max_score = scores[index]
-                max_allele = index
-
-        return max_allele, scores
+                    scores.append(-aligner(query, allele).score)    # converting WFA score to positive
+            
+        return scores
 
     @staticmethod
     def detect_alleles_by_alignment(
@@ -287,7 +277,7 @@ class AlignmentReader:
         if not cigartuples:
             return
         for index, i, consumed, query_pos in _iterate_cigar(variants, j, read, cigartuples):
-            allele, scores = AlignmentReader.realign(
+            scores = AlignmentReader.realign(
                 aligner,
                 variants[index],
                 read,
@@ -300,8 +290,8 @@ class AlignmentReader:
                 overhang
             )
 
-            if allele is not None:
-                yield (index, allele, scores)
+            if scores is not None:
+                yield (index, scores)
 
 
 class GAFReader(AlignmentReader):
@@ -787,8 +777,8 @@ class GAFReader(AlignmentReader):
                 reference,
                 self._realign_mode,
                 self._overhang)
-            for j, allele, scores in detected:
-                read.add_variant(variants_in_alignment[j].position_on_ref, allele, scores)
+            for j, scores in detected:
+                read.add_variant(variants_in_alignment[j].position_on_ref, scores)
             if read:  # At least one variant covered and detected
                 yield read
 
@@ -807,7 +797,7 @@ class GAFReader(AlignmentReader):
         self._reader.close()
 
 # TODO: Do I need this?
-def merge_two_reads(read1: Read, read2: Read, reg_const, base_const) -> Read:
+def merge_two_reads(read1: Read, read2: Read) -> Read:
     """
     Merge two reads *that belong to the same haplotype* (such as the two
     ends of a paired-end read) into a single Read. Overlaps are allowed.
@@ -820,9 +810,6 @@ def merge_two_reads(read1: Read, read2: Read, reg_const, base_const) -> Read:
             read1.mapqs[0],
             read1.source_id,
             read1.reference_start,
-            read1.BX_tag,
-            reg_const,
-            base_const
         )
         result.add_mapq(read2.mapqs[0])
     else:
@@ -872,7 +859,7 @@ def merge_two_reads(read1: Read, read2: Read, reg_const, base_const) -> Read:
     return result
 
 # TODO: Do I need this?
-def merge_reads(*reads: Read, reg_const, base_const) -> Read:
+def merge_reads(*reads: Read) -> Read:
     """
     Merge multiple reads that belong to the same haplotype into a single Read.
 
@@ -892,5 +879,5 @@ def merge_reads(*reads: Read, reg_const, base_const) -> Read:
         raise ValueError("no reads to merge")
     assert read.is_sorted()
     for partner in it:
-        read = merge_two_reads(read, partner, reg_const, base_const)
+        read = merge_two_reads(read, partner)
     return read
