@@ -3,7 +3,6 @@ Detect variants in reads.
 """
 # Code modified from WhatsHap (https://github.com/whatshap/whatshap)
 
-import math
 import re
 from collections import defaultdict, Counter, namedtuple
 from typing import Iterable, Iterator, List
@@ -48,15 +47,6 @@ class AlignmentReader:
     @property
     def n_paths(self):
         return len(self._paths)
-
-    @staticmethod
-    def _make_readset_from_grouped_reads(groups: Iterable[List[Read]]) -> ReadSet:
-        read_set = ReadSet()
-        for group in groups:
-            if group is None:
-                return None
-            read_set.add(merge_reads(*group))
-        return read_set
 
     @staticmethod
     def split_cigar(cigar, i, consumed):
@@ -351,8 +341,12 @@ class GAFReader(AlignmentReader):
         reads = self._alignments_to_reads(updated_variants)
         logger.debug("Grouping Reads into ReadSet Object")
         grouped_reads = self._remove_duplicate_reads(reads)
+        readset = ReadSet()
+        for group in grouped_reads:
+            if group is None:
+                continue
+            readset.add(group[0])
         logger.debug("ReadSet Object Successfully Created")
-        readset = self._make_readset_from_grouped_reads(grouped_reads)
         return readset      
 
     @staticmethod
@@ -795,89 +789,3 @@ class GAFReader(AlignmentReader):
             self._aligner.__dealloc__()
         logger.debug("Closing GAFParser")
         self._reader.close()
-
-# TODO: Do I need this?
-def merge_two_reads(read1: Read, read2: Read) -> Read:
-    """
-    Merge two reads *that belong to the same haplotype* (such as the two
-    ends of a paired-end read) into a single Read. Overlaps are allowed.
-    """
-    assert read1.is_sorted()
-    assert read2.is_sorted()
-    if read2:
-        result = Read(
-            read1.name,
-            read1.mapqs[0],
-            read1.source_id,
-            read1.reference_start,
-        )
-        result.add_mapq(read2.mapqs[0])
-    else:
-        return read1
-
-    i1 = 0
-    i2 = 0
-
-    def add1():
-        result.add_variant(read1[i1].position, read1[i1].allele, read1[i1].quality)
-
-    def add2():
-        result.add_variant(read2[i2].position, read2[i2].allele, read2[i2].quality)
-
-    while i1 < len(read1) or i2 < len(read2):
-        if i1 == len(read1):
-            add2()
-            i2 += 1
-            continue
-        if i2 == len(read2):
-            add1()
-            i1 += 1
-            continue
-        variant1 = read1[i1]
-        variant2 = read2[i2]
-        if variant2.position < variant1.position:
-            add2()
-            i2 += 1
-        elif variant2.position > variant1.position:
-            add1()
-            i1 += 1
-        else:
-            # Variant on self-overlapping read pair
-            assert read1[i1].position == read2[i2].position
-            # If both alleles agree, merge into single variant and add up qualities
-            if read1[i1].allele == read2[i2].allele:
-                quality = read1[i1].quality + read2[i2].quality
-                result.add_variant(read1[i1].position, read1[i1].allele, quality)
-            else:
-                # Otherwise, take variant with highest base quality and discard the other.
-                if read1[i1].quality >= read2[i2].quality:
-                    add1()
-                else:
-                    add2()
-            i1 += 1
-            i2 += 1
-    return result
-
-# TODO: Do I need this?
-def merge_reads(*reads: Read) -> Read:
-    """
-    Merge multiple reads that belong to the same haplotype into a single Read.
-
-    If the iterable is empty, a ValueError is raised.
-
-    This 'naive' version just calls merge_two_reads repeatedly on all the reads.
-
-    # TODO
-    # The actual challenge is dealing with conflicts in variants covered by
-    # more than one read. A solution would be to not merge if there are any
-    # (or too many) conflicts and let the main algorithm deal with it.
-    """
-    it = iter(reads)
-    try:
-        read = next(it)
-    except StopIteration:
-        raise ValueError("no reads to merge")
-    assert read.is_sorted()
-    for partner in it:
-        read = merge_two_reads(read, partner)
-    return read
