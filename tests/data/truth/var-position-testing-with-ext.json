@@ -1,0 +1,599 @@
+{
+    "read_template": {
+        "alignment_start_on_ref": 0,
+        "alignment_end_on_ref": 0,
+        "start_scaffold": 0,
+        "end_scaffold": 0,
+        "number_variants_in_alignment": 0,
+        "variants_in_alignment": {
+            "variant": {
+                "position": 0,
+                "length_on_path": 0,
+                "index": 0,
+                "state": 0
+            }
+        }
+    },
+    "reference": {
+        "alignment_start_on_ref": 0,
+        "alignment_end_on_ref": 21837,
+        "start_scaffold": 1,
+        "end_scaffold": 17,
+        "number_variants_in_alignment": 111,
+        "variants_in_alignment": {
+            "EXT-chr1-88": {
+                "position": 87,
+                "length_on_path": 1,
+                "index": 0,
+                "state": 0
+            },
+            ">s1>s2": {
+                "position": 3293,
+                "length_on_path": 0,
+                "index": 22,
+                "state": 0
+            },
+            ">s2>s4": {
+                "position": 3634,
+                "length_on_path": 62,
+                "index": 23,
+                "state": 0
+            },
+            "EXT-chr1-4409": {
+                "position": 4408,
+                "length_on_path": 1,
+                "index": 24,
+                "state": 0
+            },
+            ">s4>s6": {
+                "position": 4728,
+                "length_on_path": 337,
+                "index": 25,
+                "state": 0
+            },
+            "EXT-chr1-5083": {
+                "position": 5082,
+                "length_on_path": 1,
+                "index": 26,
+                "state": 0
+            },
+            ">s6>s8": {
+                "position": 11669,
+                "length_on_path": 59,
+                "index": 61,
+                "state": 0
+            },
+            "EXT-chr1-11782": {
+                "position": 11781,
+                "length_on_path": 1,
+                "index": 62,
+                "state": 0
+            },
+            ">s8>s9": {
+                "position": 18093,
+                "length_on_path": 0,
+                "index": 88,
+                "state": 0
+            },
+            "EXT-chr1-18173": {
+                "position": 18172,
+                "length_on_path": 1,
+                "index": 89,
+                "state": 0
+            },
+            "EXT-chr1-21770": {
+                "position": 21769,
+                "length_on_path": 3,
+                "index": 110,
+                "state": 0
+            }
+        }
+    },
+    "read1": {
+        "alignment_start_on_ref": 3293,
+        "alignment_end_on_ref": 5065,
+        "start_scaffold": 3,
+        "end_scaffold": 9,
+        "number_variants_in_alignment": 4,
+        "variants_in_alignment": {
+            ">s1>s2": {
+                "position": 0,
+                "length_on_path": 96,
+                "index": 0,
+                "state": 1
+            },
+            ">s2>s4": {
+                "position": 437,
+                "length_on_path": 82,
+                "index": 1,
+                "state": 0
+            },
+            "EXT-chr1-4409": {
+                "position": 1231,
+                "length_on_path": 1,
+                "index": 2,
+                "state": 0
+            },
+            ">s4>s6": {
+                "position": 1551,
+                "length_on_path": 337,
+                "index": 3,
+                "state": 2
+            }
+        }
+    },
+    "read2": {
+        "alignment_start_on_ref": 3644,
+        "alignment_end_on_ref": 10960,
+        "start_scaffold": 3,
+        "end_scaffold": 7,
+        "number_variants_in_alignment": 35,
+        "variants_in_alignment": {
+            ">s2>s4": {
+                "position": 10,
+                "length_on_path": 52,
+                "index": 0,
+                "state": 1
+            },
+            "EXT-chr1-4409": {
+                "position": 774,
+                "length_on_path": 1,
+                "index": 1,
+                "state": 0
+            },
+            ">s4>s6": {
+                "position": 1094,
+                "length_on_path": 21,
+                "index": 2,
+                "state": 0
+            },
+            "EXT-chr1-5083": {
+                "position": 1132,
+                "length_on_path": 1,
+                "index": 3,
+                "state": 0
+            },
+            "EXT-chr1-10827": {
+                "position": 6876,
+                "length_on_path": 1,
+                "index": 34,
+                "state": 0
+            }
+        }
+    },
+    "read3": {
+        "alignment_start_on_ref": 4496,
+        "alignment_end_on_ref": 11689,
+        "start_scaffold": 1,
+        "end_scaffold": 5,
+        "number_variants_in_alignment": 37, 
+        "variants_in_alignment": {
+            ">s4>s6": {
+                "position": 1032,
+                "length_on_path": 144,
+                "index": 0,
+                "state": 0
+            },
+            "EXT-chr1-5083": {
+                "position": 1193,
+                "length_on_path": 1,
+                "index": 1,
+                "state": 0
+            },
+            ">s6>s8": {
+                "position": 7780,
+                "length_on_path": 20,
+                "index": 36,
+                "state": 2
+            }
+        }
+    },
+    "read4": {
+        "status": "unsure",
+        "alignment_start_on_ref": 11689,
+        "alignment_end_on_ref": 19332,
+        "start_scaffold": 5,
+        "end_scaffold": 9,
+        "number_variants_in_alignment": 36,
+        "variants_in_alignment": {
+            ">s6>s8": {
+                "position": 20,
+                "length_on_path": 83,
+                "index": 0,
+                "state": 1
+            },
+            "EXT-chr1-11782": {
+                "position": 156,
+                "length_on_path": 1,
+                "index": 1,
+                "state": 0
+            },
+            ">s8>s9": {
+                "position": 6468,
+                "length_on_path": 313,
+                "index": 27,
+                "state": 0
+            },
+            "EXT-chr1-18173": {
+                "position": 6860,
+                "length_on_path": 1,
+                "index": 28,
+                "state": 0
+            },
+            "EXT-chr1-19259": {
+                "position": 7946,
+                "length_on_path": 3,
+                "index": 35,
+                "state": 0
+            }
+        }
+    },
+    "read5": {
+        "alignment_start_on_ref": 5215,
+        "alignment_end_on_ref": 10215,
+        "start_scaffold": 1,
+        "end_scaffold": 1,
+        "number_variants_in_alignment": 28,
+        "variants_in_alignment": {
+            "EXT-chr1-5278": {
+                "position": 212,
+                "length_on_path": 1,
+                "index": 0,
+                "state": 0
+            },
+            "EXT-chr1-9974": {
+                "position": 4908,
+                "length_on_path": 1,
+                "index": 27,
+                "state": 0
+            }
+        }
+    },
+    "read6": {
+        "alignment_start_on_ref": 11768,
+        "alignment_end_on_ref": 14768,
+        "start_scaffold": 1,
+        "end_scaffold": 1,
+        "number_variants_in_alignment": 10,
+        "variants_in_alignment": {
+            "EXT-chr1-11782": {
+                "position": 53,
+                "length_on_path": 1,
+                "index": 0,
+                "state": 0
+            },
+            "EXT-chr1-14558": {
+                "position": 2829,
+                "length_on_path": 1,
+                "index": 9,
+                "state": 0
+            }
+        }
+    },
+    "read7": {
+        "alignment_start_on_ref": 3293,
+        "alignment_end_on_ref": 11728,
+        "start_scaffold": 1,
+        "end_scaffold": 11,
+        "number_variants_in_alignment": 39,
+        "variants_in_alignment": {
+            ">s2>s4": {
+                "position": 341,
+                "length_on_path": 312,
+                "index": 0,
+                "state": 0
+            },
+            "EXT-chr1-4409": {
+                "position": 1365,
+                "length_on_path": 1,
+                "index": 1,
+                "state": 0
+            },
+            ">s4>s6": {
+                "position": 1685,
+                "length_on_path": 337,
+                "index": 2,
+                "state": 0
+            },
+            "EXT-chr1-5083": {
+                "position": 2039,
+                "length_on_path": 1,
+                "index": 3,
+                "state": 0
+            },
+            ">s6>s8": {
+                "position": 8626,
+                "length_on_path": 59,
+                "index": 38,
+                "state": 2
+            }
+        }
+    },
+    "read8": {
+        "alignment_start_on_ref": 2000,
+        "alignment_end_on_ref": 4980,
+        "start_scaffold": 1,
+        "end_scaffold": 9,
+        "number_variants_in_alignment": 12,
+        "variants_in_alignment": {
+            "EXT-chr1-2011": {
+                "position": 2010,
+                "length_on_path": 2,
+                "index": 0,
+                "state": 0  
+            },
+            ">s1>s2": {
+                "position": 3293,
+                "length_on_path": 0,
+                "index": 8,
+                "state": 0  
+            },
+            ">s2>s4": {
+                "position": 3634,
+                "length_on_path": 82,
+                "index": 9,
+                "state": 0
+            },
+            "EXT-chr1-4409": {
+                "position": 4428,
+                "length_on_path": 1,
+                "index": 10,
+                "state": 0
+            },
+            ">s4>s6": {
+                "position": 4748,
+                "length_on_path": 252,
+                "index": 11,
+                "state": 2
+            }
+        }
+    },  
+    "read9": {
+        "alignment_start_on_ref": 0,
+        "alignment_end_on_ref": 4728,
+        "start_scaffold": 1,
+        "end_scaffold": 7,
+        "number_variants_in_alignment": 26,
+        "variants_in_alignment": {
+            "EXT-chr1-88": {
+                "position": 87,
+                "length_on_path": 1,
+                "index": 0,
+                "state": 0
+            },
+            ">s1>s2": {
+                "position": 3293,
+                "length_on_path": 0,
+                "index": 22,
+                "state": 0
+            },
+            ">s2>s4": {
+                "position": 3634,
+                "length_on_path": 62,
+                "index": 23,
+                "state": 0
+            },
+            "EXT-chr1-4409": {
+                "position": 4408,
+                "length_on_path": 1,
+                "index": 24,
+                "state": 0
+            },
+            ">s4>s6": {
+                "position": 4728,
+                "length_on_path": 144,
+                "index": 25,
+                "state": 2
+            }
+        }
+    },
+    "read10": {
+        "alignment_start_on_ref": 3634,
+        "alignment_end_on_ref": 3696,
+        "start_scaffold": null,
+        "end_scaffold": null,
+        "number_variants_in_alignment": 1,
+        "variants_in_alignment": {
+            ">s2>s4": {
+                "position": 60,
+                "length_on_path": 200,
+                "index": 0,
+                "state": 3
+            }
+        }
+    },
+    "read11": {
+        "alignment_start_on_ref": null,
+        "alignment_end_on_ref": null,
+        "start_scaffold": null,
+        "end_scaffold": null,
+        "number_variants_in_alignment": 1,
+        "variants_in_alignment": {
+            ">s2>s4": {
+                "position": 0,
+                "length_on_path": 186,
+                "index": 0,
+                "state": 3
+            }
+        }
+    },
+    "read12": {
+        "alignment_start_on_ref": 3293,
+        "alignment_end_on_ref": 4728,
+        "start_scaffold": 1,
+        "end_scaffold": 7,
+        "number_variants_in_alignment": 3,
+        "variants_in_alignment": {
+            ">s2>s4": {
+                "position": 341,
+                "length_on_path": 82,
+                "index": 0,
+                "state": 0
+            },
+            "EXT-chr1-4409": {
+                "position": 1135,
+                "length_on_path": 1,
+                "index": 1,
+                "state": 0
+            },
+            ">s4>s6": {
+                "position": 1455,
+                "length_on_path": 4,
+                "index": 2,
+                "state": 2
+            }
+        }
+    },
+    "read13": {
+        "alignment_start_on_ref": 5065,
+        "alignment_end_on_ref": 11733,
+        "start_scaffold": 3,
+        "end_scaffold": 9,
+        "number_variants_in_alignment": 37,
+        "variants_in_alignment": {
+            ">s4>s6": {
+                "position": 0,
+                "length_on_path": 144,
+                "index": 0,
+                "state": 1
+            },
+            "EXT-chr1-5083": {
+                "position": 161,
+                "length_on_path": 1,
+                "index": 1,
+                "state": 0
+            },
+            ">s6>s8": {
+                "position": 6748,
+                "length_on_path": 103,
+                "index": 36,
+                "state": 0
+            }
+        }
+    },
+    "read14": {
+        "status": "unsure",
+        "alignment_start_on_ref": 11728,
+        "alignment_end_on_ref": 18093,
+        "start_scaffold": 3,
+        "end_scaffold": 3,
+        "number_variants_in_alignment": 28,
+        "variants_in_alignment": {
+            ">s6>s8": {
+                "position": 5,
+                "length_on_path": 39,
+                "index": 0,
+                "state": 1
+            },
+            "EXT-chr1-11782": {
+                "position": 97,
+                "length_on_path": 1,
+                "index": 1,
+                "state": 0
+            },
+            ">s8>s9": {
+                "position": 6409,
+                "length_on_path": 13,
+                "index": 27,
+                "state": 2
+            }
+
+        }
+    },
+    "read15": {
+        "alignment_start_on_ref": 18093,
+        "alignment_end_on_ref": 21837,
+        "start_scaffold": 3,
+        "end_scaffold": 3,
+        "number_variants_in_alignment": 23,
+        "variants_in_alignment": {
+            ">s8>s9": {
+                "position": 0,
+                "length_on_path": 313,
+                "index": 0,
+                "state": 1
+            },
+            "EXT-chr1-18173": {
+                "position": 392,
+                "length_on_path": 1,
+                "index": 1,
+                "state": 0
+            },
+            "EXT-chr1-21770": {
+                "position": 3989,
+                "length_on_path": 3,
+                "index": 22,
+                "state": 0
+            }
+        }
+    },
+    "read16": {
+        "alignment_start_on_ref": 18093,
+        "alignment_end_on_ref": 21837,
+        "start_scaffold": 1,
+        "end_scaffold": 1,
+        "number_variants_in_alignment": 22,
+        "variants_in_alignment": {
+            "EXT-chr1-18173": {
+                "position": 79,
+                "length_on_path": 1,
+                "index": 0,
+                "state": 0
+            },
+            "EXT-chr1-21770": {
+                "position": 3676,
+                "length_on_path": 3,
+                "index": 21,
+                "state": 0
+            }
+        }
+    },
+    "read17": {
+        "alignment_start_on_ref": 3293,
+        "alignment_end_on_ref": 3634,
+        "start_scaffold": 1,
+        "end_scaffold": 1,
+        "number_variants_in_alignment": 1,
+        "variants_in_alignment": {
+            ">s2>s4": {
+                "position": 341,
+                "length_on_path": 186,
+                "index": 0,
+                "state": 2
+            }
+        }
+    },
+    "read18": {
+        "alignment_start_on_ref": 0,
+        "alignment_end_on_ref": 4728,
+        "start_scaffold": 1,
+        "end_scaffold": 7,
+        "number_variants_in_alignment": 25,
+        "variants_in_alignment": {
+            "EXT-chr1-88": {
+                "position": 87,
+                "length_on_path": 1,
+                "index": 0,
+                "state": 0
+            },
+            ">s1>s2": {
+                "position": 3293,
+                "length_on_path": 0,
+                "index": 22,
+                "state": 0
+            },
+            ">s2>s4": {
+                "position": 3634,
+                "length_on_path": 62,
+                "index": 23,
+                "state": 0
+            },
+            "EXT-chr1-4409": {
+                "position": 4408,
+                "length_on_path": 1,
+                "index": 24,
+                "state": 0
+            }
+        }
+    }
+}
