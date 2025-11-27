@@ -141,16 +141,14 @@ class AlignmentReader:
         variant position and into a part starting at the variant position, see split_cigar().
 
         variant -- VcfVariant
-        bam_read -- the AlignedSegment
+        read -- the AlignedSegment
         cigartuples -- the AlignedSegment.cigartuples property (accessing it is expensive, so re-use it)
         i, consumed -- see split_cigar method
         query_pos -- index of the query base that is at the variant position
         reference -- the reference as a str-like object (unlike original implementation, this is only the sequence of the alignment path and not the whole chromosome)
+        mode -- whether to use edit distance or wave-front aligner.
         overhang -- extend alignment by this many bases to left and right
-        gap_start, gap_extend -- use these parameters for affine gap cost alignment
-        default_mismatch -- use this as mismatch cost in case no base qualities are in alignment
-        emission_parameters -- a list which contains the probabilities of the cigar being match, mismatch, insertion, and deletion.
-
+        
         Return a tuple (allele, scores) where
         allele -- allele index with the max score
         scores -- list of alignment scores for all alleles (first is reference, then alternatives)
@@ -166,6 +164,7 @@ class AlignmentReader:
         left_cigar, right_cigar = AlignmentReader.split_cigar(cigartuples, i, consumed)
 
         if not variant.is_sv():
+            assert variant.state == 0
             # this is an external variant
             # overhang is set to 10
             left_ref_bases, left_query_bases = AlignmentReader.cigar_prefix_length(cigar=left_cigar[::-1], reference_bases=10)
@@ -259,7 +258,7 @@ class AlignmentReader:
         variants -- list of variants (VcfVariant objects)
         j -- index of the first variant (in the variants list) to check
         """
-        # Accessing bam_read.cigartuples is expensive, do it only once
+        # Accessing read.cigartuples is expensive, do it only once
         cigartuples = read.cigartuples
 
         # For the same reason, the following check is here instad of
@@ -387,343 +386,436 @@ class GAFReader(AlignmentReader):
 
     @staticmethod
     def find_variants_in_alignment(alignment, variants, rgfa, variant_pointer):
-        # finding the variants covered in the GAF alignment.
         
-        '''
-        These two functions use the path in the GAF alignment to find the start and end of the alignment on the reference.
-        They also return the index of the first and last reference nodes in the path.
-
-        What do I need to index for?
-        - The main reason is to find whether the alignment covers partial bubbles in the start and end.
-        - If the alignment starts or ends with a non-reference node, then it covers a partial bubble in the start or end.
-        '''
-        # function to get the start of the alignment on the reference
-        # start_node_index returns the the index in alignment.path which is the first reference node in the path 
+        # ------------------------------------------------------------------
+        # STEP 1: Determine Alignment Coordinates & Topology
+        # ------------------------------------------------------------------
+        # Coordinates are 0-based, Half-Open [Start, End)
         alignment_start_on_ref, start_node_index, start_scaffold_node = GafAlignment.get_alignment_start_on_ref(alignment, rgfa)
-        # function to get the end of the alignment on the reference
-        # end_node_index returns the the index in alignment.path which is the first last node in the path 
         alignment_end_on_ref, end_node_index, end_scaffold_node = GafAlignment.get_alignment_end_on_ref(alignment, rgfa)
 
-        logger.trace(f"Start of alignment on reference: {alignment_start_on_ref}")
-        logger.trace(f"End of alignment on reference: {alignment_end_on_ref}")
+        '''
+        The code below detects the following structure
+        >sNR>sRS>.......>sRS>sNR
+        --------        --------
+            |               |
+            v               v
+        Non-reference nodes followed/preceded by reference scaffold nodes at the ends of the alignment
+        sNR -> non-reference nodes (Note that this is specific to non-reference nodes and not reference non-scaffold nodes)
+        sRS -> reference scaffold nodes
+        '''
+        has_non_ref_start = False
+        if start_node_index is not None:
+            if (start_node_index > 1) and (start_node_index == start_scaffold_node):
+                has_non_ref_start = True
+        has_non_ref_end = False
+        if end_node_index is not None:
+            if (end_node_index < len(alignment.path) - 1) and (end_node_index == end_scaffold_node):
+                has_non_ref_end = True
+        
+        '''
+        The code below detects the following structure
+        >sNS>sRS>.......>sRS>sNS
+        --------        --------
+            |               |
+            v               v
+        Non-scaffold nodes followed/preceded by reference scaffold nodes at the ends of the alignment
+        sNS -> non-scaffold nodes (Note that this is non-specific. sNS can be non-reference nodes and also reference non-scaffold nodes)
+        sRS -> reference scaffold nodes
+        '''
+        has_partial_start = False
+        if start_scaffold_node is not None and start_scaffold_node > 1:
+            has_partial_start = True
+        has_partial_end = False
+        if end_scaffold_node is not None and end_scaffold_node < len(alignment.path) - 1:
+            has_partial_end = True
 
-        variants_in_alignment = []
+        logger.trace(f"Start on ref: {alignment_start_on_ref}, End on ref: {alignment_end_on_ref}")
+
+        # ------------------------------------------------------------------
+        # STEP 2: Fast-Forward Pointer
+        # ------------------------------------------------------------------
         if alignment_start_on_ref is not None:
-            # this checks if the end of the current variant is less than the start position of the next alignment
-            while (variant_pointer+1 < len(variants) and (variants[variant_pointer].position_on_ref + len(variants[variant_pointer].reference_allele) < alignment_start_on_ref)):
-                variant_pointer += 1
-        else:
-            node_in_path = alignment.path[1]  # first node in the path. does not matter which one since all should have same bo tag
-            bo_tag = rgfa.get_node(node_in_path).tags['BO']
-            if variant_pointer == 0:
-                # need to check if the bubble-only alignments are before the first variant
-                tmp_pointer = variant_pointer
-                while tmp_pointer < len(variants) and variants[tmp_pointer].get_variant_bo(rgfa) is None:
-                    tmp_pointer += 1
-                if bo_tag == variants[tmp_pointer].get_variant_bo(rgfa):
-                    # shifting variant pointer if the bubble-only alignment was for the first bubble variant
-                    variant_pointer = tmp_pointer
-            else:
-                if variants[variant_pointer].get_variant_bo(rgfa) == None:
-                    # variant pointer is currently at an external variant but we are looking at a alignment exclusively inside a bubble
+            while variant_pointer < len(variants):
+                variant = variants[variant_pointer]
+                # Calculate Variant End (Exclusive)
+                # Assumes variant.position_on_ref is already 0-based/anchor-free
+                var_end_exclusive = variant.position_on_ref + len(variant.reference_allele)
+                
+                # Case 1: Variant is completely behind the alignment start
+                if var_end_exclusive < alignment_start_on_ref:
                     variant_pointer += 1
-                while variant_pointer + 1 < len(variants) and variants[variant_pointer].get_variant_bo(rgfa) < bo_tag:
-                    variant_pointer += 1
-
-        # the above definition of variant pointer cannot consider the case where the
-        # first bubble is a partial bubble and the first node in the path is a non-
-        # reference node.
-        # Example 1: >sNR>sRS>sRNS where NR is non-ref, RS is ref-scaffold, and RNS is ref-non-scaffold.
-        # in this case the start on alignment will become SO pos of sR-1 even though
-        # the previous bubble is still covered.
-        # the above issue does not happen in the case of >sNR>sRNS>sRS (Example 2)
-
-        # this case will happen only when there is a scaffold node present
-        if start_scaffold_node is not None:
-            # if the start ref index is not the first node position
-            if start_node_index > 1:
-                # checking if the first ref node found is the scaffold node.
-                # if yes, then this corresponds to Example 1. Variant pointer needs to be shifted back.
-                # if no, then this corresponds to Example 2. No changes to variant pointer.
-                if start_node_index == start_scaffold_node:
-                    variant_pointer -= 1
-                    if variant_pointer < 0:
-                        # in case the variant pointer
-                        variant_pointer = 0
-
-        if alignment_start_on_ref is not None:
-            assert alignment_end_on_ref is not None
-            # This alignment ends before the first unprocessed variant starts
-            if alignment_end_on_ref < variants[variant_pointer].position_on_ref:
-                logger.trace(f'Alignment end: {alignment_end_on_ref}, < variants[variant_pointer].position_on_ref: {variants[variant_pointer].position_on_ref}')
-                logger.trace(f'Alignment ends before the first unprocessed variant. No variants found in read {alignment.read_id}!')
-                return None
-
-            # This alignment starts after the last variant on the chromosome
-            if (variant_pointer == len(variants) - 1) and (alignment_start_on_ref > variants[variant_pointer].position_on_ref + len(variants[variant_pointer].reference_allele)):
-                logger.trace(f'Alignment starts after the last variant. No variants found in read {alignment.read_id}!\n')
-                return None
+                    continue
+                
+                # Case 2: Boundary Touch (Variant End == Alignment Start)
+                if var_end_exclusive == alignment_start_on_ref:
+                    if has_non_ref_start:
+                        # We came from the bubble associated with this variant. Keep it.
+                        break 
+                    else:
+                        # We started cleanly on the reference after this variant. Skip it.
+                        variant_pointer += 1
+                        continue
+                
+                # Case 3: Overlap (var_end > alignment_start)
+                break
         else:
-            # If the alignment has no reference nodes and hence has no start or end on reference
-            # now we need to look at the variants in terms of BO tags
-            assert alignment_end_on_ref is None
-            node_in_path = alignment.path[1]  # first node in the path. does not matter which one since all should have same bo tag
-            bo_tag = rgfa.get_node(node_in_path).tags['BO']
-            # the alignment ends before the first unprocessed variant
-            if variants[variant_pointer].get_variant_bo(rgfa) is not None:
-                # the variant pointer is currently at a SV variant
-                if bo_tag < variants[variant_pointer].get_variant_bo(rgfa):
-                    logger.trace(f'Alignment ends before the first unprocessed variant. No variants found in read {alignment.read_id}!')
-                    return None
-            else:
-                # the variant pointer is currently at an external variant
-                assert variant_pointer == 0, "This case should only happen when the alignment is before the first variant. There is some potential issues in sorting."
-                logger.trace(f'Alignment ends before the first unprocessed variant. No variants found in read {alignment.read_id}!')
-                return None
-            # the alignment starts after the last variant in the chromosomes
-            if (variant_pointer == len(variants) - 1) and (variants[variant_pointer].get_variant_bo(rgfa) == None):
-                # if the last variant is a external variant. If this has been reached, then no variants can be found
-                logger.trace(f'Alignment starts after the last variant. No variants found in read {alignment.read_id}!\n')
-                return None
-            if (variant_pointer == len(variants) - 1) and (bo_tag > variants[variant_pointer].get_variant_bo(rgfa)):
-                # if the last variant is a bubble variant.
-                logger.trace(f'Alignment starts after the last variant. No variants found in read {alignment.read_id}!\n')
-                return None
+            # Bubble-Only Logic: Match via BO (Bubble Origin) tags
+            node_in_path = alignment.path[1]
+            alignment_bo = rgfa.get_node(node_in_path).tags.get('BO')
             
+            while variant_pointer < len(variants):
+                variant_bo = variants[variant_pointer].get_variant_bo(rgfa)
+                if variant_bo is None or (alignment_bo is not None and variant_bo < alignment_bo):
+                    # variant_bo is None: external variants
+                    # variant_bo < alignment_bo: SV variants before the detected alignment
+                    variant_pointer += 1
+                else:
+                    assert variant_bo == alignment_bo
+                    break
 
-        count_ext = 0   # Count of external variants
-        count_sv = 0    # Count of structural variants
-        end_pointer = variant_pointer
-        variants_in_alignment.append(variants[variant_pointer])
 
-        if start_scaffold_node is not None:
-            # looking at the case where the alignment touches a scaffold node
-            assert end_scaffold_node is not None
-            # checking for the special case where the first variant has been added and the alignment has nodes before that.
-            # this requires special attention since there is no bubble before the first variant
-            partial_bubble_start_of_chrom = False
-            if variant_pointer == 0 and start_scaffold_node > 1:
-                # this condition alone cannot distinguish between the following two cases:
-                # Case 1: Alignment actually starts at the beginning of the chromosome where the bubble is not defined.
-                #         Let this case have an alignment like >sSB1>sSB2>sRS1>sRNS1>sRNS2>sRS2....
-                #         As we can see, the variant pointer points to first variant and also start_scaffold_node (sRS1) is > 1 since it is the third node.
-                # Case 2: Alignment starts in the middle of the first variant.
-                #         Let this case have an alignment like >sRNS1>sRNS2>sRS2....
-                #         As we can see, the variant pointer still points to first variant since it is being partially covered and the start_scaffold_node (sRS3) is > 1 since it is the third node.
-                # Note: This case only happens when there are no external variants present in the first scaffold node.
-                if not alignment_start_on_ref > variants[0].position_on_ref:
-                    # to distinguish between the two cases, we look if the alignment starts before or after the first variant
-                    partial_bubble_start_of_chrom = True
 
-            if not variants_in_alignment[0].is_sv():
-                variants[0].length_on_path = len(variants[0].reference_allele)
+        # ------------------------------------------------------------------
+        # STEP 3: Safety Check (Overlap Validation)
+        # ------------------------------------------------------------------
+        empty_result = (None, alignment_start_on_ref, variant_pointer, start_scaffold_node, end_scaffold_node, 0, 0)
+        
+        if variant_pointer >= len(variants):
+             return empty_result
+
+        first_variant = variants[variant_pointer]
+        
+        if alignment_start_on_ref is not None:
+            # Check if alignment ends before variant starts
+            if alignment_end_on_ref < first_variant.position_on_ref:
+                logger.trace(f'Alignment ends at {alignment_end_on_ref} before variant starts at {first_variant.position_on_ref}')
+                return empty_result
+            
+            # Check Boundary: Alignment ends exactly where variant starts
+            if alignment_end_on_ref == first_variant.position_on_ref and not has_non_ref_end:
+                logger.trace(f'Alignment ends at {alignment_end_on_ref} before variant starts at {first_variant.position_on_ref} (Alignment end is index-exclusive)')
+                return empty_result
+        else:
+            # Bubble-Only Validation
+            assert alignment_end_on_ref is None
+            alignment_bo = rgfa.get_node(alignment.path[1]).tags.get('BO')
+            first_variant_bo = first_variant.get_variant_bo(rgfa)
+            if first_variant_bo is None:
+                # Pointer is at a linear variant, but alignment is in a bubble. No overlap.
+                # (Removed the dangerous 'assert variant_pointer == 0' here)
+                return empty_result
+                
+            if alignment_bo != first_variant_bo:
+                logger.trace(f'BO Tag Mismatch: Alignment {alignment_bo} vs Variant {first_variant_bo}')
+                return empty_result
+        
+        # ------------------------------------------------------------------
+        # STEP 4: Collect Variants & Assign States
+        # ------------------------------------------------------------------
+        variants_in_alignment = []
+        count_ext = 0
+        count_sv = 0
+        
+        # Special Case: Bubble-Only Alignment (State 3)
+        if start_scaffold_node is None:
+            variants_in_alignment.append(first_variant)
+            first_variant.state = 3
+            assert first_variant.is_sv(), "Bubble-only alignment must map to an SV"
+            count_sv += 1
+            return variants_in_alignment, alignment_start_on_ref, variant_pointer, start_scaffold_node, end_scaffold_node, count_ext, count_sv
+
+        # General Case: Iterate and Collect
+        curr_idx = variant_pointer
+        while curr_idx < len(variants):
+            candidate = variants[curr_idx]
+            cand_start = candidate.position_on_ref
+            
+            # Stop if candidate starts strictly after alignment ends
+            if cand_start > alignment_end_on_ref:
+                break
+            
+            # Stop if candidate starts EXACTLY at alignment end...
+            if cand_start == alignment_end_on_ref:
+                # ...UNLESS we exit via the bubble (has_non_ref_end)
+                if has_non_ref_end and candidate.is_sv():
+                    variants_in_alignment.append(candidate)
+                    break # This is the last one
+                else:
+                    break # Boundary touched, but not entered
+            
+            # Standard Overlap
+            variants_in_alignment.append(candidate)
+            curr_idx += 1
+
+        # Assign States
+        for i, variant in enumerate(variants_in_alignment):
+            if not variant.is_sv():
+                variant.state = 0
+                variant.length_on_path = len(variant.reference_allele)
                 count_ext += 1
             else:
                 count_sv += 1
-            while (end_pointer+1 < len(variants) and (variants[end_pointer+1].position_on_ref <= alignment_end_on_ref)):
-                end_pointer += 1
-                variants_in_alignment.append(variants[end_pointer])
-                if not variants[end_pointer].is_sv():
-                    variants[end_pointer].length_on_path = len(variants[end_pointer].reference_allele)  # This is the length of the variant on the alignment path.
-                    count_ext += 1
-                else:
-                    count_sv += 1
-            
-            # checking for the special case where the last variant has been added and the alignment has nodes after that.
-            partial_bubble_end_of_chrom = False
-            if end_pointer == len(variants) - 1 and end_scaffold_node < len(alignment.path) - 1:
-                # taking into consideration similar arguments for the end of the chromosome as given for the start
-                # to distinguish between the two cases, we look if the alignment ends on reference after the reference allele of the last variant
-                if not alignment_end_on_ref <= variants[-1].position_on_ref + len(variants[-1].reference_allele):
-                    partial_bubble_end_of_chrom = True
-        else:
-            # looking at the case where the alignment does not touch any scaffold node
-            assert end_scaffold_node is None
-            partial_bubble_end_of_chrom = False
-            partial_bubble_start_of_chrom = False
-            assert variants[variant_pointer].is_sv(), "The variant has to be a bubble variant"
-            count_sv += 1
+                variant.state = 0 # Default: Full Coverage
+                
+                is_first = (i == 0)
+                is_last = (i == len(variants_in_alignment) - 1)
+                
+                # State 1: Partial Start (Entered bubble from left)
+                if is_first and has_partial_start:
+                    variant.state = 1
+                
+                # State 2: Partial End (Exited bubble to right)
+                if is_last and has_partial_end:
+                    variant.state = 2
+                    
+        return variants_in_alignment, alignment_start_on_ref, variant_pointer, start_scaffold_node, end_scaffold_node, count_ext, count_sv
 
-        return variants_in_alignment, alignment_start_on_ref, variant_pointer, start_scaffold_node, end_scaffold_node, count_ext, count_sv, partial_bubble_start_of_chrom, partial_bubble_end_of_chrom
+
+    def _calculate_sv_attributes(self, alignment, variants_in_alignment, rgfa, start_scaf_idx):
+        """
+        Phase 2: Walks the alignment path to construct the sequence string
+        and measure the length/position of SVs (Bubbles).
+        """
+        logger.trace(f'Setting attributes for SV bubble variants on {alignment.read_id}')
+        reference_seq = ""
+        len_on_path = 0     # Accumulator for current bubble length
+        active_pointer = 0  # Pointer to variants_in_alignment list
+        
+        # Helper to skip EXT variants in the list (we only measure SVs here)
+        def advance_pointer_to_next_sv():
+            nonlocal active_pointer
+            while active_pointer < len(variants_in_alignment) and not variants_in_alignment[active_pointer].is_sv():
+                active_pointer += 1
+
+        advance_pointer_to_next_sv()
+        logger.trace(f'Finding the first SV bubble in the alignment. Active pointer is at {active_pointer}.')
+
+        for index, node_id in enumerate(alignment.path):
+            if node_id in ['>', '<']:
+                orient = node_id
+                continue
+
+            logger.trace(f'Processing node {node_id} at index {index} of alignment.')
+            
+            node = rgfa.get_node(node_id)
+            node_seq = node.sequence
+            if orient == '<':
+                node_seq = GAFReader.reverse_complement(node_seq)
+            
+            # Track start of this node in the built sequence
+            current_seq_pos = len(reference_seq)
+            reference_seq += node_seq
+            
+            is_scaffold = (node.tags.get('NO') == 0)
+
+            # --- CASE A: Non-Scaffold Node (Inside Bubble) ---
+            if not is_scaffold:
+                logger.trace(f'Node {node_id} is a non-scaffold node. Adding its length to the accumulator of current bubble length.')
+                len_on_path += len(node_seq)
+                continue
+
+            # --- CASE B: Scaffold Node (Bubble Boundary) ---
+            
+            # 1. Handle Start of Alignment (First Scaffold)
+            # If we started with a partial bubble, we process it NOW.
+            if index == start_scaf_idx:
+                # Logic: We are at the first anchor. If there was a bubble before us,
+                # it was a Partial Start (State 1).
+                # Note: If start_scaf_idx is 1 (meaning path is >Ref...), len_on_path is 0. 
+                # If start_scaf_idx > 1 (meaning path is >Bub>Ref...), len_on_path > 0.
+                
+                if len_on_path > 0 or (active_pointer < len(variants_in_alignment) and variants_in_alignment[active_pointer].state == 1):
+                    if active_pointer < len(variants_in_alignment):
+                        sv = variants_in_alignment[active_pointer]
+
+                        logger.trace(f'Setting attributes of the first SV bubble ({sv}).')
+                        # Partial Length: Total calculated - start_offset
+                        sv.length_on_path = len_on_path - alignment.p_start
+                        sv.position = alignment.p_start # Starts at beginning of read
+                        
+                        active_pointer += 1
+                        advance_pointer_to_next_sv()
+                        logger.trace(f'Finding the next SV bubble. Active pointer is at {active_pointer}.')
+                        len_on_path = 0
+                else:
+                    # Clean start on scaffold, reset accumulator just in case
+                    len_on_path = 0
+                continue
+
+            # 2. Handle Normal Bubble Closure
+            # We hit a scaffold node, and it's not the start. 
+            # This closes any bubble accumulating before this node.
+            
+            if active_pointer < len(variants_in_alignment):
+                sv = variants_in_alignment[active_pointer]
+                logger.trace(f'Setting attributes of the last SV bubble ({sv}) with complete coverage.')
+                # Length: The sum of non-ref nodes we just traversed
+                sv.length_on_path = len_on_path 
+                
+                # Position: Start of current node minus the bubble length
+                # (This points to the index in reference_seq where the bubble began)
+                sv.position = current_seq_pos - len_on_path
+                
+                active_pointer += 1
+                advance_pointer_to_next_sv()
+                logger.trace(f'Finding the next SV bubble. Active pointer is at {active_pointer}.')
+            
+            len_on_path = 0
+
+        # --- CASE C: End of Alignment (Partial End) ---
+        # If we finished the loop and still have len_on_path, or we are in State 2/3
+        if active_pointer < len(variants_in_alignment):
+            logger.trace(f'[3] End of Alignment. Active pointer is at {active_pointer}')
+            sv = variants_in_alignment[active_pointer]
+            logger.trace(f'Setting attributes of the last SV bubble ({sv}) which is covered partially.')
+            
+            # SAFETY CHECK: 
+            # If this is State 0, it SHOULD have been closed by a scaffold node inside the loop.
+            # If we are here, something is wrong with the State assignment or the Path logic.
+            assert sv.state != 0, f"State 0 variant {sv.id} was not processed inside the loop! Path may be malformed."
+            
+            # Verify we are at the last SV
+            # Logic: Length is whatever we accumulated, minus the unused end clip
+            # formula: len_on_path - (path_len - p_end)
+            
+            distance_from_end = alignment.p_len - alignment.p_end
+            
+            # Special Handling for State 3 (Bubble Only)
+            if sv.state == 3:
+                 sv.length_on_path = alignment.p_end - alignment.p_start
+                 sv.position = alignment.p_start
+            else:
+                # State 2 (Partial End)
+                sv.length_on_path = len_on_path - distance_from_end
+                sv.position = len(reference_seq) - len_on_path
+            
+        return reference_seq
+
+
+    def _interpolate_ext_positions(self, variants, alignment, rgfa, start_scaf_idx):
+        """
+        Phase 3: Calculates positions for Ext variants (SNPs) by anchoring 
+        them to the previously calculated SVs or the start node.
+        """
+
+        logger.trace(f'Interpolating the positions of the external variants covered by {alignment.read_id}')
+        current_path_pos = 0
+        
+        if start_scaf_idx is None:
+            # if there are no scaffold nodes in the alignment,
+            # then there are no external variants
+            logger.trace('No scaffold nodes exist in this alignment. No external variants should be found.')
+            return
+
+        # Determine the initial anchor (Start Node)
+        # Calculate path length up to the first scaffold node
+        # (This handles the prefix if the read started in a bubble)
+        prefix_len = 0
+        for i in range(1, start_scaf_idx, 2):
+            # Simple lookup, assuming valid path structure
+            n_id = alignment.path[i]
+            prefix_len += rgfa.get_node(n_id).tags['LN']
+        current_path_pos = prefix_len
+    
+        # We need the start node object to calculate offsets
+        start_node_id = alignment.path[start_scaf_idx]
+        start_node = rgfa.get_node(start_node_id)
+        start_node_start_ref = start_node.start
+
+        for i, variant in enumerate(variants):
+            if variant.is_sv():
+                # Update anchor: The end of this SV becomes the new anchor
+                current_path_pos = variant.position + variant.length_on_path
+                continue
+            
+            # It's an External Variant
+            if i == 0 or (i > 0 and variants[i-1].is_sv() and variants[i-1].state != 3):
+                # CASE 1: Anchored to Start Node (First variant, or after an SV)
+                # Wait, if i > 0, we should anchor to the previous SV's ID tag if possible?
+                # The original code used `start_scaffold_node` for the first one.
+                
+                if i == 0:
+                    # Offset on the scaffold node
+                    offset = variant.position_on_ref - start_node_start_ref
+                    assert current_path_pos == 0    # since this is the first variant and is external, then there should not be any cumulative path length stored
+                    variant.position = offset
+                else:
+                    # Logic from original: Use previous SV ID to find scaffold
+                    # ID format >s1>s2 -> Last one is scaffold
+                    prev_sv = variants[i-1]
+                    scaffold_id = prev_sv.id.split('>')[-1] 
+                    scaffold = rgfa.get_node(scaffold_id)
+                    
+                    offset = variant.position_on_ref - scaffold.start
+                    variant.position = current_path_pos + offset
+            else:
+                # CASE 2: Consecutive Ext Variants
+                # Just add the delta from the previous Ext variant
+                prev_var = variants[i-1]
+                delta = variant.position_on_ref - prev_var.position_on_ref
+                variant.position = prev_var.position + delta
+
+
 
     def _update_variants_in_alignments(self, alignments, variants):
         """
-        Finding the variants covered in the alignment and updating their positions on the path.
+        Finds variants, builds sequences, and calculates attributes.
 
         Yields
         - variants_in_alignment: VcfVariant objects found in the alignment
         - alignment: GafAlignment object
         - alignment_start_on_ref: starting position of the alignment on reference
         - reference: reference seqeunce of the path given in the Gaf Alignment
-        - partial_bubble_start_of_chrom_copy: if the start of the chromosome is present in the alignment (only needed for testing purposes)
-        - partial_bubble_end_of_chrom: if the end of the chromosome is present in the alignment (only needed for testing purposes)
         """
-        rgfa = self._reader._reference
         
-        variant_pointer = 0     # Points to the variant which has not been processed in all Reads
+        rgfa = self._reader._reference
+        variant_pointer = 0  # Global pointer for the sorted variants list
+
         for alignment in alignments:
-            # if no alignment found for the chromosome, return None
             if alignment is None:
                 yield None
-            # determine what variants are present in the alignment
-            # returns an alignment in the correct orientation.
-            alignment, _ = GafAlignment.check_reverse(alignment, rgfa)
-            logger.debug(f"Processing alignment {alignment.read_id} on {alignment.source_id}")
-            logger.trace(f"Alignment Path: {''.join(alignment.path)}")
-            result = GAFReader.find_variants_in_alignment(alignment, variants, rgfa, variant_pointer)
-            # in the case None is returned.
-            if result is None:
                 continue
-            # extract items from result
-            variants_in_alignment, alignment_start_on_ref, variant_pointer, start_scaffold_node_index_on_path, end_scaffold_node_index_on_path, count_ext, count_sv, partial_bubble_start_of_chrom, partial_bubble_end_of_chrom = result
-            # need a copy of this since we are setting partial_bubble_start_of_chrom to False if it is True.
-            partial_bubble_start_of_chrom_copy = partial_bubble_start_of_chrom
-            logger.trace(f"Found variants in alignment: {variants_in_alignment}")
-            logger.trace(f"Number of variants: {len(variants_in_alignment)}, #EXT: {count_ext}, #SV: {count_sv}")
-            logger.trace(f"Detected partial bubbles at chromosome ends: start={partial_bubble_start_of_chrom}, end={partial_bubble_end_of_chrom}")
-            assert (count_sv + count_ext) == len(variants_in_alignment), "The number of SV and EXT bubbles in the alignment does not match the number of variants found in the alignment."
 
-            # initializing booleans for path starts and ends with scaffold
-            path_starts_with_scaffold = False
-            path_ends_with_scaffold = False
-            if start_scaffold_node_index_on_path == 1:
-                path_starts_with_scaffold = True
-                # This implies that there are no partial bubbles at the start of the alignment
-            if end_scaffold_node_index_on_path == len(alignment.path) - 1:
-                path_ends_with_scaffold = True
-                # This implies that there are no partial bubbles at the end of the alignment
+            # 1. Orientation & Finding Variants
+            alignment, _ = GafAlignment.check_reverse(alignment, rgfa)
+            
+            logger.trace(f'Finding variants in {alignment.read_id}')
+            # Use our new finding logic
+            find_result = GAFReader.find_variants_in_alignment(
+                alignment, variants, rgfa, variant_pointer
+            )
+            
+            (variants_in_alignment, align_start_ref, new_pointer, 
+             start_scaf_idx, end_scaf_idx, count_ext, count_sv) = find_result
+            
+            # Update global pointer for next read
+            variant_pointer = new_pointer
 
-            # adding the lengths of the variants on the alignment path for SV bubble variants
-            reference = ""
-            len_on_path = 0     # This keeps track of the length of the allele in the alignment path for different bubbles
-            active_pointer = 0  # This keeps track of the variant in the variants_in_alignment list.
-            sv_counter = 0      # counting sv bubbles (for comparing later to the results of find_variants_in_alignment)
-            ext_counter = 0     # counting ext bubbles (for comparing later to the results of find_variants_in_alignment)
-            for index, n in enumerate(alignment.path):
-                if n in ['>', '<']:
-                    orient = n
-                    continue
-                node = rgfa.get_node(n)
-                # keeping track of reference length before updating (to identify where the bubbles start)
-                prev_ref_len = len(reference)
-                # Reference updated
-                if orient == '<':
-                    reference += GAFReader.reverse_complement(node.sequence)
-                else:
-                    reference += node.sequence
-                while (active_pointer < len(variants_in_alignment)) and (not variants_in_alignment[active_pointer].is_sv()):
-                    # if the current variant is an extension variant
-                    # going to the next variant since we only need the SV bubble variants
-                    ext_counter += 1
-                    # logger.debug(f"Found EXT variant {variants_in_alignment[active_pointer].id}. Now active_pointer is {active_pointer+1}")
-                    active_pointer += 1
-                if index == 1 and path_starts_with_scaffold:
-                    # this is the case where the path starts with a scaffold
-                    # hence the first node needs to be skipped otherwise the first bubble will be tagged with length_on_path = 0.
-                    assert node.tags['NO'] == 0, "Path starts with scaffold but the first node is not a scaffold node."
-                    continue
-                # this is a non-scaffold node
-                if node.tags['NO'] != 0:
-                    len_on_path += len(node.sequence)
-                # this is a scaffold node
-                if node.tags['NO'] == 0:
-                    if partial_bubble_start_of_chrom:
-                        # the alignment spans the start of the chromosome where the bubble is not defined.
-                        logger.trace(f"Partial bubble found at the start of the chromosome. Bubble variant is not defined. Skipping.")
-                        len_on_path = 0
-                        partial_bubble_start_of_chrom = False   # setting it as false
-                        continue
-                    if index == start_scaffold_node_index_on_path and index != 1:
-                        # this is the case where the alignment spans a partial bubble in the beginning
-                        # in this case, the start of the alignment on the path has to be taken into consideration
-                        assert active_pointer == 0, "Active pointer should be at the start when considering partial bubble."
-                        variants_in_alignment[active_pointer].length_on_path = len_on_path - alignment.p_start
-                        variants_in_alignment[active_pointer].position = alignment.p_start
-                        active_pointer += 1
-                        sv_counter += 1
-                        len_on_path = 0
-                        continue
-                    # this is a scaffold node that is not at the end of the alignment
-                    # this implies a bubble has ended and the next one will begin.
-                    # the +1 in the length is to keep in consideration that the bubble variants always contain the last nucleotide of the previous node. Done to avoid blank alleles when there are no nodes between the scaffold node.
-                    # the -1 in the position is to consider the same and shift the start of the allele by 1bp
-                    variants_in_alignment[active_pointer].length_on_path = len_on_path + 1
-                    variants_in_alignment[active_pointer].position = prev_ref_len - len_on_path - 1     # the position where the variant starts is the point where the reference (before being updated in this node step) ends minus the length the variant has on the path
-                    len_on_path = 0
-                    #logger.debug(f"Found SV variant {variants_in_alignment[active_pointer].id}. Now active_pointer is {active_pointer+1}")
-                    active_pointer += 1
-                    sv_counter += 1
-                    continue
-                if (not path_ends_with_scaffold) and (index == len(alignment.path) - 1):
-                    if partial_bubble_end_of_chrom:
-                        # this is the case where there is a partial alignment to the final bubble on the chromosome
-                        # but the bubble is not defined due to no scaffold nodes at the end.
-                        logger.trace(f"Partial bubble found at the end of the chromosome. Bubble variant is not defined. Skipping.")
-                        assert active_pointer == len(variants_in_alignment), "Active pointer should be out of bounds since there are no more variants"
-                        continue
-                    # if the alignment does not end with a scaffold node and has a partial alignment to a defined bubble.
-                    # the length on that path still needs to be stored.
-                    # this also requires to take into consideration where the alignment ends on the path
-                    assert active_pointer == len(variants_in_alignment)-1, "Active pointer is out of bounds when storing alignment to partial bubble at the end."
-                    assert sv_counter == count_sv - 1, "Active pointer is not at the last SV when storing alignment to partial bubble at the end."
-                    logger.trace(f"Found SV variant {variants_in_alignment[active_pointer].id} as partial bubble alignment.")
-                    if start_scaffold_node_index_on_path is not None:
-                        # the +1 in the length is to keep in consideration that the bubble variants always contain the last nucleotide of the previous node. Done to avoid blank alleles when there are no nodes between the scaffold node.
-                        # the -1 in the position is to consider the same and shift the start of the allele by 1bp
-                        variants_in_alignment[active_pointer].length_on_path = len_on_path - (alignment.p_len - alignment.p_end) + 1
-                        variants_in_alignment[active_pointer].position = len(reference) - len_on_path - 1
-                    else:
-                        # this is the case where the alignment is only inside a bubble
-                        assert len(variants_in_alignment) == 1, "There should be only one variant in the alignment since it is only inside a bubble"
-                        variants_in_alignment[active_pointer].length_on_path = alignment.p_end - alignment.p_start + 1
-                        variants_in_alignment[active_pointer].position = alignment.p_start
-                    sv_counter += 1
-            # only asserting for sv counter.
-            # does not make sense for ext variants since the ext variants after the last sv are not considered.
-            assert sv_counter == count_sv, "The number of SV bubbles in the alignment does not match the number of SV bubbles found in the alignment."
+            if not variants_in_alignment:
+                yield (None, alignment, align_start_ref, None)
+                continue
 
-            # determining the position of each variant in the path
-            # if the alignment has partial bubble alignment (not at the start of the chromosome)
-            position_tracker = None
-            for index, variant in enumerate(variants_in_alignment):
-                # this is an SV variant. its information should already be stored.
-                if variant.is_sv():
-                    position_tracker = variant.position + variant.length_on_path
-                    continue
-                if index == 0:
-                    # the first variant
-                    assert not variant.is_sv(), "The first variant in the alignment cannot be a SV variant"
-                    # determine external variants position in its scaffold node
-                    start_scaffold_node = alignment.path[start_scaffold_node_index_on_path]
-                    assert ((variant.position_on_ref >= rgfa.get_node(start_scaffold_node).start) and (variant.position_on_ref < rgfa.get_node(start_scaffold_node).start+rgfa.get_node(start_scaffold_node).tags['LN'])), "First external variant in the alignment is found out of bounds from the first scaffold node"
-                    position_on_scaffold = variant.position_on_ref - rgfa.get_node(start_scaffold_node).start
-                    position_tracker = 0
-                    # iterating through all the nodes left of the start scaffold node and getting their path sum.
-                    for node in alignment.path[:start_scaffold_node_index_on_path]:
-                        if node in ['>', '<']:
-                            continue
-                        position_tracker += rgfa.get_node(node).tags['LN']
-                    position_tracker += position_on_scaffold
-                    variant.position = position_tracker
-                    continue
-                if not variants_in_alignment[index-1].is_sv():
-                    # if the previous variant was an external variant
-                    # the position of the current external variant simply is the distance between the previous the last ext variant and this one
-                    position_tracker += variant.position_on_ref - variants_in_alignment[index-1].position_on_ref
-                    variant.position = position_tracker
-                else:
-                    # the external variant should be on the scaffold node given in the id of the previous SV variant
-                    scaffold_node = variants_in_alignment[index-1].id.split('>')[-1]
-                    assert ((variant.position_on_ref >= rgfa.get_node(scaffold_node).start) and (variant.position_on_ref < rgfa.get_node(scaffold_node).start+rgfa.get_node(scaffold_node).tags['LN'])), "External variant in the alignment is found out of bounds from the scaffold node given in previous SV id"
-                    # updating the position tracker with the position of the variant on the scaffold node
-                    position_tracker += variant.position_on_ref - rgfa.get_node(scaffold_node).start
-                    variant.position = position_tracker
-            logger.trace(f"Positions of Variants in Alignment: {', '.join(f'{variant.id}: {variant.position}' for variant in variants_in_alignment)}")
+            # 2. Build Reference Sequence & Calculate SV Attributes
+            # We return the constructed sequence and the updated variants list
+            reference_seq = self._calculate_sv_attributes(
+                alignment, 
+                variants_in_alignment, 
+                rgfa, 
+                start_scaf_idx
+            )
+            
+            # 3. Interpolate External Variant Positions
+            # SNPs don't need node summing; they just need anchor offsets
+            self._interpolate_ext_positions(
+                variants_in_alignment,
+                alignment,
+                rgfa,
+                start_scaf_idx
+            )
+            
+            yield (variants_in_alignment, alignment, align_start_ref, reference_seq)
 
-            #if alignment.read_id == 'read2':
-            #    exit()
-
-            yield (variants_in_alignment, alignment, alignment_start_on_ref, reference, partial_bubble_start_of_chrom_copy, partial_bubble_end_of_chrom)
 
     def _alignments_to_reads(self, updated_variants):
         """

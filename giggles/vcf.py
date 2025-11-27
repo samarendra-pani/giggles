@@ -32,24 +32,33 @@ class VariantCallPhase:
 class VcfVariant:
     """A variant in a VCF file (not to be confused with core.Variant)"""
 
-    __slots__ = ("id", "position", "position_on_ref", "reference_allele", "alternative_allele", "allele_origin", "allele_traversal", "length_on_path")
+    __slots__ = ("id", "position", "position_on_ref", "reference_allele", "alternative_allele", "allele_origin", "allele_traversal", "length_on_path", "state")
 
     def __init__(self, id: str, position: int, reference_allele: str, alternative_allele: tuple, allele_origin: list, allele_traversal: tuple):
         
         self.id = id
-        # This is the position on the backbone reference (the position given in the VCF)
+        # This is the position on the backbone reference (the position given in the VCF in the 0-base)
+        # The position will be 1 less than what is seen in the VCF
         self.position_on_ref = position
         # This is the position on the paths (the position used to find the variant locations on paths).
         # This changes for every new alignment path.
         self.position = None
-        self.reference_allele = reference_allele
-        self.alternative_allele = alternative_allele
-        self.allele_origin = allele_origin
-        self.allele_traversal = allele_traversal
+        self.reference_allele = reference_allele    # reference allele given in the VCF
+        self.alternative_allele = alternative_allele    # alternate alleles given in the VCF
+        self.allele_origin = allele_origin  # the phased genotypes in the VCF. Used for the HMM
+        self.allele_traversal = allele_traversal    # the path traversal of ref and alt alleles in the underlying GFA.
         # This is the length of the variant on the alignment path.
         # This is needed since the CIGAR string processing needs this length.
         # This changes for every new alignment.
         self.length_on_path = None
+        # the 'state' variable is used to denote how this variant is covered by the read.
+        # this changes for every new alignment
+        # the following values are possible:
+        #   - 0: the whole variant is covered.
+        #   - 1: the read starts within this variant.
+        #   - 2: the read ends within this variant.
+        #   - 3: the read starts and ends within this variant.
+        self.state = None
 
     #def __repr__(self):
     #    return "VcfVariant({}, {}, {}, {!r}, {!r}, {!r})".format(
@@ -96,6 +105,24 @@ class VcfVariant:
         end_bo = rgfa.get_node(end_id).tags['BO']
         assert end_bo == start_bo + 2, f"Inconsistent BO tags for bubble {self.id}"
         return start_bo + 1
+
+    def has_anchor_base(self):
+        anchor_base = self.reference_allele[0]
+        has_anchor = True
+        for alt in self.alternative_allele:
+            if alt[0] != anchor_base:
+                has_anchor = False
+                break
+        return has_anchor
+    
+    def remove_anchor_base(self):
+        # removing the anchor base that was added in the VCF
+        self.position_on_ref += 1
+        self.reference_allele = self.reference_allele[1:]
+        new_alts = []
+        for alt in self.alternative_allele:
+            new_alts.append(alt[1:])
+        self.alternative_allele = tuple(new_alts)
 
 
 class VariantTable:
@@ -274,7 +301,6 @@ class VcfReader:
         return VariantCallPhase(block_id=block_id, phase=phase, quality=call.get("PQ", None))
 
     def _process_single_chromosome(self, chromosome: str, records) -> VariantTable:
-        phase_detected = None
         n_snvs = 0
         n_other = 0
         n_multi = 0
@@ -325,6 +351,8 @@ class VcfReader:
             prev_position = pos
             
             variant = VcfVariant(id = id, position=pos, reference_allele=ref, alternative_allele=alts, allele_origin=allele_origin, allele_traversal=allele_traversal)
+            if variant.has_anchor_base():
+                variant.remove_anchor_base()
             table.add_variant(variant)
 
         logger.info(f"Processed Chromosome {chromosome}. Parsed {n_snvs} SNVs, {n_other} non-SNVs and {n_multi} multi-ALTs. Identified {n_ext} external variants added to the graph variants. Also skipped {n_skip} records exceeding max allele caparacity.")

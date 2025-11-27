@@ -5,6 +5,7 @@ from typing import Iterator
 from .utils import reverse_complement, reverse_cigar
 from .logger import logger, warn_once
 
+
 import re
 import pysam
 import gzip
@@ -27,6 +28,12 @@ def detect_gzip(path):
         return (test_f.read(2) == b'\x1f\x8b')
 
 
+'''
+Future Idea:
+    - Work with GAF alignments with a reduced representation.
+    - Use the BO and NO index and collapse completely encompassed bubbles into single nodes.
+    - Store the bare minimum values for downstream processing.
+'''
 class GafAlignment:
     """
     Class to describe and work with GAF alignments
@@ -171,7 +178,7 @@ class GafAlignment:
     def get_alignment_end_on_ref(alignment, rgfa):
         # Taking alignment whose orientation is same as the reference and finding where it ends on the reference
         # Returns the following information:
-        #       End position (0-based; closed) on the reference
+        #       End position (0-based; exclusive) on the reference
         #       Index of the end reference node in the path
         #       Index of the end scaffold node in the path
         distance_from_end = alignment.p_len - alignment.p_end
@@ -205,10 +212,10 @@ class GafAlignment:
             scaffold_count = len(path) - scaffold_count - 1
         if ref_count == len(path) - 1:
             # last node in the path is a reference node
-            return rgfa.get_node(end_node_on_ref).start + len(rgfa.get_node(end_node_on_ref).sequence) - distance_from_end - 1, ref_count, scaffold_count
+            return rgfa.get_node(end_node_on_ref).start + len(rgfa.get_node(end_node_on_ref).sequence) - distance_from_end, ref_count, scaffold_count
         else:
             # last node in the path is not a reference node
-            return rgfa.get_node(end_node_on_ref).start + len(rgfa.get_node(end_node_on_ref).sequence) - 1, ref_count, scaffold_count
+            return rgfa.get_node(end_node_on_ref).start + len(rgfa.get_node(end_node_on_ref).sequence), ref_count, scaffold_count
     
 
     def compare(self, alignment):
