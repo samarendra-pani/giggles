@@ -23,3 +23,7 @@ reads-reversed.gaf
     - gaftools version 1.2.0
     - command: `gaftools sort --outgaf <file>.sorted.gaf <file>.gaf ../gfa/smallgraph-complete.gfa`
     - also creates <file>.sorted.gaf.gsi
+
+var-position-testing*
+    - developer-created alignment files to test for variant position determination in the giggles code.
+    - files sorted using gaftools v1.3.0
