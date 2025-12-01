@@ -1,6 +1,7 @@
 # cython: language_level=3
 
 from libcpp cimport bool
+from libc.stdint cimport uint32_t
 from . cimport cpp
 
 cdef class Read:
@@ -18,6 +19,8 @@ cdef class GenotypeLikelihoods:
 	
 cdef class Genotype:
 	cdef cpp.Genotype *thisptr
+	cdef uint32_t index
+	cdef uint32_t ploidy
 
 
 cdef class GenotypingAlgorithm:
