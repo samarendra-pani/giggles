@@ -7,17 +7,63 @@ using namespace std;
 
 #include "entry.h"
 
-Entry::Entry(uint32_t r, uint32_t a, std::vector<uint32_t> s) : 
-	read_id(r), allele(a), scores(s), is_sv(false) {
+Entry::Entry(uint32_t r, std::vector<uint32_t> s) : 
+	read_id(r), scores(s), allele(BLANK) {
 		convert_scores_to_probability();
 	}
 
-Entry::Entry(uint32_t r, allele_t a, std::vector<uint32_t> s) : 
-	read_id(r), allele((uint32_t)a), scores(s), is_sv(false) {
-		convert_scores_to_probability();
-	}
+Entry::Entry() : read_id(0), scores({}), allele(BLANK) {}
 
-Entry::Entry() : read_id(0), allele(2), scores({}), is_sv(false) {}
+void Entry::set_read_id(uint32_t r) {
+	read_id = r;
+}
+
+void Entry::set_scores(const std::vector<uint32_t>& s) {
+	scores = s;
+}
+
+void Entry::set_allele_type(std::vector<bool> active_alleles) {
+	assert(active_alleles.size() == scores.size());
+	std::vector<uint32_t> active_scores;
+	std::vector<uint32_t> indices;
+	for (size_t i = 0; i < active_alleles.size(); i++) {
+		if (active_alleles[i]) {
+			active_scores.push_back(this->scores[i]);
+			indices.push_back(i);
+		}
+	}
+	assert(active_scores.size() == 2);
+	allele1_idx = indices[0];
+	allele2_idx = indices[1];
+	if (active_scores[0] < active_scores[1]) { allele = ALLELE1; }
+	if (active_scores[0] > active_scores[1]) { allele = ALLELE2; }
+	if (active_scores[0] == active_scores[1]) { allele = EQUAL_SCORES; }
+}
+
+void Entry::set_allele_type(allele_t a, uint32_t idx1, uint32_t idx2) {
+	allele = a;
+}
+
+uint32_t Entry::get_read_id() const {
+	return read_id;
+}
+
+std::vector<uint32_t> Entry::get_scores() const {
+	return scores;
+}
+
+// Currently hardcoded to 30 since Whatshap uses fixed quality scores for phasing.
+uint32_t Entry::get_phred_score() const {
+	return 30;
+}
+
+Entry::allele_t Entry::get_allele_type() const {
+	return allele;
+}
+
+bool Entry::has_allele_type() const {
+	return (allele == BLANK);
+}
 
 /*
 * conversion of distance scores to emission probabilities using error probability 0.0001
@@ -42,7 +88,9 @@ void Entry::convert_scores_to_probability() {
 /*
 * conversion of distance scores to emission probabilities using softmin-like function
 * given temperature parameter T, emission probability = exp(-score / T) / sum_over_all_alleles(exp(-score / T))
+*/
 
+/*
 void Entry::convert_scores_to_softmin_probability(uint32_t temperature) {
 	assert(scores.size() > 0);
 	long double min_score = *std::min_element(scores.begin(), scores.end());
@@ -59,39 +107,7 @@ void Entry::convert_scores_to_softmin_probability(uint32_t temperature) {
 }
 */
 
-/*
-Previous conversion from distance scores to emission probabilities
-{
-	emission_score.resize(e.size());
-	int i = 0;
-	double normalization = 0.0L;
-	for (auto it = e.begin(); it != e.end(); it++, i++) {
-		emission_score[i] = pow(10, -reg_const);
-		long double score = 0.0L;
-		for (auto it2 = e.begin(); it2 != e.end(); it2++) {
-			score += pow(base_const, *it2 - *it);
-		}
-		emission_score[i] += 1/score;
-		normalization += emission_score[i];
-	}
-	transform((emission_score).begin(), (emission_score).end(), (emission_score).begin(), std::bind2nd(std::divides<long double>(), normalization));
-}
-*/	
 
-Entry::allele_t Entry::get_allele_type() const {
-	if (scores.size() > 1) {
-		// this record is multi-allelic, so we cannot assign a single allele type
-		// this should never happen in the phasing algorithm
-		throw std::runtime_error("Error: cannot determine allele type for multi-allelic variant.");
-	}
-	switch (allele) {
-		case 0: return REF_ALLELE;
-		case 1: return ALT_ALLELE;
-		case 2: return BLANK;
-		case 3: return EQUAL_SCORES;
-		default: throw std::runtime_error("Error: invalid allele type.");
-	}
-}
 
 std::ostream& operator<<(std::ostream& out, const Entry& e) {
 	out << "Entry(" << e.read_id ;

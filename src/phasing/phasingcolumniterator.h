@@ -51,6 +51,8 @@ private:
 	std::vector<uint32_t>* positions;
 	// number of active alleles at each position
 	std::vector<uint32_t>* n_active_alleles;
+	// tracks the active alleles at each position
+	std::vector<std::vector<bool>>* active_alleles;
 	// if position is a structural variant
 	std::vector<bool>* sv_flag;
 	// first_reads[k] is the index of the first read (i.e. lowest index) active at column k,

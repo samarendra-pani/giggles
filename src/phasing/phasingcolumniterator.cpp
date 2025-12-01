@@ -23,6 +23,10 @@ PhasingColumnIterator::PhasingColumnIterator(const ReadSet& set, const std::vect
 	for (size_t i=0; i<variant_info_table->size(); ++i){
 		n_active_alleles->at(i) = variant_info_table->at(i).count_active_alleles();
 	}
+	active_alleles = new vector<vector<bool>>(variant_info_table->size());
+	for (size_t i=0; i<variant_info_table->size(); ++i){
+		active_alleles->at(i) = variant_info_table->at(i).active_alleles;
+	}
 	sv_flag = new vector<bool>(variant_info_table->size());
 	for (size_t i=0; i<variant_info_table->size(); ++i){
 		sv_flag->at(i) = variant_info_table->at(i).is_sv;
@@ -78,6 +82,7 @@ PhasingColumnIterator::~PhasingColumnIterator() {
 	blank_entries.clear();
 	delete positions;
 	delete n_active_alleles;
+	delete active_alleles;
 	delete sv_flag;
 }
 
@@ -142,30 +147,34 @@ unique_ptr<vector<const Entry*> > PhasingColumnIterator::get_next() {
 	// gather entries from active reads
 	unique_ptr<vector<const Entry*> > result(new vector<const Entry*>());
 	for (list_it = active_reads.begin(); list_it != active_reads.end(); ++list_it) {
-		const Read* read = set.get(list_it->read_index);
+		Read* read = set.get(list_it->read_index);
 		assert (n_active_alleles->at(n) > 0);
 		if (n_active_alleles->at(n) > 2) {
 			// the position has multiple possible alleles.
 			// cannot phase
-			Entry* e = new Entry((uint32_t)read->getID(), Entry::BLANK, std::vector<uint32_t>{0});
+			Entry* e = new Entry(read->getID(), std::vector<uint32_t>{0});
 			blank_entries.push_back(e);
 			result->push_back(e);
 			continue;
 		}
 		if (is_first_phasing_round && sv_flag->at(n)) {
 			// in the first phasing round, we do not consider structural variants
-			Entry* e = new Entry((uint32_t)read->getID(), Entry::BLANK, std::vector<uint32_t>{0});
+			Entry* e = new Entry(read->getID(), std::vector<uint32_t>{0});
 			blank_entries.push_back(e);
 			result->push_back(e);
 			continue;
 		}
+		// TODO: What if alleles determined as homozygous are skipped?
+		assert (n_active_alleles->at(n) == 2); // There has to be two active alleles for phasing.
 		// Does read cover the current position?
 		if (read->getPosition(list_it->active_entry) == next_pos) {
 			// If so, add the entry to the result is the entry is biallelic
-			result->push_back(read->getEntry(list_it->active_entry));
+			Entry* entry = read->getEntry(list_it->active_entry);
+			if (!entry->has_allele_type()) { entry->set_allele_type(active_alleles->at(n)); }
+			result->push_back(entry);
 		} else {
 			// if not, generate a blank entry
-			Entry* e = new Entry((uint32_t)read->getID(), Entry::BLANK, std::vector<uint32_t>{0});
+			Entry* e = new Entry(read->getID(), std::vector<uint32_t>{0});
 			blank_entries.push_back(e);
 			result->push_back(e);
 		}

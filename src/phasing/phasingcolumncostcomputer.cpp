@@ -48,10 +48,10 @@ void PhasingColumnCostComputer::set_partitioning(uint32_t partitioning) {
 		auto & entry = **it;
 		bool entry_in_partition1 = (partitioning & ((uint32_t) 1)) == 0;
 		switch (entry.get_allele_type()) {
-			case Entry::REF_ALLELE:
+			case Entry::ALLELE1:
 				(entry_in_partition1 ? cost_partition[0] :cost_partition[1])[1] += entry.get_phred_score();
 				break;
-			case Entry::ALT_ALLELE:
+			case Entry::ALLELE2:
 				(entry_in_partition1 ? cost_partition[0] :cost_partition[1])[0] += entry.get_phred_score();
 				break;
 			case Entry::BLANK:
@@ -70,11 +70,11 @@ void PhasingColumnCostComputer::update_partitioning(int bit_to_flip) {
 	bool entry_in_partition1 = (partitioning & (((uint32_t) 1) << bit_to_flip)) == 0;
 	uint32_t ind_id = 0; // only one individual in the pedigree
 	switch (entry.get_allele_type()) {
-		case Entry::REF_ALLELE:
+		case Entry::ALLELE1:
 			(entry_in_partition1 ? cost_partition[1] : cost_partition[0])[1] -= entry.get_phred_score();
 			(entry_in_partition1 ? cost_partition[0] :  cost_partition[1])[1] += entry.get_phred_score();
 			break;
-		case Entry::ALT_ALLELE:
+		case Entry::ALLELE2:
 			(entry_in_partition1 ? cost_partition[1] : cost_partition[0])[0] -= entry.get_phred_score();
 			(entry_in_partition1 ? cost_partition[0] :  cost_partition[1])[0] += entry.get_phred_score();
 			break;
@@ -126,8 +126,8 @@ PhasingColumnCostComputer::phased_variant_t PhasingColumnCostComputer::get_allel
 		uint32_t allele1 = (a.assignment >> partition1) & 1;
 		if (new_best) {
 			haps = phased_variant_t(
-				(allele0 == 0)?Entry::REF_ALLELE:Entry::ALT_ALLELE,
-				(allele1 == 0)?Entry::REF_ALLELE:Entry::ALT_ALLELE
+				(allele0 == 0)?Entry::ALLELE1:Entry::ALLELE2,
+				(allele1 == 0)?Entry::ALLELE1:Entry::ALLELE2
 			);
 		}
 		if (cost < best_cost_for_allele.at(0)[allele0]) {

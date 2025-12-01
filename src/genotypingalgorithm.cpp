@@ -18,7 +18,11 @@ GenotypingAlgorithm::GenotypingAlgorithm(ReadSet* read_set, const std::vector<fl
 	// some recursive condition to alternate between phasing and genotyping
 	while (true) {
 		// running the DP table for phasing
-		phasing_dp_table = new PhasingDPTable(read_set, &variant_info_table, is_first_iteration);
+		/*
+		* TODO: Cannot construct DP table if ploidy > 2.
+		* What to do for ploidy = 1? Only genotyping?
+		*/
+		if (ploidy == 2) { phasing_dp_table = new PhasingDPTable(read_set, &variant_info_table, is_first_iteration); }
 		is_first_iteration = false;
 		// running the HMM for genotyping
 		exit(0);

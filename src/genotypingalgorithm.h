@@ -44,6 +44,16 @@ class GenotypingAlgorithm {
 				}
 				return count;
 			}
+			// get active position indices
+			std::vector<uint32_t> get_active_positions() const {
+				std::vector<uint32_t> indices;
+				for (size_t i = 0; i < active_alleles.size(); i++) {
+					if (active_alleles[i]) {
+						indices.push_back(i);
+					}
+				}
+				return indices;
+			}
 		};
 
 		GenotypingAlgorithm(ReadSet* read_set, const std::vector<float>& recombcost, const uint32_t& n_references, const uint32_t& ploidy, const std::vector<uint32_t>* positions, const std::vector<uint32_t>* n_allele_positions, const std::vector<std::vector<int> >* allele_references, const std::vector<bool>* is_sv_position);

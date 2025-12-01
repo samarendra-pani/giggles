@@ -102,14 +102,14 @@ unique_ptr<vector<const Entry*> > BackwardColumnIterator::get_next() {
     list<active_read_t>::iterator list_it = active_reads.begin();
 	unique_ptr<vector<const Entry*> > result(new vector<const Entry*>());
 	for (list_it = active_reads.begin(); list_it != active_reads.end(); ++list_it) {
-		const Read* read = set.get(list_it->read_index);
+		Read* read = set.get(list_it->read_index);
 		// Does read cover the current position?
 		if (read->getPosition(list_it->active_entry) == next_pos) {
 			result->push_back(read->getEntry(list_it->active_entry));
 		} 
 		else {
 			// if not, generate a blank entry
-			Entry* e = new Entry(read->getID(), Entry::BLANK, std::vector<uint32_t>{0});
+			Entry* e = new Entry(read->getID(), std::vector<uint32_t>{0});
 			blank_entries.push_back(e);
 			result->push_back(e);
 		}

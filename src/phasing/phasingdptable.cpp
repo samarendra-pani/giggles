@@ -357,12 +357,18 @@ void PhasingDPTable::get_super_reads(ReadSet* output_read_set, vector<uint32_t>*
 			cost_computer.set_partitioning(v.index);
 
 			auto population_alleles = cost_computer.get_alleles();
+			// some sort of check if see if the alleles are blank?
+			std::vector<uint32_t> active_allele = variant_info_table->at(i).get_active_positions();
+			if (population_alleles.allele0 == Entry::EQUAL_SCORES) {
+				assert (population_alleles.allele1 == Entry::EQUAL_SCORES);
+			}
+			else {
+				assert (active_allele.size() == 2);
+			}
 			
 			// TODO: compute proper weights based on likelihoods.
-			for (uint32_t k=0; k<1; k++) {
-				superreads.first->addVariant(positions->at(i), population_alleles.allele0, std::vector<uint32_t>(population_alleles.quality));
-				superreads.second->addVariant(positions->at(i), population_alleles.allele1, std::vector<uint32_t>(population_alleles.quality));
-			}
+			superreads.first->addVariant(positions->at(i), std::vector<uint32_t>(population_alleles.quality), population_alleles.allele0, active_allele[0], active_allele[1]);
+			superreads.second->addVariant(positions->at(i), std::vector<uint32_t>(population_alleles.quality), population_alleles.allele1, active_allele[0], active_allele[1]);
 			transmission_vector->push_back(v.inheritance_value);
 			++i; // next column
 		}
