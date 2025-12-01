@@ -136,11 +136,23 @@ class GafAlignment:
 
     @staticmethod
     def get_alignment_start_on_ref(alignment, rgfa):
-        # Taking alignment whose orientation is same as the reference and finding where it starts on the reference
-        # Returns the following information:
-        #       Start position (0-based; closed) on the reference
-        #       Index of the first reference node in the path
-        #       Index of the first scaffold node in the path
+        """Calculates the start position of the alignment on the reference.
+
+        Iterates through the alignment path to find the first reference node
+        and calculates the coordinate based on the distance from the path start.
+
+        Args:
+            alignment (GafAlignment): The alignment object
+            rgfa: The rGFA graph object.
+
+        Returns:
+            tuple[int, int, int]: A tuple containing:
+                - Start position on reference (0-based, inclusive).
+                - Index of the start reference node in the path.
+                - Index of the start scaffold node in the path.
+
+            Returns (None, None, None) if no reference node is found.
+        """
         start_on_path = alignment.p_start
         path = alignment.path
         count = -1
@@ -176,11 +188,23 @@ class GafAlignment:
     
     @staticmethod
     def get_alignment_end_on_ref(alignment, rgfa):
-        # Taking alignment whose orientation is same as the reference and finding where it ends on the reference
-        # Returns the following information:
-        #       End position (0-based; exclusive) on the reference
-        #       Index of the end reference node in the path
-        #       Index of the end scaffold node in the path
+        """Calculates the end position of the alignment on the reference.
+
+        Iterates backwards through the alignment path to find the last reference 
+        node and calculates the coordinate based on the distance from the path end.
+
+        Args:
+            alignment (GafAlignment): The alignment object
+            rgfa: The rGFA graph object.
+
+        Returns:
+            tuple[int, int, int]: A tuple containing:
+                - End position on reference (0-based, exclusive).
+                - Index of the end reference node in the path.
+                - Index of the end scaffold node in the path.
+
+            Returns (None, None, None) if no reference node is found.
+        """
         distance_from_end = alignment.p_len - alignment.p_end
         path = alignment.path
         count = -1

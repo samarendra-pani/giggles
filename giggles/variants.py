@@ -11,8 +11,45 @@ from pywfa import WavefrontAligner
 from giggles.logger import logger
 from giggles.core import Read, ReadSet
 from giggles.gaf import GafParser, rGFA, GafAlignment
+from giggles.vcf import VcfVariant
 from giggles.align import edit_distance
 from giggles._variants import _iterate_cigar
+
+
+class Realigner:
+    """
+    Class to encapsulate different aligners
+    """
+    def __init__(self, mode:str, params:List):
+        self.mode = mode
+        if mode is "edit":
+            # params are not used.
+            self.realigner = edit_distance
+        else:
+            assert mode is "wfa"
+            default_mismatch, gap_start, gap_extend = params
+            self.realigner = WavefrontAligner(mismatch=default_mismatch, gap_opening=gap_start, gap_extension=gap_extend, scope='score')
+
+
+    def get_distance(self, query: str, allele: str):
+        """Calculates the distance between query and padded allele.
+
+        Args
+            query: the sequence on the read
+            allele: the sequence of alleles given in the VCF (padded with some overhangs)
+        
+        Returns
+            int: the distance between the two string (always positive)
+        """
+        if self.mode == "edit":
+            return self.realigner(query, allele)
+        elif self.mode == "wfa":
+            return -self.realigner(query, allele).score
+            
+
+    def close(self):
+        self.realigner.__dealloc__()
+
 
 
 class AlignmentReader:
@@ -31,14 +68,7 @@ class AlignmentReader:
 
         self._path = path
         self._mapq_threshold = mapq_threshold
-        self._realign_mode = realign_mode
-        if realign_mode == "edit":
-            self._aligner = edit_distance
-        elif realign_mode == "wfa":
-            self._aligner = WavefrontAligner(mismatch=default_mismatch, 
-                                         gap_opening=gap_start,
-                                         gap_extension=gap_extend,
-                                         scope='score')
+        self._aligner = Realigner(realign_mode, [default_mismatch, gap_start, gap_extend])
         self._gap_start = gap_start
         self._gap_extend = gap_extend
         self._default_mismatch = default_mismatch
@@ -125,33 +155,45 @@ class AlignmentReader:
 
     @staticmethod
     def realign(
-            aligner: WavefrontAligner,
-            variant,
-            read,
-            cigartuples,
-            i,
-            consumed,
-            query_pos,
-            reference,
-            mode,
-            overhang):
-        """
-        Realign a read to the two alleles of a single variant.
-        i and consumed describe where to split the cigar into a part before the
-        variant position and into a part starting at the variant position, see split_cigar().
-
-        variant -- VcfVariant
-        read -- the AlignedSegment
-        cigartuples -- the AlignedSegment.cigartuples property (accessing it is expensive, so re-use it)
-        i, consumed -- see split_cigar method
-        query_pos -- index of the query base that is at the variant position
-        reference -- the reference as a str-like object (unlike original implementation, this is only the sequence of the alignment path and not the whole chromosome)
-        mode -- whether to use edit distance or wave-front aligner.
-        overhang -- extend alignment by this many bases to left and right
+        aligner: Realigner,
+        variant: VcfVariant,
+        read: Read,
+        cigartuples: tuple,
+        i: int,
+        consumed: int,
+        query_pos: int,
+        reference: str,
+        overhang: int
+    ):
         
-        Return a tuple (allele, scores) where
-        allele -- allele index with the max score
-        scores -- list of alignment scores for all alleles (first is reference, then alternatives)
+        """Realigns a read to the reference and alternative alleles of a variant.
+
+        Extracts the relevant query sequence and reference context (based on the 
+        alignment path) to construct potential allele sequences. It then scores 
+        each allele against the read using either simple edit distance (for 
+        external variants) or a dedicated aligner (for SVs).
+
+        Args:
+            aligner: The aligner object used for scoring SVs.
+            variant: The variant record to realign against.
+            read: The AlignedSegment object (pysam).
+            cigartuples: The cached `read.cigartuples` property (passed 
+                explicitly to avoid expensive re-access).
+            i: The index in `cigartuples` where the variant position occurs.
+            consumed: The number of reference bases consumed by the CIGAR 
+                operations up to index `i`.
+            query_pos: The 0-based index in the query (read) sequence 
+                corresponding to the variant's start position.
+            reference: The specific sequence of the alignment path (constructed 
+                from GAF nodes), NOT the entire chromosome sequence.
+            overhang: The number of context bases to include on the left 
+                and right of the variant for realignment.
+
+        Returns:
+            list[float]: A list of alignment scores, where the first element is 
+            the Reference score, followed by scores for each Alternative allele.
+            
+            Returns `None` if the variant contains symbolic alleles (e.g., <DEL>).
         """
         # Do not process symbolic alleles like <DEL>, <DUP>, etc.
         if any([alt.startswith("<") for alt in variant.alternative_allele]):
@@ -232,31 +274,33 @@ class AlignmentReader:
                 # If the distance between the allele and query is too much, add a known high distance
                 scores.append(1e8)
             else:
-                if mode == "edit":
-                    scores.append(aligner(query, allele))    # edit distance is positive.
-                elif mode == "wfa":
-                    scores.append(-aligner(query, allele).score)    # converting WFA score to positive
-            
+                scores.append(aligner.get_distance(query, allele))        
+                
         return scores
 
     @staticmethod
     def detect_alleles_by_alignment(
-        aligner,
-        variants,
-        j,
-        read,
-        reference,
-        mode,
-        overhang=10,
+        aligner: Realigner,
+        variants: List[VcfVariant],
+        j: int,
+        read: Read,
+        reference: str,
+        overhang: int = 10,
     ):
-        """
-        Detect which alleles the given bam_read covers. Detect the correct
-        alleles of the variants that are covered by the given bam_read.
+        
+        """Calculates the distance score between the read and the different alleles that are possible.
 
-        Yield tuples (position, allele, quality).
+        Args:
+            aligner: the aligner function - this can either be the edit_distance() function or a WaveFrontAligner object.
+            variants: the variants present on the chromosome
+            j: index of the first variant (in the variants list) to check
+            read: the Read object of the alignment
+            reference: the sequence of the refernce path (in the GAF file, it is the reference path) the read aligned to.
+            mode:
 
-        variants -- list of variants (VcfVariant objects)
-        j -- index of the first variant (in the variants list) to check
+        Returns:
+            ReadSet: the ReadSet object containing the information about the variants found in each
+                alignment and their distance scores from available alleles.
         """
         # Accessing read.cigartuples is expensive, do it only once
         cigartuples = read.cigartuples
@@ -275,7 +319,6 @@ class AlignmentReader:
                 consumed,
                 query_pos,
                 reference,
-                mode,
                 overhang
             )
 
@@ -314,18 +357,18 @@ class GAFReader(AlignmentReader):
     def has_reference(self, chromosome):
         return self._reader.has_reference(chromosome)
 
-    def read(self, chromosome, variants) -> ReadSet:
-        """
-        Detect alleles and return a ReadSet object containing reads representing
-        the given variants.
+    def read(self, chromosome: str, variants: List[VcfVariant]) -> ReadSet:
+        """Detect alleles and return a ReadSet object containing reads representing the given variants.
 
-        Using the provided reference, re-alignment is done which generates scores
-        to be used in the HMM.
+        Args:
+            chromosome: name of the chromosome
+            variants: the variants present on the chromosome
 
-        chromosome -- name of chromosome to work on
-        variants -- list of vcf.VcfVariant objects
-        reference -- Here the variable does nothing. Kept to maintain compatibility with ReadSetReader
+        Returns:
+            ReadSet: the ReadSet object containing the information about the variants found in each
+                alignment and their distance scores from available alleles.
         """
+       
         # Since variants are identified by position, positions must be unique.
         if __debug__ and variants:
             varposc = Counter(variant.position_on_ref for variant in variants)
@@ -350,8 +393,15 @@ class GAFReader(AlignmentReader):
 
     @staticmethod
     def _remove_duplicate_reads(reads: Iterable[Read]) -> Iterator[List[Read]]:
-        """
-        remove reads which have been mapped multiple times and select one best read
+        """Removes reads which have been mapped multiple times and selects one best read.
+
+        Args:
+            reads: A list of Read objects
+
+        Yields:
+            dict{(int, str): Read}: a dictionary containing:
+                - key is a tuple of the source id (which is an integer index of the file in which the read is present) and name of the read.
+                - the value is the Read object created in _alignments_to_reads
         """
         groups = defaultdict(list)
         for read in reads:
@@ -375,17 +425,50 @@ class GAFReader(AlignmentReader):
                 raise Exception(f"Read name {group[0].name} occurs more than twice in the input file")
             yield group
 
-    def _usable_alignments(self, chromosome):
-        """
-        Retrieve usable (suficient mapping quality, not secondary etc.)
-        alignments from the alignment file
+    def _usable_alignments(self, chromosome: str) -> Iterator[GafAlignment]:
+        """"Retrieves usable alignments from the alignment file.
+
+        Currently does not have restrictions. In the future, this is where alignment 
+        filtering will happen.
+
+        Args:
+            chromosome: The name of the chromosome.
+
+        Yields:
+            GafAlignment: The next usable alignment object.
         """
         
         for alignment in self._reader(contig=chromosome):
             yield alignment
 
     @staticmethod
-    def find_variants_in_alignment(alignment, variants, rgfa, variant_pointer):
+    def find_variants_in_alignment(alignment: GafAlignment, variants: List[VcfVariant], rgfa: rGFA, variant_pointer: int):
+        """Identifies variants covered by a specific alignment and assigns coverage states.
+
+        This method synchronizes the alignment's genomic interval with a sorted list of 
+        variants. It determines if the alignment fully covers, partially covers (enters/exits), 
+        or is contained within variant bubbles (given by the VcfVariant.state variable).
+
+        Args:
+            alignment: The alignment object to process.
+            variants: A sorted list of variant objects (0-based coordinates).
+            rgfa: The reference graph object.
+            variant_pointer: The index in the `variants` list to start searching from 
+                (optimization for sorted data).
+
+        Returns:
+            tuple: A tuple containing 7 elements:
+                1. list[VcfVariant]: The list of variants found in this alignment.
+                2. int: Alignment start on reference (0-based, inclusive).
+                3. int: Updated variant_pointer for the next iteration.
+                4. int: Index of the first scaffold node in the alignment path.
+                5. int: Index of the last scaffold node in the alignment path.
+                6. int: Count of External (linear) variants found.
+                7. int: Count of Structural (bubble) variants found.
+
+            Returns a tuple of (None, ...) values if the pointer is out of bounds or 
+            no overlap is possible.
+        """
         
         # ------------------------------------------------------------------
         # STEP 1: Determine Alignment Coordinates & Topology
@@ -572,11 +655,29 @@ class GAFReader(AlignmentReader):
         return variants_in_alignment, alignment_start_on_ref, variant_pointer, start_scaffold_node, end_scaffold_node, count_ext, count_sv
 
 
-    def _calculate_sv_attributes(self, alignment, variants_in_alignment, rgfa, start_scaf_idx):
+    def _calculate_sv_attributes(self, alignment: GafAlignment, variants_in_alignment: List[VcfVariant], rgfa: rGFA, start_scaf_idx: int):
+        """Constructs the alignment sequence and calculates attributes for SV bubbles.
+
+        Iterates through the alignment path nodes to build the full sequence string. 
+        Simultaneously measures the physical length of Structural Variants (bubbles) 
+        as they appear on the read path and updates their attributes in-place.
+
+        Args:
+            alignment: The alignment object.
+            variants_in_alignment: The list of variants associated 
+                with this alignment.
+            rgfa: The reference graph object.
+            start_scaf_idx: The index of the first scaffold node in the path 
+                (used to handle partial start bubbles).
+
+        Returns:
+            str: The constructed DNA sequence of the alignment path.
+
+        Note:
+            This function modifies the `VcfVariant` objects within `variants_in_alignment` 
+            in-place, setting their `length_on_path` and `position` attributes.
         """
-        Phase 2: Walks the alignment path to construct the sequence string
-        and measure the length/position of SVs (Bubbles).
-        """
+
         logger.trace(f'Setting attributes for SV bubble variants on {alignment.read_id}')
         reference_seq = ""
         len_on_path = 0     # Accumulator for current bubble length
@@ -693,10 +794,21 @@ class GAFReader(AlignmentReader):
         return reference_seq
 
 
-    def _interpolate_ext_positions(self, variants, alignment, rgfa, start_scaf_idx):
-        """
-        Phase 3: Calculates positions for Ext variants (SNPs) by anchoring 
-        them to the previously calculated SVs or the start node.
+    def _interpolate_ext_positions(self, variants: List[VcfVariant], alignment: GafAlignment, rgfa: rGFA, start_scaf_idx: int):
+        """Calculates and updates positions for external (linear) variants on the read path.
+
+        Since external variants (SNPs) do not correspond to graph nodes, their positions 
+        are calculated by interpolating from the nearest anchor (either the start of the 
+        alignment or the end of the previous Structural Variant).
+
+        Args:
+            variants: The list of variants in the alignment.
+            alignment: The alignment object.
+            rgfa: The reference graph object.
+            start_scaf_idx: The index of the first scaffold node in the path.
+
+        Returns:
+            None: This function modifies the variant objects in the input list in-place.
         """
 
         logger.trace(f'Interpolating the positions of the external variants covered by {alignment.read_id}')
@@ -758,15 +870,24 @@ class GAFReader(AlignmentReader):
 
 
 
-    def _update_variants_in_alignments(self, alignments, variants):
-        """
-        Finds variants, builds sequences, and calculates attributes.
+    def _update_variants_in_alignments(self, alignments: Iterator[GafAlignment], variants: List[VcfVariant]):
+        """Processes a stream of alignments to find, map, and attribute variants.
 
-        Yields
-        - variants_in_alignment: VcfVariant objects found in the alignment
-        - alignment: GafAlignment object
-        - alignment_start_on_ref: starting position of the alignment on reference
-        - reference: reference seqeunce of the path given in the Gaf Alignment
+        Acts as the main orchestrator loop. It maintains a global pointer to the 
+        sorted variant list to efficiently process sequential alignments.
+
+        Args:
+            alignments: An iterator yielding alignment objects.
+            variants: A sorted list of variants for the current chromosome.
+
+        Yields:
+            tuple: A tuple containing:
+                - list[VcfVariant]: The variants found in the alignment (with updated attributes).
+                - GafAlignment: The processed alignment object.
+                - int: The alignment's start position on the reference.
+                - str: The reconstructed sequence of the alignment path.
+
+            Yields `None` if the input alignment is None.
         """
         
         rgfa = self._reader._reference
@@ -818,11 +939,18 @@ class GAFReader(AlignmentReader):
 
 
     def _alignments_to_reads(self, updated_variants):
-        """
-        Convert GAF alignments to Read objects.
+        """Processes the identified variants on alignment and converts them in Read objects.
 
-        Yields Read objects
+        Handles the conversion of variants detected into Read objects.
+        Also performs the realignment of the reads with the alleles to get scores.
+
+        Args:
+            updated_variant: see the output of _update_variants_in_alignments
+
+        Yields:
+            Read: the Read object
         """
+
         cg_letter_to_op = {'M': 0, 'I': 1, 'D': 2, 'N': 3, 'S': 4, 'H': 5, 'P': 6, 'X': 7, '=': 8}
         Alignment = namedtuple('Alignment', ['cigartuples', 'reference_start', 'query_sequence'])        # Class created to maintain compatibility with old code
         
@@ -832,7 +960,11 @@ class GAFReader(AlignmentReader):
             if result is None:
                 yield None
 
-            variants_in_alignment, alignment, alignment_start_on_ref, reference, _, _ = result
+            variants_in_alignment, alignment, alignment_start_on_ref, reference = result
+
+            # if no variants found in the alignment
+            if variants_in_alignment is None:
+                yield None
 
             # Extract the aligned segement from the complete read sequence and create a new object.
             # Need cigartuples, and reference_start (where it starts in the reference. So the path start in this case.)
@@ -861,7 +993,6 @@ class GAFReader(AlignmentReader):
                 0,                              # Here this has been hardcoded to 0. In original code, this was the index of the first variant (index in the big list of variants) in the read. But now we have new list of variants just for this alignment.
                 processed_alignment,
                 reference,
-                self._realign_mode,
                 self._overhang)
             for j, scores in detected:
                 read.add_variant(variants_in_alignment[j].position_on_ref, scores)
@@ -876,8 +1007,8 @@ class GAFReader(AlignmentReader):
         self.close()
 
     def close(self):
-        if type(self._aligner) is WavefrontAligner:
+        if type(self._aligner.realigner) is WavefrontAligner:
             logger.debug("Deallocating WavefrontAligner")
-            self._aligner.__dealloc__()
+            self._aligner.close()
         logger.debug("Closing GAFParser")
         self._reader.close()
