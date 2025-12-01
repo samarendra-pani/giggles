@@ -3,8 +3,6 @@ Taken from whatshap (version 2.8)
 Original filename: src/columnindexingiterator.h
 */
 
-// DONE
-
 #ifndef PHASING_COLUMN_INDEXING_ITERATOR_H
 #define PHASING_COLUMN_INDEXING_ITERATOR_H
 

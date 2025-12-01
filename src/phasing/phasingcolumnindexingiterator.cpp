@@ -3,8 +3,6 @@ Taken from whatshap (version 2.8)
 Original filename: src/columnindexingiterator.cpp
 */
 
-// DONE
-
 #include <cassert>
 #include "phasingcolumnindexingscheme.h"
 #include "phasingcolumnindexingiterator.h"

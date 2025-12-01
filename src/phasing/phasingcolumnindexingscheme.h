@@ -3,8 +3,6 @@ Taken from whatshap (version 2.8)
 Original filename: src/columnindexingscheme.h
 */
 
-// DONE
-
 #ifndef COLUMN_INDEXING_SCHEME_H
 #define COLUMN_INDEXING_SCHEME_H
 
