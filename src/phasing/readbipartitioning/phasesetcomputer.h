@@ -22,6 +22,8 @@
  * * It tags the reads in the readset with their phaseset ID.
  * Variants are considered to be in the same component if a read exists that covers both.
  * A component is identified by the representative position (usually the smallest/leftmost variant).
+ * Phaseblocks are determined by reads selected for phasing (i.e., those that contributed to the DP table).
+ * The unselected reads are then tagged with the phaseset if all their variants belong to the same component.
  * @param phased_positions List of all variant positions that were phased by the DP table.
  * @param read_set Pointer to the set of reads containing variant information. All the reads are in this object.
  * @param heterozygous_positions List of positions to restrict component building. 
@@ -38,6 +40,9 @@ void find_phasesets_tag_reads(const std::vector<uint32_t>& phased_positions, Rea
     
     for (uint32_t i = 0; i < read_set->size(); ++i) {
         Read* read = read_set->get(i);
+        if (!read->isSelected()) {
+            continue; // Skip unselected reads.
+        }
         std::vector<uint32_t> read_positions;
         read_positions.reserve(read->getVariantCount());
         for (uint32_t j = 0; j < read->getVariantCount(); ++j) {
@@ -63,8 +68,25 @@ void find_phasesets_tag_reads(const std::vector<uint32_t>& phased_positions, Rea
     // tagging reads with their phaseset ID (representative position)
     for (uint32_t i = 0; i < read_set->size(); ++i) {
         Read* read = read_set->get(i);
-        uint32_t ps = component_finder.find(read->firstPosition());
-        read->addPhaseSet(ps);
+        if (read->isSelected()) {
+            uint32_t ps = component_finder.find(read->firstPosition());
+            read->addPhaseSet(ps);
+            continue;
+        }
+        else {
+            // make sure all positions in the read belong to the same component
+            uint32_t rep = component_finder.find(read->firstPosition());
+            bool all_same_component = true;
+            for (uint32_t j = 1; j < read->getVariantCount(); ++j) {
+                if (rep != component_finder.find(read->getPosition(j))) {
+                    all_same_component = false;
+                    break;
+                }
+            }
+            if (all_same_component) {
+                read->addPhaseSet(rep);
+            }
+        }  
     }
 }
 
@@ -107,7 +129,6 @@ void compute_phasesets(std::vector<uint32_t> accessible_positions, ReadSet* read
             heterozygous_positions.insert(superread0->getPosition(i));
         }
     }
-
     find_phasesets_tag_reads(accessible_positions, read_set, heterozygous_positions);
 }
 
