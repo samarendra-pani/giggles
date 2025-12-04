@@ -33,7 +33,6 @@ PhasingDPTable::PhasingDPTable(ReadSet* read_set, const vector<GenotypingAlgorit
 PhasingDPTable::~PhasingDPTable() {
 	init(projection_column_table, 0);
 	init(index_backtrace_table, 0);
-	init(transmission_backtrace_table, 0);
 	init(indexers, 0);
 }
 
@@ -61,15 +60,12 @@ void PhasingDPTable::clear_table() {
 
 	init(projection_column_table, column_count);
 	init(index_backtrace_table, column_count);
-	init(transmission_backtrace_table, column_count);
 	init(indexers, column_count);
 
 	index_path.clear();
 
 	optimal_score = numeric_limits<uint32_t>::max();
 	optimal_score_index = 0;
-	optimal_transmission_value = 0;
-	previous_transmission_value = 0;
 }
 
 
@@ -118,20 +114,16 @@ void PhasingDPTable::compute_table() {
 		// determine whether to delete previous column (to save space)
 		if ((k>1) && (column_index > 0) && (((column_index-1)%k) != 0)) {
 			delete index_backtrace_table[column_index-1];
-			delete transmission_backtrace_table[column_index-1];
 			delete projection_column_table[column_index-1];
 			index_backtrace_table[column_index-1] = nullptr;
-			transmission_backtrace_table[column_index-1] = nullptr;
 			projection_column_table[column_index-1] = nullptr;
 		}
 	}
 
 	// perform a backtrace to get optimal path
-	index_path.assign(indexers.size(), index_and_inheritance_t());
-	index_and_inheritance_t v;
-	uint32_t prev_inheritance_value = previous_transmission_value;
-	v.index = optimal_score_index;
-	v.inheritance_value = optimal_transmission_value;
+	index_path.assign(indexers.size(), 0);
+	uint32_t v;
+	v = optimal_score_index;
 	index_path[indexers.size()-1] = v;
 	for(size_t i = indexers.size()-1; i > 0; --i) { // backtrack through table
 		// ensure that index_backtrace_table[i-1] and transmission_backtrace_table[i-1] exist
@@ -143,22 +135,18 @@ void PhasingDPTable::compute_table() {
 				compute_column(j);
 			}
 		}
-		// compute index and transmission value for the current column
+		// compute index value for the current column
 		unique_ptr<PhasingColumnIndexingIterator> iterator = indexers[i]->get_iterator();
-		uint32_t backtrace_index = iterator->index_backward_projection(v.index);
-		v.index = index_backtrace_table[i-1]->at(backtrace_index, prev_inheritance_value);
-		v.inheritance_value = prev_inheritance_value;
-		prev_inheritance_value = transmission_backtrace_table[i-1]->at(backtrace_index, v.inheritance_value);
+		uint32_t backtrace_index = iterator->index_backward_projection(v);
+		v = index_backtrace_table[i-1]->at(backtrace_index);
 		index_path[i-1] = v;
 		// free parts of the DP table no longer needed
 		if (i%k == 0) {
 			for (size_t j=i; (j<i+k) && (j<input_column_iterator.get_column_count()-1); ++j) {
 				assert(projection_column_table[j] != nullptr);
 				delete index_backtrace_table[j];
-				delete transmission_backtrace_table[j];
 				delete projection_column_table[j];
 				index_backtrace_table[j] = nullptr;
-				transmission_backtrace_table[j] = nullptr;
 				projection_column_table[j] = nullptr;
 			}
 		}
@@ -172,17 +160,11 @@ void PhasingDPTable::compute_column(size_t column_index, unique_ptr<vector<const
 	// check whether requested column is already there
 	if (projection_column_table[column_index] != nullptr) {
 		assert(index_backtrace_table[column_index] != nullptr);
-		assert(transmission_backtrace_table[column_index] != nullptr);
 		return;
 	}
 
 	PhasingColumnIndexingScheme* current_indexer = indexers[column_index];
 	assert(current_indexer != nullptr);
-
-	// compute the number of different transmission vectors
-	// set to 1 since there is only one individual in the pedigree
-	// this changes a lot of the Vector2D objects to have only one column but we are keeping the Vector2D class for simplicity and compatibility.
-	uint32_t transmission_configurations = 1;
 
 	// if current input column was not provided, then create it
 	if (current_input_column.get() == nullptr) {
@@ -191,41 +173,31 @@ void PhasingDPTable::compute_column(size_t column_index, unique_ptr<vector<const
 	}
 
 	// reserve memory for the current DP column
-	Vector2D<uint32_t> dp_column(current_indexer->column_size(), transmission_configurations, 0);
+	vector<uint32_t> dp_column(current_indexer->column_size(), 0);
 
 	// obtain previous projection column (which is assumed to have been already computed)
-	Vector2D<uint32_t>* previous_projection_column = nullptr;
+	vector<uint32_t>* previous_projection_column = nullptr;
 	if (column_index > 0) {
 		previous_projection_column = projection_column_table[column_index - 1];
 	}
 
 	// initialize forward projection column and associated backtrace columns,
 	// if existing (i.e. if not last column)
-	Vector2D<uint32_t>* current_projection_column = nullptr;
-	Vector2D<uint32_t>* transmission_backtrace_column = nullptr;
-	Vector2D<uint32_t>* index_backtrace_column = nullptr;
+	vector<uint32_t>* current_projection_column = nullptr;
+	vector<uint32_t>* index_backtrace_column = nullptr;
 	if (column_index + 1 < input_column_iterator.get_column_count()) {
-		current_projection_column = new Vector2D<uint32_t>(
+		current_projection_column = new vector<uint32_t>(
 			current_indexer->forward_projection_size(),
-			transmission_configurations,
 			numeric_limits<uint32_t>::max()
 		);
-		transmission_backtrace_column = new Vector2D<uint32_t>(
+		index_backtrace_column = new vector<uint32_t>(
 			current_indexer->forward_projection_size(),
-			transmission_configurations,
-			numeric_limits<uint32_t>::max()
-		);
-		index_backtrace_column = new Vector2D<uint32_t>(
-			current_indexer->forward_projection_size(),
-			transmission_configurations,
 			numeric_limits<uint32_t>::max()
 		);
 	}
 
 	// create column cost computers
-	vector<PhasingColumnCostComputer> cost_computers;
-	cost_computers.reserve(transmission_configurations);
-	cost_computers.emplace_back(*current_input_column, column_index, variant_info_table);
+	PhasingColumnCostComputer cost_computer(*current_input_column, column_index, variant_info_table);
 	
 	// iterate over all bipartitions
 	unique_ptr<PhasingColumnIndexingIterator> iterator = current_indexer->get_iterator();
@@ -233,13 +205,9 @@ void PhasingDPTable::compute_column(size_t column_index, unique_ptr<vector<const
 		int bit_changed = -1;
 		iterator->advance(&bit_changed);
 		if (bit_changed >= 0) {
-			for(auto& cost_computer : cost_computers) {
-				cost_computer.update_partitioning(bit_changed);
-			}
+			cost_computer.update_partitioning(bit_changed);
 		} else {
-			for(auto& cost_computer : cost_computers) {
-				cost_computer.set_partitioning(iterator->get_partition());
-			}
+			cost_computer.set_partitioning(iterator->get_partition());
 		}
 
 		// Determine index in backward projection column from where to fetch the previous cost
@@ -250,66 +218,40 @@ void PhasingDPTable::compute_column(size_t column_index, unique_ptr<vector<const
 		// Determine index in the current DP column to be written
 		size_t current_index = iterator->get_index();
 
-		// Compute aggregate cost based on cost in previous and cost in current column
-		vector<uint32_t> min_recomb_index(transmission_configurations);
-		bool found_valid_transmission_vector = false;
-		// i = 0 since there transmission_configurations is 1
-		for (size_t i = 0; i < transmission_configurations; ++i) {
-			// Compute cost incurred by current cell of DP table
-			uint32_t current_cost = cost_computers[i].get_cost();
-			uint32_t min = numeric_limits<uint32_t>::max();
-			size_t min_index = 0;
-			if (current_cost < numeric_limits<uint32_t>::max()) {
-				found_valid_transmission_vector = true;
-			}
-			// j is also 0 since transmission_configurations is 1
-			for (size_t j = 0; j < transmission_configurations; ++j) {
-				// add up cost from current_cost column and previous columns
-				uint32_t val;
-				uint32_t previous_cost = 0;
-				if (column_index > 0) {
-					previous_cost = previous_projection_column->at(backward_projection_index,j);
-				}
-				if ((current_cost < numeric_limits<uint32_t>::max()) && (previous_cost < numeric_limits<uint32_t>::max())) {
-					val = current_cost + previous_cost;
-				} else {
-					val = numeric_limits<uint32_t>::max();
-				}
-
-				// check for new minimum
-				if (val < min) {
-					min = val;
-					min_index = j;
-				}
-			}
-			dp_column.set(current_index, i, min);
-			min_recomb_index[i] = min_index;
+		// Compute cost incurred by current cell of DP table
+		uint32_t current_cost = cost_computer.get_cost();
+		uint32_t min = numeric_limits<uint32_t>::max();
+		// add up cost from current_cost column and previous columns
+		uint32_t val;
+		uint32_t previous_cost = 0;
+		if (column_index > 0) {
+			previous_cost = previous_projection_column->at(backward_projection_index);
 		}
-		if (!found_valid_transmission_vector) {
-			throw std::runtime_error("Error: Mendelian conflict");
+		if ((current_cost < numeric_limits<uint32_t>::max()) && (previous_cost < numeric_limits<uint32_t>::max())) {
+			val = current_cost + previous_cost;
+		} else {
+			val = numeric_limits<uint32_t>::max();
 		}
 
+		// check for new minimum
+		if (val < min) {
+			min = val;
+		}
+		dp_column.at(current_index) = min;
+		
 		// if last DP column, then check for new optimal score, otherwise update forward projection and backtrace columns
 		if (current_projection_column == 0) {
 			// update running optimal score index
-			for (size_t i = 0; i < transmission_configurations; ++i) {
-				if (dp_column.at(current_index, i) < optimal_score) {
-					optimal_score = dp_column.at(current_index, i);
-					optimal_score_index = iterator->get_index();
-					optimal_transmission_value = i;
-					previous_transmission_value = min_recomb_index[i];
-				}
+			if (dp_column.at(current_index) < optimal_score) {
+				optimal_score = dp_column.at(current_index);
+				optimal_score_index = iterator->get_index();
 			}
 		} else {
 			uint32_t forward_index = iterator->get_forward_projection();
 			uint32_t it_idx = iterator->get_index();
-			// i = 0 since transmission_configurations is 1
-			for (uint32_t i = 0; i < transmission_configurations; ++i) {
-				if (dp_column.at(current_index, i) < current_projection_column->at(forward_index,i)) {
-					current_projection_column->set(forward_index, i, dp_column.at(current_index, i));
-					index_backtrace_column->set(forward_index, i, it_idx);
-					transmission_backtrace_column->set(forward_index,i, min_recomb_index[i]);
-				}
+			if (dp_column.at(current_index) < current_projection_column->at(forward_index)) {
+				current_projection_column->at(forward_index) = dp_column.at(current_index);
+				index_backtrace_column->at(forward_index) = it_idx;
 			}
 		}
 	}
@@ -317,7 +259,6 @@ void PhasingDPTable::compute_column(size_t column_index, unique_ptr<vector<const
 	// if not last column, then store computed tables
 	if (current_projection_column != 0) {
 		index_backtrace_table[column_index] = index_backtrace_column;
-		transmission_backtrace_table[column_index] = transmission_backtrace_column;
 		projection_column_table[column_index] = current_projection_column;
 	}
 }
@@ -329,11 +270,9 @@ uint32_t PhasingDPTable::get_optimal_score() {
 }
 
 
-void PhasingDPTable::get_super_reads(ReadSet* output_read_set, vector<uint32_t>* transmission_vector) {
+void PhasingDPTable::get_super_reads(ReadSet* output_read_set) {
 	assert(output_read_set != nullptr);
 	assert(output_read_set->size() == 1);
-	assert(transmission_vector != nullptr);
-	transmission_vector->clear();
 
 	input_column_iterator.jump_to_column(0);
 	const vector<uint32_t>* positions = input_column_iterator.get_positions();
@@ -351,14 +290,14 @@ void PhasingDPTable::get_super_reads(ReadSet* output_read_set, vector<uint32_t>*
 		// run through the file again with the input_column_iterator
 		uint32_t i = 0; // column index
 		while (input_column_iterator.has_next()) {
-			const index_and_inheritance_t& v = index_path[i];
+			const uint32_t& v = index_path[i];
 			unique_ptr<vector<const Entry *> > column = input_column_iterator.get_next();
 			PhasingColumnCostComputer cost_computer(*column, i, variant_info_table);
-			cost_computer.set_partitioning(v.index);
+			cost_computer.set_partitioning(v);
 
 			auto population_alleles = cost_computer.get_alleles();
 			// some sort of check if see if the alleles are blank?
-			std::vector<uint32_t> active_allele = variant_info_table->at(i).get_active_positions();
+			vector<uint32_t> active_allele = variant_info_table->at(i).get_active_positions();
 			if (population_alleles.allele0 == Entry::EQUAL_SCORES) {
 				assert (population_alleles.allele1 == Entry::EQUAL_SCORES);
 			}
@@ -367,9 +306,8 @@ void PhasingDPTable::get_super_reads(ReadSet* output_read_set, vector<uint32_t>*
 			}
 			
 			// TODO: compute proper weights based on likelihoods.
-			superreads.first->addVariant(positions->at(i), std::vector<uint32_t>(population_alleles.quality), population_alleles.allele0, active_allele[0], active_allele[1]);
-			superreads.second->addVariant(positions->at(i), std::vector<uint32_t>(population_alleles.quality), population_alleles.allele1, active_allele[0], active_allele[1]);
-			transmission_vector->push_back(v.inheritance_value);
+			superreads.first->addVariant(positions->at(i), vector<uint32_t>(population_alleles.quality), population_alleles.allele0, active_allele[0], active_allele[1]);
+			superreads.second->addVariant(positions->at(i), vector<uint32_t>(population_alleles.quality), population_alleles.allele1, active_allele[0], active_allele[1]);
 			++i; // next column
 		}
 	}
@@ -385,7 +323,7 @@ vector<bool>* PhasingDPTable::get_optimal_partitioning() {
 	for(size_t i=0; i< index_path.size(); ++i) {
 		uint32_t mask = 1; // mask to pass over the partitioning (i.e., index)
 		for(size_t j=0; j< indexers[i]->get_read_ids()->size(); ++j) {
-			uint32_t index = index_path[i].index;
+			uint32_t index = index_path[i];
 			if((index & mask) == 0) { // id at this index is in p0 (i.e., in the part.)
 				partitioning->at(indexers[i]->get_read_ids()->at(j)) = true;
 			}

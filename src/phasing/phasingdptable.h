@@ -21,12 +21,6 @@ Original filename: src/pedigreedptable.h
 
 class GenotypingAlgorithm;
 
-typedef struct index_and_inheritance_t {
-	uint32_t index;
-	uint32_t inheritance_value;
-	index_and_inheritance_t()  : index(0), inheritance_value(0) {};
-} index_and_inheritance_t;
-
 class PhasingDPTable {
 	private:
 		// pointer to the read set
@@ -40,22 +34,14 @@ class PhasingDPTable {
 		// optimal score and its index in the rightmost DP table column
 		uint32_t optimal_score;
 		uint32_t optimal_score_index;
-		uint32_t optimal_transmission_value;
-		// transmission value preceeding the optimal one (in the column before / in the backtrace)
-		uint32_t previous_transmission_value;
 		// projection_column_table[c] contains the projection column "between" columns c and c+1
-		std::vector<Vector2D<uint32_t>* > projection_column_table;
+		std::vector<std::vector<uint32_t>* > projection_column_table;
 		// index_backtrace_table[c][i][t] indicates the index (=bipartition) in column c from which the
 		// i-th entry in the FORWARD projection of column c comes from, assuming a transmission value of t
-		std::vector<Vector2D<uint32_t>* > index_backtrace_table;
-		// let x := index_backtrace_table[c][i][t] and dp[x][t] the corresponding DP entry
-		// and j be the BACKWARD projection of x.
-		// Then t' = transmission_backtrace_table[c][i][t] is the transmission index (from {0,1,2,3})
-		// that gave rise to dp[x][t].
-		std::vector<Vector2D<uint32_t>* > transmission_backtrace_table;
+		std::vector<std::vector<uint32_t>* > index_backtrace_table;
 		PhasingColumnIterator input_column_iterator;
 		// optimal path obtained from backtrace
-		std::vector<index_and_inheritance_t> index_path;
+		std::vector<uint32_t> index_path;
 
 		// helper function to pull read ids out of read column
 		std::unique_ptr<std::vector<uint32_t> > extract_read_ids(const std::vector<const Entry *>& entries);
@@ -101,7 +87,7 @@ class PhasingDPTable {
 		 *   @param output_read_set Must have as many entries as there are individuals. The haplotypes for individual
 		 *                          with index i in the pedigree (given at construction time) are added to output_read_set->at(i).
 		 */
-		void get_super_reads(ReadSet* output_read_set, std::vector<uint32_t>* transmission_vector);
+		void get_super_reads(ReadSet* output_read_set);
 
 		/** Performs a backtrace through the DP table and returns optimal partitioning of the reads.
 		 *  Pointer ownership is transferred to caller. */
