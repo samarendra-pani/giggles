@@ -43,23 +43,27 @@ class ReadSetCreator:
                     if haplotag.hp != 'none':
                         assert haplotag.hp == 'H1' or haplotag.hp == 'H2'
                         read.sort()
-                        read.add_haplotag(haplotag.hp, haplotag.ps)
+                        read.add_haplotag(haplotag.hp)
+                        read.add_phaseset(haplotag.ps)
                         new_readset.add(read)
                 else:
                     read.sort()
-                    read.add_haplotag(haplotag.hp, haplotag.ps)
+                    read.add_haplotag(haplotag.hp)
+                    read.add_phaseset(haplotag.ps)
                     new_readset.add(read)
             except KeyError:
                 logger.warning(f'Could not find haplotag for read {read_id[1]} from source file {read[0]}.')
                 if keep_untagged:
                     read.sort()
-                    read.add_haplotag('none', -1)
+                    read.add_haplotag('none')
+                    read.add_phaseset(-1)
                     new_readset.add(read)
             except TypeError:
                 assert haplotags is None
                 assert keep_untagged
                 read.sort()
-                read.add_haplotag('none', -1)
+                read.add_haplotag('none')
+                read.add_phaseset(-1)
                 new_readset.add(read)
 
         new_readset.sort()
