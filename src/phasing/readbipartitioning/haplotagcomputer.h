@@ -58,6 +58,9 @@ void haplotag_unselected_reads(ReadSet* read_set, ReadSet* superreads) {
         if (read->isSelected()) {
             continue; // Skip selected reads. Their haplotag comes from the DP table.
         }
+        if (read->getPhaseSet() == -1) {
+            continue; // Skip reads without a phaseset.
+        }
         uint32_t distance_to_hap0 = calculate_distance_from_superread(read, superread0, position_to_index);
         uint32_t distance_to_hap1 = calculate_distance_from_superread(read, superread1, position_to_index);
 
@@ -65,8 +68,6 @@ void haplotag_unselected_reads(ReadSet* read_set, ReadSet* superreads) {
             read->addHaplotag("H1");
         } else if (distance_to_hap1 < distance_to_hap0) {
             read->addHaplotag("H2");
-        } else {
-            read->addHaplotag("none"); // Ambiguous case
         }
     }
 }
