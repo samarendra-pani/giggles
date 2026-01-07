@@ -150,10 +150,10 @@ cdef class Read:
 	def add_haplotag(self, str hp, int ps):
 		cdef string _hp = b''
 		_hp = hp.encode('UTF-8')
-		self.thisptr.addHaplotag(_hp)
+		self.thisptr.setHaplotag(_hp)
 	
 	def add_phaseset(self, int ps):
-		self.thisptr.addPhaseSet(ps)
+		self.thisptr.setPhaseSet(ps)
 
 	def add_mapq(self, int mapq):
 		assert self.thisptr != NULL

@@ -39,6 +39,10 @@ public:
 	/** Assigns read_ids to all instances of Entry stored in the reads such that
 	 *  each read_id matches the index of the corresponding read in the ReadSet. */
 	void reassignReadIds();
+	/**
+	 * Resets all haplotags and phasesets in the reads to -1 (i.e., untagged).
+	 */
+	void resetTags();
 private:
 	typedef struct read_comparator_t {
 		read_comparator_t() {}

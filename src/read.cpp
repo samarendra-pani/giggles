@@ -38,14 +38,14 @@ string Read::toString() {
 }
 
 
-void Read::addHaplotag(std::string hp) {
+void Read::setHaplotag(std::string hp) {
 	if (hp == "H1") {this->hp = 0;}
 	if (hp == "H2") {this->hp = 1;}
 	//if (hp == "none") {throw std::runtime_error("Read with 'none' haplotag found. These should be filtered.");}
 	if (hp == "none") {this->hp = -1;}
 }
 
-void Read::addPhaseSet(int ps) {
+void Read::setPhaseSet(int ps) {
 	this->ps = ps;
 }
 

@@ -109,3 +109,11 @@ void ReadSet::reassignReadIds() {
 		reads[i]->setID(i);
 	}
 }
+
+
+void ReadSet::resetTags() {
+	for (size_t i = 0; i < reads.size(); ++i) {
+		reads[i]->setPhaseSet(-1);
+		reads[i]->setHaplotag("none");
+	}
+}

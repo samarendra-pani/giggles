@@ -67,18 +67,6 @@ class PhasingDPTable {
 			v.assign(size, nullptr);
 		}
 
-	public:
-		/** Constructor.
-		 *  @param read_set DP table is constructed for the contained reads. Ownership is retained
-		 *                  by caller. Pointer must remain valid during the lifetime of this PhasingDPTable.
-		 *  @param variant_info_table Contains information about each variant position, including its genotype likelihoods.
-		 *  @param first_phasing_round Indicates whether this is the first phasing round (not considering SVs) or not (considering SVs).
-		 *  
-		 */
-		PhasingDPTable(ReadSet* read_set, const std::vector<GenotypingAlgorithm::variant_information_t>* variant_info_table, bool first_phasing_round);
-	
-		~PhasingDPTable();
-
 		uint32_t get_optimal_score();
 
 		/** Computes optimal haplotypes and adds them (in the form of "super reads") to 
@@ -91,7 +79,19 @@ class PhasingDPTable {
 
 		/** Performs a backtrace through the DP table and returns optimal partitioning of the reads.
 		 *  Pointer ownership is transferred to caller. */
-		std::vector<bool>* get_optimal_partitioning();
+		const std::vector<bool>* get_optimal_partitioning();
+
+	public:
+		/** Constructor.
+		 *  @param read_set DP table is constructed for the contained reads. Ownership is retained
+		 *                  by caller. Pointer must remain valid during the lifetime of this PhasingDPTable.
+		 *  @param variant_info_table Contains information about each variant position, including its genotype likelihoods.
+		 *  @param first_phasing_round Indicates whether this is the first phasing round (not considering SVs) or not (considering SVs).
+		 *  
+		 */
+		PhasingDPTable(ReadSet* read_set, const std::vector<GenotypingAlgorithm::variant_information_t>* variant_info_table, bool first_phasing_round);
+	
+		~PhasingDPTable();
 };
 
 #endif

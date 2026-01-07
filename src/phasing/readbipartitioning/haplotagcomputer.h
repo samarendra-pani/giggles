@@ -3,7 +3,7 @@
 
 #include <cassert>
 
-#include "../readset.h"
+#include "../../readset.h"
 
 /**
  * Function to calculate the edit distance between a read and a superread (haplotype) inferered by the DP table.
@@ -65,9 +65,9 @@ void haplotag_unselected_reads(ReadSet* read_set, ReadSet* superreads) {
         uint32_t distance_to_hap1 = calculate_distance_from_superread(read, superread1, position_to_index);
 
         if (distance_to_hap0 < distance_to_hap1) {
-            read->addHaplotag("H1");
+            read->setHaplotag("H1");
         } else if (distance_to_hap1 < distance_to_hap0) {
-            read->addHaplotag("H2");
+            read->setHaplotag("H2");
         }
     }
 }
@@ -87,9 +87,9 @@ void haplotag_selected_reads(ReadSet* read_set, const std::vector<bool>* partiti
             continue;
         }
         if (partitioning->at(i)) {
-            read->addHaplotag("H1");
+            read->setHaplotag("H1");
         } else {
-            read->addHaplotag("H2");
+            read->setHaplotag("H2");
         }
     }
 }

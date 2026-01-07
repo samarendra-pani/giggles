@@ -14,6 +14,8 @@ Original filename: src/pedigreedptable.cpp
 
 #include "phasingcolumncostcomputer.h"
 #include "phasingdptable.h"
+#include "readbipartitioning/phasesetcomputer.h"
+#include "readbipartitioning/haplotagcomputer.h"
 
 using namespace std;
 
@@ -24,9 +26,24 @@ PhasingDPTable::PhasingDPTable(ReadSet* read_set, const vector<GenotypingAlgorit
 	input_column_iterator(*read_set, variant_info_table, first_phasing_round),
 	variant_info_table(variant_info_table)
 {	
-	// assign reads inside the read_set numerical ids
-	read_set->reassignReadIds();
 	compute_table();
+	// creating the haplotypes as super reads
+	ReadSet* superreads = new ReadSet();
+	get_super_reads(superreads);
+	// getting the optimal bipartition of reads used in the DP table
+	const std::vector<bool> *optimal_partitioning = get_optimal_partitioning();
+	// getting accessible positions
+	std::vector<uint32_t>* accessible_positions = new std::vector<uint32_t>();
+	for (uint32_t i = 0; i < variant_info_table->size(); ++i) {
+		if (variant_info_table->at(i).count_active_alleles() <= 2) {
+			accessible_positions->push_back(variant_info_table->at(i).position);
+		}
+	}
+	compute_phasesets(accessible_positions, read_set, superreads);
+	haplotag_selected_reads(read_set, optimal_partitioning);
+	haplotag_unselected_reads(read_set, superreads); // phasesets have to be called before this function.
+	delete superreads;
+	delete accessible_positions;
 }
 
 
@@ -317,7 +334,7 @@ void PhasingDPTable::get_super_reads(ReadSet* output_read_set) {
 }
 
 
-vector<bool>* PhasingDPTable::get_optimal_partitioning() {
+const vector<bool>* PhasingDPTable::get_optimal_partitioning() {
 	vector<bool>* partitioning = new vector<bool>(read_set->size(),false);
 
 	for(size_t i=0; i< index_path.size(); ++i) {

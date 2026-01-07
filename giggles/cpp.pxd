@@ -25,8 +25,8 @@ cdef extern from "../src/read.h":
 		void setPosition(uint32_t, uint32_t)  except +
 		void setScores(uint32_t, vector[uint32_t]) except +
 		void addVariant(uint32_t, vector[uint32_t]) except +
-		void addHaplotag(string) except +
-		void addPhaseSet(int) except +
+		void setHaplotag(string) except +
+		void setPhaseSet(int) except +
 		void addMapq(uint32_t) except +
 		void sortVariants() except +
 		bool isSorted() except +
