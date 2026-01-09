@@ -68,18 +68,39 @@ void find_phasesets_tag_reads(ComponentFinder<uint32_t>* component_finder, const
     for (uint32_t i = 0; i < read_set->size(); ++i) {
         Read* read = read_set->get(i);
         if (read->isSelected()) {
-            uint32_t ps = component_finder->find(read->firstPosition());
+            // finding first heterozygous position in the read
+            uint32_t first_het_pos = 0;
+            for (uint32_t j = 0; j < read->getVariantCount(); ++j) {
+                uint32_t pos = read->getPosition(j);
+                if (heterozygous_positions.find(pos) != heterozygous_positions.end()) {
+                    first_het_pos = pos;
+                    break;
+                }
+            }
+            if (first_het_pos == 0) {
+                // no heterozygous position found in the read
+                continue;
+            }
+            uint32_t ps = component_finder->find(first_het_pos);
             read->setPhaseSet(ps);
             continue;
         }
         else {
-            // make sure all positions in the read belong to the same component
-            uint32_t rep = component_finder->find(read->firstPosition());
+            // finding heterozygous positions in the read and checking their components
             bool all_same_component = true;
-            for (uint32_t j = 1; j < read->getVariantCount(); ++j) {
-                if (rep != component_finder->find(read->getPosition(j))) {
-                    all_same_component = false;
-                    break;
+            uint32_t rep = 0;
+            for (uint32_t j = 0; j < read->getVariantCount(); ++j) {
+                uint32_t pos = read->getPosition(j);
+                if (heterozygous_positions.find(pos) != heterozygous_positions.end())
+                {
+                    uint32_t comp = component_finder->find(pos);
+                    if (rep == 0) {
+                        rep = comp;
+                    }
+                    else if (comp != rep) {
+                        all_same_component = false;
+                        break;
+                    }
                 }
             }
             if (all_same_component) {
