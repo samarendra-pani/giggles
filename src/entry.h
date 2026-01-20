@@ -35,13 +35,12 @@ class Entry {
 		void set_allele_type(allele_t a, uint32_t idx1, uint32_t idx2);
 		
 		uint32_t get_read_id() const;
-		std::vector<uint32_t> get_scores() const;
 		uint32_t get_phred_score() const;
 		allele_t get_allele_type() const;
 
 		bool has_allele_type() const;
 		
-		void convert_scores_to_probability();
+		void convert_scores_to_probability(std::vector<uint32_t> scores);
 		//void convert_scores_to_softmin_probability(uint32_t temperature);
 
 		friend std::ostream& operator<<(std::ostream& out, const Entry& e);
@@ -51,7 +50,6 @@ class Entry {
 		allele_t allele; // allele type
 		uint32_t allele1_idx; // index of allele 1
 		uint32_t allele2_idx; // index of allele 2
-		std::vector<uint32_t> scores; // distance scores for all alleles
 		std::vector<long double> emission_scores; // emission probabilities for all alleles used for genotyping
 };
 
