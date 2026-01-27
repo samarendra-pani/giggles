@@ -17,8 +17,10 @@ class ColumnIterator {
 public:
 	ColumnIterator(const ReadSet& set, const std::vector<GenotypingAlgorithm::variant_information_t>* variant_info_table);
 	~ColumnIterator();
-	/** Returns the total number of columns, i.e. the number of columns
-	 *  that will be returned by get_next. */
+	/** 
+	 * Returns the total number of columns, i.e. the number of columns
+	 * that will be returned by get_next.
+	 */
 	uint32_t get_column_count(); 
 	/** Returns the total number of reads. */
 	uint32_t get_read_count(); 
@@ -45,8 +47,8 @@ private:
 	/** Index of the read that is to be examined next. */
 	size_t next_read_index;
 	std::list<active_read_t> active_reads;
-	std::vector<Entry*> blank_entries;
-	std::vector<uint32_t>* positions;
+	std::vector<Entry*> current_blank_entries;
+	std::vector<uint32_t> positions;
 	// first_reads[k] is the index of the first read (i.e. lowest index) active at column k,
 	// in case no read is active in column k, then first_reads[k] is the index of the first read
 	// that will become active after column k.

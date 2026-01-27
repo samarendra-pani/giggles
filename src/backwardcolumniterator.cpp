@@ -11,22 +11,22 @@ using namespace std;
 
 BackwardColumnIterator::BackwardColumnIterator(const ReadSet& set, const std::vector<GenotypingAlgorithm::variant_information_t>* variant_info_table) : set(set) {
 	
-	positions = new vector<uint32_t>(variant_info_table->size());
+	positions.resize(variant_info_table->size());
 	for (size_t i=0; i<variant_info_table->size(); ++i){
-		positions->at(i) = variant_info_table->at(i).position;
+		positions.at(i) = variant_info_table->at(i).position;
 	}
 
-    this->n = (int)this->positions->size()-1;
+    this->n = (int)positions.size()-1;
 
     if(this->n < 0) return;
 
 	// create a mapping of genomic positions to column indices
 	std::unordered_map<uint32_t, size_t> position_map;
-	for (size_t i=0; i<this->positions->size(); ++i) {
-		position_map[this->positions->at(i)] = i;
+	for (size_t i=0; i<positions.size(); ++i) {
+		position_map[positions.at(i)] = i;
 	}
 	// precompute first_reads
-	first_reads.assign(this->positions->size(),  numeric_limits<size_t>::max());
+	first_reads.assign(positions.size(),  numeric_limits<size_t>::max());
 	int pos = 0;
 	for (size_t i=0; i<set.size(); ++i) {
 		const Read* read = set.get(i);
@@ -41,7 +41,7 @@ BackwardColumnIterator::BackwardColumnIterator(const ReadSet& set, const std::ve
 		assert(first_column_it != position_map.end());
 		assert(last_column_it != position_map.end());
 		assert(first_column_it->second <= last_column_it->second);
-		assert(last_column_it->second <= this->positions->size());
+		assert(last_column_it->second <= positions.size());
 		for (size_t j=first_column_it->second; j<=last_column_it->second; ++j) {
 			if (first_reads[j] == numeric_limits<size_t>::max()) {
 				first_reads[j] = i;
@@ -66,16 +66,15 @@ BackwardColumnIterator::BackwardColumnIterator(const ReadSet& set, const std::ve
 
 
 BackwardColumnIterator::~BackwardColumnIterator() {
-	for (size_t i=0; i<blank_entries.size(); ++i) {
-		delete blank_entries[i];
+	for (size_t i=0; i<current_blank_entries.size(); ++i) {
+		delete current_blank_entries[i];
 	}
-	blank_entries.clear();
-	delete positions;
+	current_blank_entries.clear();
 }
 
 
 uint32_t BackwardColumnIterator::get_column_count() {
-	return positions->size();
+	return positions.size();
 }
 
 
@@ -85,7 +84,7 @@ uint32_t BackwardColumnIterator::get_read_count() {
 
 
 const vector<uint32_t>* BackwardColumnIterator::get_positions() {
-	return positions;
+	return &positions;
 }
 
 
@@ -93,9 +92,15 @@ bool BackwardColumnIterator::has_next() {
     return n >= 0;
 }
 
-unique_ptr<vector<const Entry*> > BackwardColumnIterator::get_next() {
+unique_ptr<vector<const Entry*>> BackwardColumnIterator::get_next() {
+	// clearing blank entries from previous column
+	for (Entry* e: current_blank_entries) {
+		delete e;
+	}
+	current_blank_entries.clear();
+	
 	// genomic position of the column to be returned
-	int next_pos = positions->at(n);
+	int next_pos = positions.at(n);
     jump_to_column(n);
 
 	// gather entries from active reads
@@ -110,7 +115,7 @@ unique_ptr<vector<const Entry*> > BackwardColumnIterator::get_next() {
 		else {
 			// if not, generate a blank entry
 			Entry* e = new Entry(read->getID(), std::vector<uint32_t>{0});
-			blank_entries.push_back(e);
+			current_blank_entries.push_back(e);
 			result->push_back(e);
 		}
 	}
@@ -121,13 +126,13 @@ unique_ptr<vector<const Entry*> > BackwardColumnIterator::get_next() {
 
 
 void BackwardColumnIterator::jump_to_column(int k) {
-	assert(k < positions->size());
+	assert(k < positions.size());
     //if(n == k) return;
 
 	active_reads.clear();
 	n = k;
     size_t next_read_index = first_reads[k];
-	int pos = positions->at(k);
+	int pos = positions.at(k);
 
 	// determine set of active reads
 	while (next_read_index < set.size()) {

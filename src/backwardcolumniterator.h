@@ -44,8 +44,8 @@ class BackwardColumnIterator {
 		/** The number of columns already written. */
 		int n;
 		std::list<active_read_t> active_reads;
-		std::vector<Entry*> blank_entries;
-		std::vector<uint32_t>* positions;
+		std::vector<Entry*> current_blank_entries;
+		std::vector<uint32_t> positions;
 		// first_reads[k] is the index of the first read (i.e. lowest index) active at column k,
 		// in case no read is active in column k, then first_reads[k] is the index of the first read
 		// that will become active after column k.

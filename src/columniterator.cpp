@@ -11,17 +11,17 @@ using namespace std;
 
 ColumnIterator::ColumnIterator(const ReadSet& set, const std::vector<GenotypingAlgorithm::variant_information_t>* variant_info_table) : set(set) {
 	this->n = 0;
-	positions = new vector<uint32_t>(variant_info_table->size());
+	positions.resize(variant_info_table->size());
 	for (size_t i=0; i<variant_info_table->size(); ++i){
-		positions->at(i) = variant_info_table->at(i).position;
+		positions.at(i) = variant_info_table->at(i).position;
 	}
 	// create a mapping of genomic positions to column indices
 	std::unordered_map<uint32_t, size_t> position_map;
-	for (size_t i=0; i<this->positions->size(); ++i) {
-		position_map[this->positions->at(i)] = i;
+	for (size_t i=0; i<positions.size(); ++i) {
+		position_map[positions.at(i)] = i;
 	}
 	// precompute first_reads
-	first_reads.assign(this->positions->size(),  numeric_limits<size_t>::max());
+	first_reads.assign(positions.size(),  numeric_limits<size_t>::max());
 	int pos = 0;
 	for (size_t i=0; i<set.size(); ++i) {
 		const Read* read = set.get(i);
@@ -36,7 +36,7 @@ ColumnIterator::ColumnIterator(const ReadSet& set, const std::vector<GenotypingA
 		assert(first_column_it != position_map.end());
 		assert(last_column_it != position_map.end());
 		assert(first_column_it->second <= last_column_it->second);
-		assert(last_column_it->second < this->positions->size());
+		assert(last_column_it->second < positions.size());
 		for (size_t j=first_column_it->second; j<=last_column_it->second; ++j) {
 			if (first_reads[j] == numeric_limits<size_t>::max()) {
 				first_reads[j] = i;
@@ -60,16 +60,15 @@ ColumnIterator::ColumnIterator(const ReadSet& set, const std::vector<GenotypingA
 
 
 ColumnIterator::~ColumnIterator() {
-	for (size_t i=0; i<blank_entries.size(); ++i) {
-		delete blank_entries[i];
+	for (size_t i=0; i<current_blank_entries.size(); ++i) {
+		delete current_blank_entries[i];
 	}
-	blank_entries.clear();
-	delete positions;
+	current_blank_entries.clear();
 }
 
 
 uint32_t ColumnIterator::get_column_count() {
-	return positions->size();
+	return positions.size();
 }
 
 
@@ -79,18 +78,25 @@ uint32_t ColumnIterator::get_read_count() {
 
 
 const vector<uint32_t>* ColumnIterator::get_positions() {
-	return positions;
+	return &positions;
 }
 
 
 bool ColumnIterator::has_next() {
-	return n < positions->size();
+	return n < positions.size();
 }
 
 
-unique_ptr<vector<const Entry*> > ColumnIterator::get_next() {
+unique_ptr<vector<const Entry*>> ColumnIterator::get_next() {
+	
+	// clearing blank entries from previous column
+	for (Entry* e: current_blank_entries) {
+		delete e;
+	}
+	current_blank_entries.clear();
+
 	// genomic position of the column to be returned
-	int next_pos = positions->at(n);
+	uint32_t next_pos = positions.at(n);
 	
 	// check which of the current reads remain active
 	list<active_read_t>::iterator list_it = active_reads.begin();
@@ -109,7 +115,7 @@ unique_ptr<vector<const Entry*> > ColumnIterator::get_next() {
 
 	// check which new reads might become active
 	while (next_read_index < set.size()) {
-		int read_start = set.get(next_read_index)->firstPosition();
+		uint32_t read_start = set.get(next_read_index)->firstPosition();
 		if (read_start == next_pos) {
 			active_reads.push_back(active_read_t(next_read_index));
 			next_read_index += 1;
@@ -130,7 +136,7 @@ unique_ptr<vector<const Entry*> > ColumnIterator::get_next() {
 		else {
 			// if not, generate a blank entry
 			Entry* e = new Entry(read->getID(), std::vector<uint32_t>{0});
-			blank_entries.push_back(e);
+			current_blank_entries.push_back(e);
 			result->push_back(e);
 		}
 	}
@@ -141,11 +147,11 @@ unique_ptr<vector<const Entry*> > ColumnIterator::get_next() {
 
 void ColumnIterator::jump_to_column(size_t k) {
 	if (k == n) return;
-	assert(k < positions->size());
+	assert(k < positions.size());
 	active_reads.clear();
 	n = k;
 	next_read_index = first_reads[k];
-	int pos = positions->at(k);
+	int pos = positions.at(k);
 
 	// determine set of active reads
 	while (next_read_index < set.size()) {
