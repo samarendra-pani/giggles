@@ -9,9 +9,10 @@
 
 using namespace std;
 
-Column::Column(const uint32_t index, const std::vector<uint32_t>& read_ids, const std::vector<uint32_t>& next_read_ids, ReadSet* set): 
+Column::Column(const std::vector<uint32_t>& read_ids, const std::vector<uint32_t>& next_read_ids, ReadSet* set): 
 	read_ids(read_ids) {
-
+	
+	std::vector<uint32_t> next_read_cluster_ids;
 	/**
 	 * Finding the read clusters from the phasing (and possibly other clustering later)
 	 */ 
@@ -66,7 +67,7 @@ Column::Column(const uint32_t index, const std::vector<uint32_t>& read_ids, cons
     auto last = std::unique(next_read_cluster_ids.begin(), next_read_cluster_ids.end());
     next_read_cluster_ids.erase(last, next_read_cluster_ids.end());
 
-	precompute_bipartition();
+	precompute_bipartition(next_read_cluster_ids);
 }
 
 unique_ptr<ColumnIndexingIterator> Column::get_iterator(ReadSet* set) {
@@ -94,7 +95,7 @@ unordered_map<uint32_t, uint32_t> * Column::get_read_cluster_constraints_map() {
  * So in this function, we do a precomputation of all the compatible bipartitions based on the read clusters that are unique to the left column (at position index).
  * Then during runtime, we just need to add the fixed bits from b_index of the right column to these precomputed bipartitions.
  */
-void Column::precompute_bipartition() {
+void Column::precompute_bipartition(std::vector<uint32_t> next_read_cluster_ids) {
 	
 	// initialize cached_bipartitions
 	cached_bipartitions = {0};

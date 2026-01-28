@@ -26,13 +26,6 @@ private:
 	 */
 	std::unordered_map<uint32_t, std::vector<uint32_t>> cluster_id_to_read_ids_map;
 	/**
-	 * Read IDs that have been tagged during phasing are considered as "clusters" here.
-	 * These read clusters are represented by a read ID defined during phasing.
-	 * Untagged reads are represented by their own read IDs.
-	 * Vector contains the clusters for the next variant position.
-	 */
-	std::vector<uint32_t> next_read_cluster_ids;
-	/**
 	 * Precomputed bipartitions using the read clusters.
 	 * At runtime, just need the assignment of haplotype of the common clusters.
 	 */
@@ -53,10 +46,12 @@ private:
 	 */
 	std::unordered_map<uint32_t, uint32_t> read_cluster_constraints;
 
+	// precompute bipartition compatibility information based on the read clusters
+	void precompute_bipartition(std::vector<uint32_t> next_read_cluster_ids);
 	
 public:
 
-	Column(const uint32_t index, const std::vector<uint32_t>& read_ids, const std::vector<uint32_t>& next_read_ids, ReadSet* set);
+	Column(const std::vector<uint32_t>& read_ids, const std::vector<uint32_t>& next_read_ids, ReadSet* set);
 	
 	// return a pointer to the read cluster ids
 	std::vector<uint32_t> * get_read_cluster_ids();
@@ -69,9 +64,6 @@ public:
 
 	// returns a pointer to the bipartition iterator which uses graycode.
 	std::unique_ptr<ColumnIndexingIterator> get_iterator(ReadSet* set);
-
-	// precompute bipartition compatibility information based on the read clusters
-	void precompute_bipartition();
 
 	// returns the compatible bipartitions of bipartition b_index (of pos v+1) in column v
 	std::vector<uint32_t> get_backward_compatible_bipartitions(uint32_t b_index);
