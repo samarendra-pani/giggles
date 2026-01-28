@@ -88,7 +88,7 @@ cdef class Read:
 			key = n + key
 		return Variant(
 			position=self.thisptr.getPosition(key),
-			scores=self.thisptr.getScores(key),
+			emission_scores=self.thisptr.getEmissionScores(key),
 		)
 
 	def __setitem__(self, index, variant):
@@ -101,7 +101,7 @@ cdef class Read:
 		if not isinstance(variant, Variant):
 			raise ValueError('Expected instance of Variant, but found {}'.format(type(variant)))
 		self.thisptr.setPosition(index, variant.position)
-		self.thisptr.setScores(index, variant.scores)
+		self.thisptr.setEmissionScores(index, variant.scores)
 
 	def __contains__(self, position):
 		"""Return whether this read contains a variant at the given position.
@@ -116,7 +116,7 @@ cdef class Read:
 	
 	def __getstate__(self):
 		mapqs = [mapq for mapq in self.mapqs]
-		variants = [(var.position, var.scores) for var in self]
+		variants = [(var.position, var.emission_scores) for var in self]
 		return (mapqs, self.name, self.source_id, self.reference_start, variants)
 
 	def __setstate__(self, state):
@@ -135,17 +135,24 @@ cdef class Read:
 
 		for mapq in mapqs[1:]:
 			self.add_mapq(mapq)
-		for (pos, scores) in variants:
-			self.add_variant(pos, scores)
+		for (pos, emission_scores) in variants:
+			self.add_variant(pos, emission_scores)
 
-	def add_variant(self, int position, vector[uint32_t] scores):
-		assert self.thisptr != NULL
-		cdef vector[uint32_t] _scores
-		cdef uint32_t _position = position
-		_scores.resize(len(scores))
-		for i in range(len(scores)):
-			_scores[i] = scores[i]
-		self.thisptr.addVariant(_position, _scores)
+	def add_variant(self, int position, scores):
+        assert self.thisptr != NULL
+        
+        cdef vector[uint32_t] int_scores
+        cdef vector[long double] float_scores
+        if len(scores) == 0:
+            return
+        # Check the type of the first element to decide which C++ overload to call
+		# if scores are float, then we directly set the emission probabilities
+        if isinstance(scores[0], float):
+            float_scores = scores 
+            self.thisptr.addVariant(position, float_scores)
+        else:
+            int_scores = scores
+            self.thisptr.addVariant(position, int_scores)
 
 	def add_haplotag(self, str hp, int ps):
 		cdef string _hp = b''

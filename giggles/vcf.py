@@ -32,9 +32,9 @@ class VariantCallPhase:
 class VcfVariant:
     """A variant in a VCF file (not to be confused with core.Variant)"""
 
-    __slots__ = ("id", "position", "position_on_ref", "reference_allele", "alternative_allele", "allele_origin", "allele_traversal", "length_on_path", "state")
+    __slots__ = ("id", "position", "position_on_ref", "reference_allele", "alternative_allele", "allele_origin", "length_on_path", "state")
 
-    def __init__(self, id: str, position: int, reference_allele: str, alternative_allele: tuple, allele_origin: list, allele_traversal: tuple):
+    def __init__(self, id: str, position: int, reference_allele: str, alternative_allele: tuple, allele_origin: list):
         
         self.id = id
         # This is the position on the backbone reference (the position given in the VCF in the 0-base)
@@ -46,7 +46,6 @@ class VcfVariant:
         self.reference_allele = reference_allele    # reference allele given in the VCF
         self.alternative_allele = alternative_allele    # alternate alleles given in the VCF
         self.allele_origin = allele_origin  # the phased genotypes in the VCF. Used for the HMM
-        self.allele_traversal = allele_traversal    # the path traversal of ref and alt alleles in the underlying GFA.
         # This is the length of the variant on the alignment path.
         # This is needed since the CIGAR string processing needs this length.
         # This changes for every new alignment.
@@ -326,11 +325,7 @@ class VcfReader:
             allele_origin = []
             for _, call in record.samples.items():
                 allele_origin.append(call["GT"])
-            try:
-                allele_traversal = record.info["AT"]
-            except KeyError:
-                # the case of small indels or SNPs not coming from the graph
-                allele_traversal = None
+            if id.__contains__('EXT'):
                 n_ext += 1
             for alt in alts:
                 if len(ref) == len(alt) == 1:
@@ -350,7 +345,7 @@ class VcfReader:
                 continue
             prev_position = pos
             
-            variant = VcfVariant(id = id, position=pos, reference_allele=ref, alternative_allele=alts, allele_origin=allele_origin, allele_traversal=allele_traversal)
+            variant = VcfVariant(id = id, position=pos, reference_allele=ref, alternative_allele=alts, allele_origin=allele_origin)
             if variant.has_anchor_base():
                 variant.remove_anchor_base()
             table.add_variant(variant)
