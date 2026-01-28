@@ -94,10 +94,10 @@ def genotype_chromosome(variant_table,
     # Have to do the selection for the phasing algorithm
     # TODO: instead of making a new ReadSet, we should mark reads as selected/unselected
     with timers("select"):
-        readset = readset.subset(
-            [i for i, read in enumerate(readset) if len(read) >= 2]
-        )
-        logger.info(f"Kept {len(readset)} reads that cover at least two variants each in {chromosome}")
+        #readset = readset.subset(
+        #    [i for i, read in enumerate(readset) if len(read) >= 2]
+        #)
+        #logger.info(f"Kept {len(readset)} reads that cover at least two variants each in {chromosome}")
         update_reads_with_selected(readset, max_coverage)
     
     # Sorting selected reads

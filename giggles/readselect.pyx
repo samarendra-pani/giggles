@@ -250,14 +250,12 @@ def readselection(ReadSet pyreadset, max_cov, preferred_source_ids=None, bridgin
 
 	# indices of reads that have been selected
 	selected_reads = set()
-
-	for r in pyreadset:
-		if not len(r) >= 2:
-			print(r)
-			raise ValueError('readselection expects reads that cover at least two variants')
-
-	# indices of reads that could (potentially) still be selected
-	undecided_reads = set(range(len(pyreadset)))
+	# indices to consider for read selection
+	# reads contains at least 2 variants
+	undecided_reads = set()
+	for i, r in enumerate(pyreadset):
+		if len(r) >= 2:
+			undecided_reads.add(i)
 	
 	if len(preferred_reads) > 0:
 		selected_preferred_reads = readselection_helper(coverages, max_cov, readset, vcf_indices, variant_to_reads_map, selected_reads, preferred_reads, positions, bridging)
