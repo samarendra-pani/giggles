@@ -145,7 +145,7 @@ PhasingColumnCostComputer::phased_variant_t PhasingColumnCostComputer::get_allel
 
 	// Test whether some of the allele assignments are ambiguous
 	for (size_t haplotype = 0; haplotype < 2; ++haplotype) {
-		int quality = abs(((int)(best_cost_for_allele.at(haplotype)[0])) - ((int)(best_cost_for_allele.at(haplotype)[1])));
+		uint32_t quality = abs(((int)(best_cost_for_allele.at(haplotype)[0])) - ((int)(best_cost_for_allele.at(haplotype)[1])));
 		haps.quality = (uint32_t)quality;
 		if (quality == 0) {
 			if (haplotype == 0) {
