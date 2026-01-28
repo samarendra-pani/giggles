@@ -12,7 +12,7 @@
 class Read {
 	
 	public:
-		Read(const std::string& name, uint32_t mapq, uint32_t source_id, int reference_start = -1);
+		Read(const std::string& name, uint32_t mapq, uint32_t source_id);
 		virtual ~Read() {}
 		std::string toString();
 
@@ -42,7 +42,6 @@ class Read {
 		uint32_t getClusterID() const;
 		bool getClusterStatus() const;
 		uint32_t getConstrainedClusterID() const;
-		int getReferenceStart() const;
 		const std::vector<uint32_t>& getMapqs() const;
 		uint32_t getVariantCount() const;
 		/** Returns the position of the first variant. **/
@@ -94,7 +93,6 @@ class Read {
 		std::vector<uint32_t> mapqs;
 		uint32_t source_id;
 		uint32_t id;
-		int reference_start;
 		std::vector<enriched_entry_t> variants;
 		
 		bool selected; // selected for phasing

@@ -18,7 +18,6 @@ cdef extern from "../src/read.h":
 		vector[uint32_t] getMapqs() except +
 		string getName() except +
 		uint32_t getSourceID() except +
-		int getReferenceStart() except +
 		uint32_t getVariantCount() except +
 		uint32_t getPosition(uint32_t) except +
 		vector[long double] getEmissionScores(uint32_t) except +

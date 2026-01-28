@@ -21,7 +21,7 @@ from collections import namedtuple
 from cython.operator cimport dereference as deref
 
 cdef class Read:
-	def __cinit__(self, str name = None, int mapq = 0, int source_id = 0, int reference_start = -1):
+	def __cinit__(self, str name = None, int mapq = 0, int source_id = 0):
 		cdef string _name = b''
 		cdef uint32_t _mapq = mapq
 		cdef uint32_t _source_id = source_id
@@ -31,7 +31,7 @@ cdef class Read:
 		else:
 			# TODO: Is this the best way to handle string arguments?
 			_name = name.encode('UTF-8')
-			self.thisptr = new cpp.Read(_name, _mapq, _source_id, reference_start)
+			self.thisptr = new cpp.Read(_name, _mapq, _source_id)
 			self.ownsptr = True
 
 	def __dealloc__(self):
@@ -41,8 +41,8 @@ cdef class Read:
 
 	def __repr__(self):
 		assert self.thisptr != NULL
-		return 'Read(name={!r}, mapq={}, source_id={}, reference_start={}, variants={})'.format(
-			self.name, self.mapqs, self.source_id, self.reference_start, list(self))
+		return 'Read(name={!r}, mapq={}, source_id={}, variants={})'.format(
+			self.name, self.mapqs, self.source_id, list(self))
 
 	property mapqs:
 		def __get__(self):
@@ -59,11 +59,6 @@ cdef class Read:
 			assert self.thisptr != NULL
 			return self.thisptr.getSourceID()
 	
-	property reference_start:
-		def __get__(self):
-			assert self.thisptr != NULL
-			return self.thisptr.getReferenceStart()
-
 	def __iter__(self):
 		"""Iterate over all variants in this read"""
 		assert self.thisptr != NULL
@@ -117,10 +112,10 @@ cdef class Read:
 	def __getstate__(self):
 		mapqs = [mapq for mapq in self.mapqs]
 		variants = [(var.position, var.emission_scores) for var in self]
-		return (mapqs, self.name, self.source_id, self.reference_start, variants)
+		return (mapqs, self.name, self.source_id, variants)
 
 	def __setstate__(self, state):
-		mapqs, name, source_id, reference_start, variants = state
+		mapqs, name, source_id, variants = state
 
 		# TODO: Duplicated code from __cinit__ is ugly, but cinit cannot be used here directly
 		cdef string _name = b''
@@ -130,7 +125,7 @@ cdef class Read:
 		else:
 			# TODO: Is this the best way to handle string arguments?
 			_name = name.encode('UTF-8')
-			self.thisptr = new cpp.Read(_name, mapqs[0] if len(mapqs) > 0 else 0, source_id, reference_start)
+			self.thisptr = new cpp.Read(_name, mapqs[0] if len(mapqs) > 0 else 0, source_id)
 			self.ownsptr = True
 
 		for mapq in mapqs[1:]:

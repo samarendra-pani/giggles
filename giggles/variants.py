@@ -914,7 +914,7 @@ class GAFReader(AlignmentReader):
             variant_pointer = new_pointer
 
             if not variants_in_alignment:
-                yield (None, alignment, align_start_ref, None)
+                yield (None, alignment, None)
                 continue
 
             # 2. Build Reference Sequence & Calculate SV Attributes
@@ -935,7 +935,7 @@ class GAFReader(AlignmentReader):
                 start_scaf_idx
             )
             
-            yield (variants_in_alignment, alignment, align_start_ref, reference_seq)
+            yield (variants_in_alignment, alignment, reference_seq)
 
 
     def _alignments_to_reads(self, updated_variants):
@@ -960,7 +960,7 @@ class GAFReader(AlignmentReader):
             if result is None:
                 yield None
 
-            variants_in_alignment, alignment, alignment_start_on_ref, reference = result
+            variants_in_alignment, alignment, reference = result
 
             # if no variants found in the alignment
             if variants_in_alignment is None:
@@ -984,7 +984,6 @@ class GAFReader(AlignmentReader):
                 alignment.read_id,
                 alignment.mapping_quality,
                 alignment.source_id,
-                alignment_start_on_ref,
             )
             
             detected = self.detect_alleles_by_alignment(

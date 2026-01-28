@@ -10,11 +10,10 @@
 
 using namespace std;
 
-Read::Read(const std::string& name, uint32_t mapq, uint32_t source_id, int reference_start): 
+Read::Read(const std::string& name, uint32_t mapq, uint32_t source_id): 
 	name(name),
 	mapqs(1, mapq),
-	source_id(source_id),
-	reference_start(reference_start) {
+	source_id(source_id) {
 	this->id = -1;
 	selected = false;
 	hp = false;
@@ -229,11 +228,6 @@ void Read::addMapq(uint32_t mapq) {
 
 uint32_t Read::getSourceID() const {
 	return source_id;
-}
-
-
-int Read::getReferenceStart() const {
-	return reference_start;
 }
 
 bool Read::isSorted() const {

@@ -299,8 +299,8 @@ void PhasingDPTable::get_super_reads(ReadSet* output_read_set) {
 	std::pair<Read*,Read*> superreads;
 	// removed sample id from the new Read declaration
 		superreads = std::make_pair(
-		new Read("superread_0", -1, -1),
-		new Read("superread_1", -1, -1)
+		new Read("superread_0", 0, (uint32_t)-1),
+		new Read("superread_1", 0, (uint32_t)-1)
 	);
 
 	if (index_backtrace_table.empty()) {
