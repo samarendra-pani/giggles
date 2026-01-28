@@ -16,8 +16,15 @@ Read::Read(const std::string& name, uint32_t mapq, uint32_t source_id, int refer
 	source_id(source_id),
 	reference_start(reference_start) {
 	this->id = -1;
-	hp = -1;
-	ps = -1;
+	selected = false;
+	hp = false;
+	has_hp = false;
+	ps = 0;
+	has_hp = false;
+	is_clustered = false;
+	cluster_id = 0;
+	constrained_cluster_id = 0;
+	has_constrained_cluster = false;
 }
 
 
@@ -39,33 +46,85 @@ string Read::toString() {
 
 
 void Read::setHaplotag(std::string hp) {
-	if (hp == "H1") {this->hp = 0;}
-	if (hp == "H2") {this->hp = 1;}
+	if (hp == "H1") {this->hp = false; this->has_hp = true;}
+	if (hp == "H2") {this->hp = true; this->has_hp = true;}
 	//if (hp == "none") {throw std::runtime_error("Read with 'none' haplotag found. These should be filtered.");}
-	if (hp == "none") {this->hp = -1;}
+	if (hp == "none") {this->hp = -1; this->has_hp = false;}
 }
 
-void Read::setPhaseSet(int ps) {
+void Read::setClusterID(uint32_t cluster_id) {
+	this->cluster_id = cluster_id;
+}
+
+void Read::setClusterStatus(bool is_clustered) {
+	this->is_clustered = is_clustered;
+}
+
+bool Read::isClustered() const {
+	return is_clustered;
+}
+
+uint32_t Read::getClusterID() const {
+	return cluster_id;
+}
+
+bool Read::getClusterStatus() const {
+	return is_clustered;
+}
+
+void Read::setConstrainedClusterID(uint32_t constrained_cluster_id) {
+	this->has_constrained_cluster = true;
+	this->constrained_cluster_id = constrained_cluster_id;
+}
+
+uint32_t Read::getConstrainedClusterID() const {
+	if (!has_constrained_cluster) {
+		throw std::runtime_error("Constrained cluster ID not set for read " + name);
+	}
+	return constrained_cluster_id;
+}
+
+bool Read::hasConstrainedCluster() const {
+	return has_constrained_cluster;
+}
+
+void Read::unsetPhaseSet() {
+	this->ps = 0;
+	this->has_ps = false;
+}
+
+void Read::setPhaseSet(uint32_t ps) {
+	this->has_ps = true;
 	this->ps = ps;
 }
 
-int Read::getHaplotag() const {
+bool Read::getHaplotag() const {
+	if (has_hp == false) {
+		throw std::runtime_error("Haplotag not set for read " + name);
+	}
 	return hp;
 }
 
-int Read::getPhaseSet() const {
+uint32_t Read::getPhaseSet() const {
+	if (has_ps == false) {
+		throw std::runtime_error("Phase set not set for read " + name);
+	}
 	return ps;
 }
 
 bool Read::hasHaplotag() const {
-	return hp != -1;
+	return has_hp;
 }
 
 bool Read::hasPhaseSet() const {
-	return ps != -1;
+	return has_ps;
 }
 
 void Read::addVariant(uint32_t position, vector<uint32_t> scores) {
+	variants.push_back(enriched_entry_t(position, scores));
+}
+
+void Read::addVariant(uint32_t position, vector<long double> scores) {
 	variants.push_back(enriched_entry_t(position, scores));
 }
 
@@ -131,9 +190,9 @@ void Read::setPosition(size_t variant_idx, uint32_t position) {
 }
 
 
-std::vector<uint32_t> Read::getScores(size_t variant_idx) const {
+std::vector<long double> Read::getEmissionScores(size_t variant_idx) const {
 	assert(variant_idx < variants.size());
-	return variants[variant_idx].entry.get_scores();
+	return variants[variant_idx].entry.get_emission_scores();
 }
 
 

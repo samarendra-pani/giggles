@@ -16,6 +16,7 @@ Original filename: src/pedigreedptable.cpp
 #include "phasingdptable.h"
 #include "readbipartitioning/phasesetcomputer.h"
 #include "readbipartitioning/haplotagcomputer.h"
+#include "readbipartitioning/set_cluster_ids.h"
 
 using namespace std;
 
@@ -42,6 +43,7 @@ PhasingDPTable::PhasingDPTable(ReadSet* read_set, const vector<GenotypingAlgorit
 	compute_phasesets(accessible_positions, read_set, superreads);
 	haplotag_selected_reads(read_set, optimal_partitioning);
 	haplotag_unselected_reads(read_set, superreads); // phasesets have to be called before this function.
+	set_read_cluster_ids(read_set);
 	delete superreads;
 	delete accessible_positions;
 }

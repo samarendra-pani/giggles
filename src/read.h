@@ -18,10 +18,15 @@ class Read {
 
 		// adding a variant
 		void addVariant(uint32_t position, std::vector<uint32_t> scores);
+		void addVariant(uint32_t position, std::vector<long double> scores);
 		// adding a variant whose allele has been pre-computed. used for the superread haplotypes.
 		void addVariant(uint32_t position, std::vector<uint32_t> scores, Entry::allele_t allele, uint32_t idx1, uint32_t idx2);
 		void setHaplotag(std::string hp);
-		void setPhaseSet(int ps);
+		void unsetPhaseSet();
+		void setPhaseSet(uint32_t ps);
+		void setClusterID(uint32_t cluster_id);
+		void setClusterStatus(bool is_clustered);
+		void setConstrainedClusterID(uint32_t constrained_cluster_id);
 		/** Add all positions contained in this read to the given set. */
 		void addPositionsToSet(std::unordered_set<uint32_t>* set);
 		void addMapq(uint32_t mapq);
@@ -31,9 +36,12 @@ class Read {
 		uint32_t getID() const;
 		Entry* getEntry(size_t variant_idx);
 		uint32_t getPosition(size_t variant_idx) const;
-		std::vector<uint32_t> getScores(size_t variant_idx) const;
-		int getHaplotag() const;
-		int getPhaseSet() const;
+		std::vector<long double> getEmissionScores(size_t variant_idx) const;
+		bool getHaplotag() const;
+		uint32_t getPhaseSet() const;
+		uint32_t getClusterID() const;
+		bool getClusterStatus() const;
+		uint32_t getConstrainedClusterID() const;
 		int getReferenceStart() const;
 		const std::vector<uint32_t>& getMapqs() const;
 		uint32_t getVariantCount() const;
@@ -49,6 +57,8 @@ class Read {
 
 		bool hasHaplotag() const;
 		bool hasPhaseSet() const;
+		bool isClustered() const;
+		bool hasConstrainedCluster() const;
 
 		void sortVariants();
 		bool isSorted() const;
@@ -64,6 +74,8 @@ class Read {
 			Entry entry; // the record entry
 			enriched_entry_t(uint32_t position, std::vector<uint32_t> scores) :
 				entry(0, scores), position(position) {}
+			enriched_entry_t(uint32_t position, std::vector<long double> scores) :
+				entry(0, {}), position(position) { entry.set_emission_scores(scores); }
 			enriched_entry_t(uint32_t position, std::vector<uint32_t> scores, Entry::allele_t allele, uint32_t idx1, uint32_t idx2) :
 				entry(0, scores), position(position) { entry.set_allele_type(allele, idx1, idx2); }
 		} enriched_entry_t;
@@ -84,9 +96,20 @@ class Read {
 		uint32_t id;
 		int reference_start;
 		std::vector<enriched_entry_t> variants;
-		bool selected;
-		int hp;
-		int ps;
+		
+		bool selected; // selected for phasing
+		
+		/**
+		 * clustering information based on phasing
+		 */
+		bool has_hp; // stores whether the read has a haplotag
+		bool hp; // haplotag value - false = 0, true = 1
+		bool has_ps; // stores whether the read has a phaseset
+		uint32_t ps;  // phaseset value
+		bool is_clustered; // whether the read has been assigned to a cluster
+		uint32_t cluster_id; // cluster ID of the read
+		uint32_t constrained_cluster_id; // cluster ID which cannot be in the same bipartition as the cluster_id
+		bool has_constrained_cluster; // whether the read has a constrained cluster
 };
 
 #endif
