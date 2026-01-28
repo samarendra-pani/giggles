@@ -24,7 +24,7 @@ class GrayCodes {
 		uint32_t get_next(int* changed_bit = 0);
 
 		// Returns the binary form of bipartiton based on number of active reads.
-		std::vector<int> toBinary(int n);
+		std::vector<bool> to_binary(uint32_t n);
 
 	private:
 		int length;

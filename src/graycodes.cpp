@@ -42,13 +42,18 @@ uint32_t GrayCodes::get_next(int* changed_bit) {
 	return result;
 }
 
-vector<int> GrayCodes::toBinary(int n) {
-	// This returns the Binary vector in opposite direction (as compared to binary representation). index 0 contains bip for the first read.
-    vector<int> binaryVector;
-	binaryVector.resize(length);
-	for (int index = 0; index < length; index++) {
-        binaryVector[index] = n % 2;
-        n = n / 2;
+vector<bool> GrayCodes::to_binary(uint32_t n) {
+	/**
+	 * This returns the binary representation of the current state of the Gray Code ordering.
+	 * index 0 contains bip for the first read.
+	 */
+    vector<bool> binary_vector;
+	binary_vector.resize(length);
+	for (uint32_t index = 0; index < length; index++) {
+        // Check LSB using bitwise AND
+        binary_vector[index] = ((n & 1) == 1);
+        // Shift right using bitwise shift
+        n >>= 1;
     }
-	return binaryVector;
+	return binary_vector;
 }
