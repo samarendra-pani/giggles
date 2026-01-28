@@ -52,18 +52,14 @@ class ReadSetCreator:
                     read.add_phaseset(haplotag.ps)
                     new_readset.add(read)
             except KeyError:
-                logger.warning(f'Could not find haplotag for read {read_id[1]} from source file {read[0]}.')
+                logger.warning(f'Could not find haplotag for read {read_id[1]} from source file {read_id[0]}.')
                 if keep_untagged:
                     read.sort()
-                    read.add_haplotag('none')
-                    read.add_phaseset(-1)
                     new_readset.add(read)
             except TypeError:
                 assert haplotags is None
                 assert keep_untagged
                 read.sort()
-                read.add_haplotag('none')
-                read.add_phaseset(-1)
                 new_readset.add(read)
 
         new_readset.sort()
