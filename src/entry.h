@@ -15,7 +15,7 @@ class Entry {
 	public:
 		typedef enum { ALLELE1 = 0, ALLELE2 = 1, BLANK = 2, EQUAL_SCORES = 3 } allele_t;
 		
-		Entry(uint32_t r, std::vector<uint32_t> s);
+		Entry(uint32_t r, const std::vector<uint32_t>& s);
 		Entry();
 		
 		void set_read_id(uint32_t r);
@@ -40,8 +40,11 @@ class Entry {
 
 		bool has_allele_type() const;
 		
-		void convert_scores_to_probability(std::vector<uint32_t> scores);
+		void convert_scores_to_probability(const std::vector<uint32_t>& scores);
 		//void convert_scores_to_softmin_probability(uint32_t temperature);
+
+		std::vector<long double> get_emission_scores() const;
+		void set_emission_scores(const std::vector<long double>& scores);
 
 		friend std::ostream& operator<<(std::ostream& out, const Entry& e);
 

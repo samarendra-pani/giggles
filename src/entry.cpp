@@ -7,7 +7,7 @@ using namespace std;
 
 #include "entry.h"
 
-Entry::Entry(uint32_t r, std::vector<uint32_t> s) : 
+Entry::Entry(uint32_t r, const std::vector<uint32_t>& s) : 
 	read_id(r), allele(BLANK) {
 		convert_scores_to_probability(s);
 	}
@@ -66,18 +66,19 @@ bool Entry::has_allele_type() const {
 * emission probability = 10^(-max(score*log10(0.0001), 1e-10))
 * modelling the probability of observing a read given the true allele and error rate
 */
-void Entry::convert_scores_to_probability(std::vector<uint32_t> scores) {
-	assert(scores.size() > 0);
-	long double sum_scores = 0.0L;
-	emission_scores.resize(scores.size());
-	for (size_t i = 0; i < scores.size(); i++) {
-		long double logprob = (long double)std::max(scores[i]*log10(0.0001), 1e-10);
-		emission_scores[i] = pow(10.0L, -logprob);
-		sum_scores += emission_scores[i];
-	}
-	// normalizing the emission scores
-	for (size_t i = 0; i < scores.size(); i++) {
-		emission_scores[i] /= sum_scores;
+void Entry::convert_scores_to_probability(const std::vector<uint32_t>& scores) {
+	if (scores.size() > 0) {
+		long double sum_scores = 0.0L;
+		emission_scores.resize(scores.size());
+		for (size_t i = 0; i < scores.size(); i++) {
+			long double logprob = (long double)std::min(scores[i]*log10(0.0001), 1e-10);
+			emission_scores[i] = pow(10.0L, -logprob);
+			sum_scores += emission_scores[i];
+		}
+		// normalizing the emission scores
+		for (size_t i = 0; i < scores.size(); i++) {
+			emission_scores[i] /= sum_scores;
+		}
 	}
 }
 
@@ -103,6 +104,14 @@ void Entry::convert_scores_to_softmin_probability(uint32_t temperature) {
 }
 */
 
+
+std::vector<long double> Entry::get_emission_scores() const {
+	return emission_scores;
+}
+
+void Entry::set_emission_scores(const std::vector<long double>& scores) {
+	emission_scores = scores;
+}
 
 
 std::ostream& operator<<(std::ostream& out, const Entry& e) {
