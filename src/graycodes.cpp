@@ -45,6 +45,6 @@ uint32_t GrayCodes::get_next(int* changed_bit) {
 }
 
 
-vector<bool> GrayCodes::get_next_binary() {
-	return this->binary;
+vector<bool>* GrayCodes::get_next_binary() {
+	return &(this->binary);
 }

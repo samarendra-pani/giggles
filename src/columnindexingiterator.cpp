@@ -107,7 +107,7 @@ void ColumnIndexingIterator::advance(int* bit_changed) {
 	 *  which will be called with get_next().
 	 * 00001 become {true, false, false, false, false}
 	 */
-	std::vector<bool> graycode_binaryvector = graycodes->get_next_binary();
+	std::vector<bool>* graycode_binaryvector = graycodes->get_next_binary();
 	/**
 	 * graycode_binaryindex gives the current state of the Gray Code ordering (after doing the flipping).
 	 * Let's say the state (before executing get_next()) was 00000.
@@ -116,7 +116,7 @@ void ColumnIndexingIterator::advance(int* bit_changed) {
 	 *   - graycode_binaryindex = 1 (which is the numerical representation of 00001)
 	 */
 	uint32_t graycode_binaryindex = graycodes->get_next(&graycode_bit_changed);
-	assert (graycode_binaryvector.size() == this->free_positions.size());
+	assert (graycode_binaryvector->size() == this->free_positions.size());
 	
 	// finding which bit in binary_vector is changed based on the graycode_bit_changed.
 	if (bit_changed != 0) {
@@ -134,7 +134,7 @@ void ColumnIndexingIterator::advance(int* bit_changed) {
 		// The changed cluster is constrained with another cluster.
 		// constrained_position gives us the positions of the non-representative cluster in binary_vector.
 		uint32_t constrained_position = constrained_position_map.at(*bit_changed);
-		bool new_bit = graycode_binaryvector[graycode_bit_changed];
+		bool new_bit = graycode_binaryvector->at(graycode_bit_changed);
 		binary_vector[*bit_changed] = new_bit;
 		binary_vector[constrained_position] = !new_bit;
 		// Updating b_index using masks.
@@ -144,18 +144,18 @@ void ColumnIndexingIterator::advance(int* bit_changed) {
 		this->b_index ^= mask2; // XOR operation to flip the bit.
 	} else if (graycode_bit_changed != -1) {
 		// The changed cluster is not constrained with another cluster.
-		int new_bit = graycode_binaryvector[graycode_bit_changed];
+		int new_bit = graycode_binaryvector->at(graycode_bit_changed);
 		this->binary_vector[*bit_changed] = new_bit;
 		// Updating b_index using masks.
 		int mask = 1 << *bit_changed;
 		this->b_index ^= mask;
 	} else {
 		// Initialisation step where all the bits are set according to graycode_binaryvector.
-		assert (graycode_binaryvector.size() == this->free_positions.size());
-		for (uint32_t i = 0; i < graycode_binaryvector.size(); i++) {
+		assert (graycode_binaryvector->size() == this->free_positions.size());
+		for (uint32_t i = 0; i < graycode_binaryvector->size(); i++) {
 			// the bits should already be set correctly to false initially in the constructor.
 			// the first iteration of graycode_binaryvector will be all false.
-			assert (this->binary_vector[this->free_positions[i]] == graycode_binaryvector[i]);
+			assert (this->binary_vector[this->free_positions[i]] == graycode_binaryvector->at(i));
 		}
 		// since b_index is already set correctly in the constructor, we do not need to update it here.
 	}

@@ -27,7 +27,7 @@ class GrayCodes {
 		 * Returns the binary form of bipartiton of the next Gray code.
 		 * Note: Call this before calling get_next()
 		 */
-		std::vector<bool> get_next_binary();
+		std::vector<bool>* get_next_binary();
 
 	private:
 		int length;
