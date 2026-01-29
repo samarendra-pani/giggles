@@ -103,6 +103,12 @@ void ColumnIndexingIterator::advance(int* bit_changed) {
 	 */
 	int graycode_bit_changed = -1;
 	/**
+	 * graycode_binaryvector now stores the vectorized notation for graycode_binaryindex 
+	 *  which will be called with get_next().
+	 * 00001 become {true, false, false, false, false}
+	 */
+	std::vector<bool> graycode_binaryvector = graycodes->get_next_binary();
+	/**
 	 * graycode_binaryindex gives the current state of the Gray Code ordering (after doing the flipping).
 	 * Let's say the state (before executing get_next()) was 00000.
 	 * After executing get_next(), the new ordering becomes 00001.
@@ -110,11 +116,6 @@ void ColumnIndexingIterator::advance(int* bit_changed) {
 	 *   - graycode_binaryindex = 1 (which is the numerical representation of 00001)
 	 */
 	uint32_t graycode_binaryindex = graycodes->get_next(&graycode_bit_changed);
-	/**
-	 * graycode_binaryvector now stores the vectorized notation for graycode_binaryindex.
-	 * 00001 become {true, false, false, false, false}
-	 */
-	std::vector<bool> graycode_binaryvector = graycodes->to_binary(graycode_binaryindex);
 	assert (graycode_binaryvector.size() == this->free_positions.size());
 	
 	// finding which bit in binary_vector is changed based on the graycode_bit_changed.

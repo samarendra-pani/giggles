@@ -23,8 +23,11 @@ class GrayCodes {
 		  */
 		uint32_t get_next(int* changed_bit = 0);
 
-		// Returns the binary form of bipartiton based on number of active reads.
-		std::vector<bool> to_binary(uint32_t n);
+		/**
+		 * Returns the binary form of bipartiton of the next Gray code.
+		 * Note: Call this before calling get_next()
+		 */
+		std::vector<bool> get_next_binary();
 
 	private:
 		int length;
@@ -32,6 +35,11 @@ class GrayCodes {
 		uint32_t s;
 		uint32_t c;
 		int changed_bit;
+		/**
+		 * This returns the binary representation of the current state of the Gray Code ordering.
+		 * index 0 contains bip for the first read.
+		 */
+		std::vector<bool> binary;
 };
 
 #endif

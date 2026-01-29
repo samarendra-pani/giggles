@@ -15,6 +15,7 @@ GrayCodes::GrayCodes(int l) {
 	this->c = 0;
 	this->i = -1;
 	this->changed_bit = -1;
+	this->binary.resize(l, false);
 }
 
 
@@ -34,6 +35,7 @@ uint32_t GrayCodes::get_next(int* changed_bit) {
 		if (((c&mask) ^ (s&mask)) != 0) {
 			c = c ^ mask;
 			this->changed_bit = i;
+			this->binary[i] = !this->binary[i];
 			break;
 		}
 		s = s ^ mask;
@@ -42,18 +44,7 @@ uint32_t GrayCodes::get_next(int* changed_bit) {
 	return result;
 }
 
-vector<bool> GrayCodes::to_binary(uint32_t n) {
-	/**
-	 * This returns the binary representation of the current state of the Gray Code ordering.
-	 * index 0 contains bip for the first read.
-	 */
-    vector<bool> binary_vector;
-	binary_vector.resize(length);
-	for (uint32_t index = 0; index < length; index++) {
-        // Check LSB using bitwise AND
-        binary_vector[index] = ((n & 1) == 1);
-        // Shift right using bitwise shift
-        n >>= 1;
-    }
-	return binary_vector;
+
+vector<bool> GrayCodes::get_next_binary() {
+	return this->binary;
 }
