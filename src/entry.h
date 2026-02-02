@@ -26,7 +26,7 @@ class Entry {
 		*   if the allele at the higher index value has lower distance score, then assigned ALLELE2.
 		*   if both have same distance score, then assigned EQUAL_SCORES.
 		*/
-		void set_allele_type(std::vector<bool> active_alleles);
+		void set_allele_type(const std::vector<bool>& active_alleles);
 		/*
 		* set allele type based on pre-computed allele type.
 		* used for the super-reads created to represent the haplotypes.

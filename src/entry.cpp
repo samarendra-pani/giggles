@@ -22,7 +22,7 @@ void Entry::set_scores(const std::vector<uint32_t>& s) {
 	convert_scores_to_probability(s);
 }
 
-void Entry::set_allele_type(std::vector<bool> active_alleles) {
+void Entry::set_allele_type(const std::vector<bool>& active_alleles) {
 	assert(active_alleles.size() == emission_scores.size());
 	std::vector<uint32_t> active_scores;
 	std::vector<uint32_t> indices;
