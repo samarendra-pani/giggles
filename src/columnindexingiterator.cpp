@@ -56,11 +56,9 @@ ColumnIndexingIterator::ColumnIndexingIterator(Column* parent, ReadSet* set) {
 	 * So for the read clusters {1,2,5,6,8,9,14} and constraints 6->2 and 9->8 (as given above in the example),
 	 * we get the initial binary vector as {false, false, false, true, false, true, false}
 	 */ 
-	binary_vector.resize(parent->get_read_cluster_ids()->size(), false);
 	this->b_index = 0;
 	for (auto pos : constrained_position_map) {
 		// Setting the non-representative constrained clusters to true initially.
-		binary_vector[pos.second] = true;
 		// since these are the only positions which are initially true, we can set b_index accordingly.
 		int mask = 1 << pos.second;
 		this->b_index |= mask;
@@ -103,12 +101,6 @@ void ColumnIndexingIterator::advance(int* bit_changed) {
 	 */
 	int graycode_bit_changed = -1;
 	/**
-	 * graycode_binaryvector now stores the vectorized notation for graycode_binaryindex 
-	 *  which will be called with get_next().
-	 * 00001 become {true, false, false, false, false}
-	 */
-	std::vector<bool>* graycode_binaryvector = graycodes->get_next_binary();
-	/**
 	 * graycode_binaryindex gives the current state of the Gray Code ordering (after doing the flipping).
 	 * Let's say the state (before executing get_next()) was 00000.
 	 * After executing get_next(), the new ordering becomes 00001.
@@ -116,7 +108,6 @@ void ColumnIndexingIterator::advance(int* bit_changed) {
 	 *   - graycode_binaryindex = 1 (which is the numerical representation of 00001)
 	 */
 	uint32_t graycode_binaryindex = graycodes->get_next(&graycode_bit_changed);
-	assert (graycode_binaryvector->size() == this->free_positions.size());
 	
 	// finding which bit in binary_vector is changed based on the graycode_bit_changed.
 	if (bit_changed != 0) {
@@ -134,39 +125,23 @@ void ColumnIndexingIterator::advance(int* bit_changed) {
 		// The changed cluster is constrained with another cluster.
 		// constrained_position gives us the positions of the non-representative cluster in binary_vector.
 		uint32_t constrained_position = constrained_position_map.at(*bit_changed);
-		bool new_bit = graycode_binaryvector->at(graycode_bit_changed);
-		binary_vector[*bit_changed] = new_bit;
-		binary_vector[constrained_position] = !new_bit;
 		// Updating b_index using masks.
 		int mask1 = 1 << *bit_changed; // mask for the representative cluster.
 		this->b_index ^= mask1; // XOR operation to flip the bit.
 		int mask2 = 1 << constrained_position; // mask for the non-representative cluster.
 		this->b_index ^= mask2; // XOR operation to flip the bit.
 	} else if (graycode_bit_changed != -1) {
-		// The changed cluster is not constrained with another cluster.
-		int new_bit = graycode_binaryvector->at(graycode_bit_changed);
-		this->binary_vector[*bit_changed] = new_bit;
 		// Updating b_index using masks.
 		int mask = 1 << *bit_changed;
 		this->b_index ^= mask;
 	} else {
 		// Initialisation step where all the bits are set according to graycode_binaryvector.
-		assert (graycode_binaryvector->size() == this->free_positions.size());
-		for (uint32_t i = 0; i < graycode_binaryvector->size(); i++) {
-			// the bits should already be set correctly to false initially in the constructor.
-			// the first iteration of graycode_binaryvector will be all false.
-			assert (this->binary_vector[this->free_positions[i]] == graycode_binaryvector->at(i));
-		}
 		// since b_index is already set correctly in the constructor, we do not need to update it here.
 	}
 }
 
 uint32_t ColumnIndexingIterator::get_b_index() {
 	return this->b_index;
-}
-
-std::vector<bool> ColumnIndexingIterator::get_binary_vector() const {
-	return this->binary_vector;
 }
 
 bool ColumnIndexingIterator::is_clustered_bit(uint32_t bit_changed) {
@@ -189,7 +164,7 @@ std::vector<uint32_t> ColumnIndexingIterator::get_reads_from_cluster_id(uint32_t
 
 std::unordered_map<uint32_t, bool> ColumnIndexingIterator::get_changed_bits(uint32_t bit_changed) {
 	std::unordered_map<uint32_t, bool> changed_bits;
-	bool new_bit = binary_vector[bit_changed];
+	bool new_bit = (b_index >> bit_changed) & 1;
 	uint32_t flipped_cluster_id = parent->get_read_cluster_ids()->at(bit_changed);
 	if (!is_clustered_bit(bit_changed)) {
 		// The bit did not correspond to a cluster.

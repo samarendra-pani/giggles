@@ -16,11 +16,6 @@ class ColumnIndexingIterator {
 		GrayCodes* graycodes;
 		uint32_t b_index;
 		/**
-		 * The binary vector representing the bipartition of all the read clusters at the current position.
-		 * It is a one-to-one mapping with the read clusters in the parent Column.
-		 */
-		std::vector<bool> binary_vector;
-		/**
 		 * The positions of the read clusters in the binary vector which are free to vary in Gray Code ordering.
 		 */
 		std::vector<uint32_t> free_positions;
@@ -69,9 +64,6 @@ class ColumnIndexingIterator {
 
 		// Returns the index for the current bipartition of untagged active reads IDs that the iterator has processed
 		uint32_t get_b_index();
-
-		// Returns the binary vector of all the active reads at the position indicating the bipartitions they are in.
-		std::vector<bool> get_binary_vector() const;
 
 		/**
 		 * For a bit changed during the Gray Code ordering, if clusters are involved, the multiple reads have their bits flipped.

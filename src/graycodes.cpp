@@ -15,7 +15,6 @@ GrayCodes::GrayCodes(int l) {
 	this->c = 0;
 	this->i = -1;
 	this->changed_bit = -1;
-	this->binary.resize(l, false);
 }
 
 
@@ -35,16 +34,10 @@ uint32_t GrayCodes::get_next(int* changed_bit) {
 		if (((c&mask) ^ (s&mask)) != 0) {
 			c = c ^ mask;
 			this->changed_bit = i;
-			this->binary[i] = !this->binary[i];
 			break;
 		}
 		s = s ^ mask;
 		i += 1;
 	}
 	return result;
-}
-
-
-vector<bool>* GrayCodes::get_next_binary() {
-	return &(this->binary);
 }
