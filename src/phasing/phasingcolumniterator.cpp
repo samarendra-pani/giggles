@@ -152,14 +152,14 @@ unique_ptr<vector<const Entry*> > PhasingColumnIterator::get_next() {
 		if (n_active_alleles->at(n) > 2) {
 			// the position has multiple possible alleles.
 			// cannot phase
-			Entry* e = new Entry(read->getID(), std::vector<uint32_t>{0});
+			Entry* e = new Entry(read->getID(), std::vector<uint32_t>{});
 			blank_entries.push_back(e);
 			result->push_back(e);
 			continue;
 		}
 		if (is_first_phasing_round && sv_flag->at(n)) {
 			// in the first phasing round, we do not consider structural variants
-			Entry* e = new Entry(read->getID(), std::vector<uint32_t>{0});
+			Entry* e = new Entry(read->getID(), std::vector<uint32_t>{});
 			blank_entries.push_back(e);
 			result->push_back(e);
 			continue;
@@ -174,7 +174,7 @@ unique_ptr<vector<const Entry*> > PhasingColumnIterator::get_next() {
 			result->push_back(entry);
 		} else {
 			// if not, generate a blank entry
-			Entry* e = new Entry(read->getID(), std::vector<uint32_t>{0});
+			Entry* e = new Entry(read->getID(), std::vector<uint32_t>{});
 			blank_entries.push_back(e);
 			result->push_back(e);
 		}
