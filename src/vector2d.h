@@ -36,11 +36,11 @@ public:
 		v.assign(size0*size1, value);
 	}
 
-	size_t get_size0(){
+	size_t get_size0() const {
 	  return size0;
 	}
 
-	size_t get_size1(){
+	size_t get_size1() const {
 	  return size1;
 	}
 
