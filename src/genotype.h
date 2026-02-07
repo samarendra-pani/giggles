@@ -114,6 +114,11 @@ class Genotype {
  */
 std::vector<uint32_t> convert_index_to_alleles(uint32_t index, uint32_t ploidy);
 
+/**
+ * Finds the cannonical index of the genotype using the sorted vector of alleles
+ */
+uint32_t convert_alleles_to_index(std::vector<uint32_t> alleles);
+
 // get maximum supported ploidy
 uint32_t get_max_genotype_ploidy();
 

@@ -80,13 +80,12 @@ vector<uint32_t> Genotype::as_vector() const {
 uint32_t Genotype::get_index() const {
 	// use formula given here: https://genome.sph.umich.edu/wiki/Relationship_between_Ploidy,_Alleles_and_Genotypes
 	uint32_t ploidy = get_ploidy();
-	uint32_t index = 0;
+	std::vector<uint32_t> alleles;
 	uint32_t k = 1;
 	for (uint32_t i = 0; i < ploidy; i++) {
-		uint32_t allele = get_position(ploidy-i-1);
-		index += binomial_coefficient(k + allele - 1, allele - 1);
-		k += 1;
+		alleles.push_back(get_position(ploidy-i-1));
 	}
+	uint32_t index = convert_alleles_to_index(alleles);
 	return index;
 }
 
@@ -214,6 +213,27 @@ std::vector<uint32_t> convert_index_to_alleles(uint32_t index, uint32_t ploidy) 
 	   }
 	}
 	return genotype;
+}
+
+uint32_t convert_alleles_to_index(std::vector<uint32_t> alleles) {
+	// use formula given here: https://genome.sph.umich.edu/wiki/Relationship_between_Ploidy,_Alleles_and_Genotypes
+	uint32_t ploidy = alleles.size();
+	if (ploidy > get_max_genotype_ploidy()) {
+		throw std::runtime_error("Ploidy is more than the maximum supported!");
+	}
+	if (ploidy == 2) {
+		if (alleles.at(0) > alleles.at(1)) {
+			throw std::runtime_error("Alleles are not sorted!");
+		}
+	}
+	uint32_t index = 0;
+	uint32_t k = 1;
+	for (uint32_t i = 0; i < ploidy; i++) {
+		uint32_t allele = alleles.at(i);
+		index += binomial_coefficient(k + allele - 1, allele - 1);
+		k += 1;
+	}
+	return index;
 }
 
 bool Genotype::is_none() const {
