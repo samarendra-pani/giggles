@@ -4,7 +4,6 @@
 #include <math.h>
 #include <algorithm>
 
-#include "columnindexingiterator.h"
 #include "column.h"
 
 using namespace std;
@@ -15,7 +14,8 @@ Column::Column(const std::vector<uint32_t>& read_ids, const std::vector<uint32_t
 	std::vector<uint32_t> next_read_cluster_ids;
 	/**
 	 * Finding the read clusters from the phasing (and possibly other clustering later)
-	 */ 
+	 */
+	uint32_t count = 0;
 	for (const auto& current_read_id : read_ids) {
         Read* read_obj = set->get(current_read_id);
 
@@ -26,16 +26,17 @@ Column::Column(const std::vector<uint32_t>& read_ids, const std::vector<uint32_t
             uint32_t cluster_id = read_obj->getClusterID();
             
             // Only add unique cluster IDs to the list
-            if (cluster_id_to_read_ids_map.count(cluster_id) == 0) {
+            if (cluster_id_to_read_index_map.count(cluster_id) == 0) {
                 read_cluster_ids.push_back(cluster_id);
             }
-            cluster_id_to_read_ids_map[cluster_id].push_back(current_read_id);
+            cluster_id_to_read_index_map[cluster_id].push_back(count);
         }
+		count ++;
     }
 	/**
-	 * Finding the read cluster constraints from the cluster id in the cluster_id_to_read_ids_map
+	 * Finding the read cluster constraints from the cluster id in the cluster_id_to_read_index_map
 	 */
-	for (const auto& pair1 : cluster_id_to_read_ids_map) {
+	for (const auto& pair1 : cluster_id_to_read_index_map) {
 		uint32_t c_id1 = pair1.first;
 		Read* read_obj1 = set->get(c_id1);
 		if (read_obj1->hasConstrainedCluster()) {
@@ -46,7 +47,6 @@ Column::Column(const std::vector<uint32_t>& read_ids, const std::vector<uint32_t
 
 			// This automatically handles the "double counting" check since we always store max -> min
 			read_cluster_constraints[dependent] = anchor;
-			
 		}
 	}
 	/**
@@ -70,8 +70,8 @@ Column::Column(const std::vector<uint32_t>& read_ids, const std::vector<uint32_t
 	precompute_bipartition(next_read_cluster_ids);
 }
 
-unique_ptr<ColumnIndexingIterator> Column::get_iterator(ReadSet* set) {
-	return unique_ptr<ColumnIndexingIterator>(new ColumnIndexingIterator(this, set));
+unique_ptr<BipartitionIterator> Column::get_iterator(ReadSet* set) {
+	return unique_ptr<BipartitionIterator>(new BipartitionIterator(this, set));
 }
 
 
@@ -79,8 +79,12 @@ vector<uint32_t> * Column::get_read_cluster_ids() {
 	return &(this->read_cluster_ids);
 }
 
-unordered_map<uint32_t, vector<uint32_t>> * Column::get_cluster_id_to_read_ids_map() {
-	return &(this->cluster_id_to_read_ids_map);
+vector<uint32_t> * Column::get_read_ids() {
+	return &(this->read_ids);
+}
+
+unordered_map<uint32_t, vector<uint32_t>> * Column::get_cluster_id_to_read_index_map() {
+	return &(this->cluster_id_to_read_index_map);
 }
 
 

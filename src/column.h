@@ -5,10 +5,10 @@
 
 #include <vector>
 #include <memory>
-#include "columnindexingiterator.h"
+#include "bipartitioniterator.h"
 #include "readset.h"
 
-class ColumnIndexingIterator;
+class BipartitionIterator;
 
 class Column {
 private:
@@ -22,9 +22,9 @@ private:
 	 */
 	std::vector<uint32_t> read_cluster_ids;
 	/**
-	 * Map cluster IDs to the reads that are present in this cluster at the variant position.
+	 * Map cluster IDs to the read indices that are present in this cluster at the variant position.
 	 */
-	std::unordered_map<uint32_t, std::vector<uint32_t>> cluster_id_to_read_ids_map;
+	std::unordered_map<uint32_t, std::vector<uint32_t>> cluster_id_to_read_index_map;
 	/**
 	 * Precomputed bipartitions using the read clusters.
 	 * At runtime, just need the assignment of haplotype of the common clusters.
@@ -56,14 +56,17 @@ public:
 	// return a pointer to the read cluster ids
 	std::vector<uint32_t> * get_read_cluster_ids();
 
+	// return a pointer to the read ids
+	std::vector<uint32_t> * get_read_ids();
+
 	// return a pointer to the read cluster constraints map
 	std::unordered_map<uint32_t, uint32_t> * get_read_cluster_constraints_map();
 
-	// return a pointer to the cluster id to read ids map
-	std::unordered_map<uint32_t, std::vector<uint32_t>> * get_cluster_id_to_read_ids_map();
+	// return a pointer to the cluster id to read indices map
+	std::unordered_map<uint32_t, std::vector<uint32_t>> * get_cluster_id_to_read_index_map();
 
 	// returns a pointer to the bipartition iterator which uses graycode.
-	std::unique_ptr<ColumnIndexingIterator> get_iterator(ReadSet* set);
+	std::unique_ptr<BipartitionIterator> get_iterator(ReadSet* set);
 
 	// returns the compatible bipartitions of bipartition b_index (of pos v+1) in column v
 	std::vector<uint32_t> get_backward_compatible_bipartitions(uint32_t b_index);
