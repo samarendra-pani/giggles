@@ -1,31 +1,21 @@
 #ifndef TRANSITIONPROBABILITYCOMPUTER_H
 #define TRANSITIONPROBABILITYCOMPUTER_H
 
-#include <map>
-#include "vector2d.h"
-#include "column.h"
-
-class TransitionProbabilityComputer {
-private:
-    // stores the transition probability if no recombination occurs (Need to check)
-    double pr;
-    // stores the transition probability if recombination occurs (Need to check)
-    double qr;
-
-    std::vector<Vector2D<long double> > transition_probability_matrices;
-
-    /* Maps the values in the group of states (representing one allele pair) to the r_indices values.
-    So reordering_map[allele_index] contains the r_index values of the states which have the alleles given by allele_index.
-    The r_index values are ordered which means that the first r_index value is the r_index of the first alpha value calculated in the matrix multiplication.
-    */ 
-    std::vector<std::vector<uint32_t> > reordering_map;
-
-public:
-    TransitionProbabilityComputer(const float& recombcost, const std::vector<int>& next_allele_reference);
-
-    double get_pr() const { return pr; }
-    double get_qr() const { return qr; }
-
-};
+/**
+ * Calculates the pr and qr values of the Li-Stephens transition probility model.
+ * pr -> result.first
+ * qr -> result.second
+ * 
+ * Note:
+ * We do not normalize these values since we do an overall normalization at the end.
+ */
+std::pair<long double, long double>  calculate_transition_probabilities(const float& recombcost, const uint32_t& num_haplotypes) {
+    long double s = (long double)num_haplotypes;
+    long double r = (long double)recombcost;
+    
+    std::pair<long double, long double> result;
+    result.first = (1.0 - exp(-(r/s))) / s;         // calculating pr
+    result.second = exp(-(r/s)) + result.first;     // calculating qr
+}
 
 #endif // TRANSITIONPROBABILITYCOMPUTER_H
