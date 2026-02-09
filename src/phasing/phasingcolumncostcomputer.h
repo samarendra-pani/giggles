@@ -16,7 +16,7 @@ Original filename: src/pedigreedcolumncostcomputer.h
 #include "../entry.h"
 #include "phasingcolumnindexingiterator.h"
 #include "../genotypelikelihoods.h"
-#include "../genotypingalgorithm.h"
+#include "../variantinfo.h"
 
 
 class PhasingColumnCostComputer {
@@ -36,11 +36,11 @@ class PhasingColumnCostComputer {
 		} allele_assignment_t;
 		/** All allowed assignments and their costs. */
 		std::vector<allele_assignment_t> allele_assignments;
-		const std::vector<GenotypingAlgorithm::variant_information_t>* variant_info_table;
+		const std::vector<variant_information_t>* variant_info_table;
 
 	public:
 
-		PhasingColumnCostComputer(const std::vector<const Entry*>& column, size_t column_index, const std::vector<GenotypingAlgorithm::variant_information_t>* variant_info_table);
+		PhasingColumnCostComputer(const std::vector<const Entry*>& column, size_t column_index, const std::vector<variant_information_t>* variant_info_table);
 
 		void set_partitioning(uint32_t partitioning);
 

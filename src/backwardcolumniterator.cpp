@@ -9,7 +9,7 @@
 
 using namespace std;
 
-BackwardColumnIterator::BackwardColumnIterator(const ReadSet& set, const std::vector<GenotypingAlgorithm::variant_information_t>* variant_info_table) : set(set) {
+BackwardColumnIterator::BackwardColumnIterator(const ReadSet& set, const std::vector<variant_information_t>* variant_info_table) : set(set) {
 	
 	positions.resize(variant_info_table->size());
 	for (size_t i=0; i<variant_info_table->size(); ++i){

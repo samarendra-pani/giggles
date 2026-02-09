@@ -17,7 +17,7 @@ Original filename: src/pedigreedptable.h
 #include "../readset.h"
 #include "../vector2d.h"
 #include "../genotypelikelihoods.h"
-#include "../genotypingalgorithm.h"
+#include "../variantinfo.h"
 
 class GenotypingAlgorithm;
 
@@ -28,7 +28,7 @@ class PhasingDPTable {
 		/* pointer to the variant information table from genotyping algorithm.
 		* contains information about each variant position, including its genotype likelihoods.
 		*/
-		const std::vector<GenotypingAlgorithm::variant_information_t>* variant_info_table;
+		const std::vector<variant_information_t>* variant_info_table;
 		// vector of indexingschemes
 		std::vector<PhasingColumnIndexingScheme*> indexers;
 		// optimal score and its index in the rightmost DP table column
@@ -89,7 +89,7 @@ class PhasingDPTable {
 		 *  @param first_phasing_round Indicates whether this is the first phasing round (not considering SVs) or not (considering SVs).
 		 *  
 		 */
-		PhasingDPTable(ReadSet* read_set, const std::vector<GenotypingAlgorithm::variant_information_t>* variant_info_table, bool first_phasing_round);
+		PhasingDPTable(ReadSet* read_set, const std::vector<variant_information_t>* variant_info_table, bool first_phasing_round);
 	
 		~PhasingDPTable();
 };

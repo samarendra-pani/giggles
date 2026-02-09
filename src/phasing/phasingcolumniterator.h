@@ -12,11 +12,11 @@ Original filename: src/columniterator.h
 
 #include "../entry.h"
 #include "../readset.h"
-#include "../genotypingalgorithm.h"
+#include "../variantinfo.h"
 
 class PhasingColumnIterator {
 public:
-	PhasingColumnIterator(const ReadSet& set, const std::vector<GenotypingAlgorithm::variant_information_t>* variant_info_table, bool is_first_phasing_round);
+	PhasingColumnIterator(const ReadSet& set, const std::vector<variant_information_t>* variant_info_table, bool is_first_phasing_round);
 	~PhasingColumnIterator();
 	/** Returns the total number of columns, i.e. the number of columns
 	 *  that will be returned by get_next. */

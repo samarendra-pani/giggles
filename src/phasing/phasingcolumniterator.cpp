@@ -12,7 +12,7 @@ Original filename: src/columniterator.cpp
 
 using namespace std;
 
-PhasingColumnIterator::PhasingColumnIterator(const ReadSet& set, const std::vector<GenotypingAlgorithm::variant_information_t>* variant_info_table, bool is_first_phasing_round) : set(set), is_first_phasing_round(is_first_phasing_round) {
+PhasingColumnIterator::PhasingColumnIterator(const ReadSet& set, const std::vector<variant_information_t>* variant_info_table, bool is_first_phasing_round) : set(set), is_first_phasing_round(is_first_phasing_round) {
 	n = 0;
 	next_read_index = 0;
 	positions = new vector<uint32_t>(variant_info_table->size());

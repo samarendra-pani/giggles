@@ -16,7 +16,7 @@ Original filename: src/pedigreedcolumncostcomputer.cpp
 
 using namespace std;
 
-PhasingColumnCostComputer::PhasingColumnCostComputer(const std::vector <const Entry *>&column, size_t column_index, const std::vector<GenotypingAlgorithm::variant_information_t>* variant_info_table):
+PhasingColumnCostComputer::PhasingColumnCostComputer(const std::vector <const Entry *>&column, size_t column_index, const std::vector<variant_information_t>* variant_info_table):
 	column(column),
 	column_index(column_index),
 	variant_info_table(variant_info_table),

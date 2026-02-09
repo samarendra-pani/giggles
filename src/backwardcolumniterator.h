@@ -9,14 +9,12 @@
 
 #include "entry.h"
 #include "readset.h"
-#include "genotypingalgorithm.h"
-
-class GenotypingAlgorithm;
+#include "variantinfo.h"
 
 class BackwardColumnIterator {
 	
 	public:
-		BackwardColumnIterator(const ReadSet& set, const std::vector<GenotypingAlgorithm::variant_information_t>* variant_info_table);
+		BackwardColumnIterator(const ReadSet& set, const std::vector<variant_information_t>* variant_info_table);
 		~BackwardColumnIterator();
 		/** Returns the total number of columns, i.e. the number of columns
 		 *  that will be returned by get_next. */

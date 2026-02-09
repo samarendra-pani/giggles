@@ -9,13 +9,11 @@
 
 #include "entry.h"
 #include "readset.h"
-#include "genotypingalgorithm.h"
-
-class GenotypingAlgorithm;
+#include "variantinfo.h"
 
 class ColumnIterator {
 public:
-	ColumnIterator(const ReadSet& set, const std::vector<GenotypingAlgorithm::variant_information_t>* variant_info_table);
+	ColumnIterator(const ReadSet& set, const std::vector<variant_information_t>* variant_info_table);
 	~ColumnIterator();
 	/** 
 	 * Returns the total number of columns, i.e. the number of columns
