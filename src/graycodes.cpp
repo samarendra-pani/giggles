@@ -8,7 +8,7 @@
 
 using namespace std;
 
-GrayCodes::GrayCodes(int l) {
+GrayCodes::GrayCodes(uint32_t l) {
 	assert(l <= numeric_limits<uint32_t>::digits);
 	this->length = l;
 	this->s = ~((uint32_t)0);

@@ -13,7 +13,7 @@
 class GrayCodes {
 	public:
 
-		GrayCodes(int length);
+		GrayCodes(uint32_t length);
 
 		bool has_next();
 
@@ -25,7 +25,7 @@ class GrayCodes {
 
 
 	private:
-		int length;
+		uint32_t length;
 		int i;
 		uint32_t s;
 		uint32_t c;
