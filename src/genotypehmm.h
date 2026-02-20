@@ -5,6 +5,7 @@
 #include <vector>
 #include <memory>
 
+#include "haplotypemapper.h"
 #include "column.h"
 #include "columniterator.h"
 #include "entry.h"
@@ -13,44 +14,70 @@
 #include "vector2d.h"
 #include "backwardcolumniterator.h"
 #include "transitionprobabilitycomputer.h"
-#include "genotypingalgorithm.h"
-
-class GenotypingAlgorithm;
+#include "emissionprobabilitycomputer.h"
+#include "variantinfo.h"
 
 class GenotypeHMM {
 	private:
-		// number of reference samples
-		uint32_t n_references;
+		// number of haplotypes present in the graph.
+		uint32_t num_haplotypes;
 		
-		/* variant information table
-		* contains information about each variant position which is to be genotyped.
-		* The information includes the position, reference allele, and alternate alleles.
-		*/ 
-		std::vector<GenotypingAlgorithm::variant_information_t>* variant_info_table;
+		/**
+		 * contains information about each variant position which is to be genotyped.
+		 * The information includes the position, reference allele, and alternate alleles.
+		 */ 
+		std::vector<variant_information_t>* variant_info_table;
 		
 		// the input sequencing reads
 		ReadSet* read_set;
 		
-		// the recombination cost vector
+		/**
+		 * the recombination cost vector based on Li Stephens model
+		 * @see UniformRecombinationCostComputer in giggles/giggles/utils.py
+		 */
 		const std::vector<float>& recombcost;
 		
-		// indexing schemes
+		// storing the Columns that are made from read clusters at variant positions
 		std::vector<Column*> hmm_columns;
-		
-		// projection_column_table[c] contains the projection column between columns c and c+1
-		std::vector<std::vector<long double>* > forward_pass_column_table;
-		std::vector<std::vector<long double>* > backward_pass_column_table;
 
-		std::vector<std::vector<uint32_t>* > active_reads;
+		/**
+		 * maps between haplotype pairs to the reduced states selected based on previous genotyping
+		 */
+		std::vector<HaplotypeMapper*> haplotype_mapper_table;
 		
+		/**
+		 * tables storing the values calculated from the backward pass
+		 * table[idx] stores the value at column idx.
+		 * 
+		 * Note: we do not need one for forward pass since we do not store
+		 * those values. We create forward pass values and directly calculate
+		 * genotype likelihoods based on stored backward pass.
+		 */
+		std::vector<std::vector<long double>* > backward_pass_table;
+		
+		/**
+		 * vector to store the forward probabilities.
+		 */
+		std::vector<long double> forward_probabilities;
+
+		/**
+		 * vectors for storing the helper variables of previous column
+		 */
+		std::vector<long double> alpha_helper_1;	// This helper value is the alpha(*,*) value.
+		std::vector<std::vector<long double>> alpha_helper_2;	// This helper value is the alpha(R1,*) value.
+		std::vector<std::vector<long double>> alpha_helper_3;	// This helper value is the alpha(*,R2) value.
+		/**
+		 * vectors for storing the helper variables of current column
+		 */
+		std::vector<long double> curr_alpha_helper_1;
+		std::vector<std::vector<long double>> curr_alpha_helper_2;
+		std::vector<std::vector<long double>> curr_alpha_helper_3;
+
 		//iterator used to iterate the columns of the input matrix (forward)
 		ColumnIterator input_column_iterator;
 		
 		// iterator used to iterate the columns of the input matrix (backward)
 		BackwardColumnIterator backward_input_column_iterator;
-		
-		// stores the transmission probability computers for each column. object at index i contains the probability computer between index i and i+1.
-		std::vector<TransitionProbabilityComputer*> transition_probability_table;
 		
 		// scaling parameters
 		std::vector<long double> scaling_parameters;
@@ -58,30 +85,60 @@ class GenotypeHMM {
 		// helper to pull read ids out of read column
 		std::unique_ptr<std::vector<uint32_t> > extract_read_ids(const std::vector<const Entry *>& entries);
 		
-		// initializes all members associated with the DP table
+		/**
+		 * clears the backward and forward pass tables used for the HMM
+		 */
 		void clear_forward_table();
 		void clear_backward_table();
 		
-		// forward pass: computes the forward probabilities
+		/**
+		 * Forward Pass
+		 * computes the forward probabilities using compute_forward_column()
+		 */
 		void compute_forward_prob();
 		
-		// backward pass: computes the backward probabilities
+		/**
+		 * Backward Pass
+		 * computes the backward probabilities using compute_backward_column()
+		 */
 		void compute_backward_prob();
 		
-		// computes the index for each column
+		/**
+		 * Computes various data structures that are needed for the Genotyping HMM.
+		 * - The Column which store the active reads/read clusters.
+		 * - The HaplotypeMapper which determines what haplotype pair states are active.
+		 */
 		void compute_index();
 
-		// computes column of forward probabilities of given index, assuming previous column was already computed (from left to right)
+		/**
+		 * Computes the forward probabilities for column_index
+		 * 
+		 * This function iterates over the states in column_index and calculates the forward probabilities for
+		 * these states using the forward probabilities from column_index - 1.
+		 * 
+		 * We calculate the finally genotype likelihoods in this function (since backward probabilities have been
+		 * calculated prior to executing this).
+		 */
 		void compute_forward_column(size_t column_index, std::unique_ptr<std::vector<const Entry*>> current_input_column = nullptr);
 
-		// computes column of backward probabilities of given index, assuming previous column was already computed (from right to left)
+		/**
+		 * Computes the backward probabilities for column_index - 1 (NOTE: for column_index - 1 and not column_index)
+		 * 
+		 * This function iterates over the states in column_index and calculates the contribution of these
+		 * states to the states in column_index - 1
+		 * 
+		 * While during the iteration of column_index, the backward values for column_index - 1 are calculated,
+		 * they are NOT normalized.
+		 * When the function is called for column_index - 1, the values are normalized (and are now probabilities).
+		 */
 		void compute_backward_column(size_t column_index, std::unique_ptr<std::vector<const Entry*>> current_input_column = nullptr);
 
-		// returns the number of bits set
-		static size_t popcount(size_t x);
-
-		// updates the emission probabilities
-		void update_emission_probability(Vector2D<long double>* em_prob, const int bit_changed, const ColumnIndexingIterator& iterator, std::vector<const Entry *>& entries);
+		/**
+		 * Given bipartition index (b_index), the index inside the bipartition (r_index),
+		 * and number of states within each bipartition (num_states),
+		 * returns the index of the state being referred to.
+		 */
+		uint32_t get_node_index(uint32_t b_index, uint32_t r_index, uint32_t num_states);
 
 		// used to initialize/clear tables
 		template<class T>
@@ -95,15 +152,15 @@ class GenotypeHMM {
 			v.assign(size,nullptr);
 		}
 
-		public:
+	public:
 		/** Constructor
 		 * @param read_set   DP table is constructed for the given reads. Ownership is retained by caller.
 		 *			Pointer must remain valid during the lifetime of this GenotypeDPTable.
-		* @param recombcost phred scaled recombination probabilities
-		* @param n_references number of reference haplotypes in the graph
-		* @param variant_info_table contains information about each variant position which is to be genotyped.
-		*/
-		GenotypeHMM(ReadSet* read_set, const std::vector<float>& recombcost, const uint32_t& n_references, std::vector<GenotypingAlgorithm::variant_information_t>* variant_info_table);
+		 * @param recombcost phred scaled recombination probabilities
+		 * @param n_references number of reference haplotypes in the graph
+		 * @param variant_info_table contains information about each variant position which is to be genotyped.
+		 */
+		GenotypeHMM(ReadSet* read_set, const std::vector<float>& recombcost, const uint32_t& n_references, std::vector<variant_information_t>* variant_info_table);
 		~GenotypeHMM();
 
 		// returns the computed genotype likelihoods for a given position
