@@ -50,6 +50,12 @@ class EmissionProbabilityComputer {
          */
         Vector2D<long double> emission_probability_table;
 
+        /**
+         * An unordered map which stores map between index of reads (in the set of active reads at the position) and their new bipartition.
+         * 
+         * This is passed to BipartitionIterator as a reference where this is calculated.
+         */
+        std::unordered_map<uint32_t, bool> changed_reads;
 
 };
 
