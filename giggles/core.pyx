@@ -134,20 +134,20 @@ cdef class Read:
 			self.add_variant(pos, emission_scores)
 
 	def add_variant(self, int position, scores):
-        assert self.thisptr != NULL
-        
-        cdef vector[uint32_t] int_scores
-        cdef vector[long double] float_scores
-        if len(scores) == 0:
-            return
-        # Check the type of the first element to decide which C++ overload to call
+		assert self.thisptr != NULL
+		
+		cdef vector[uint32_t] int_scores
+		cdef vector[long double] float_scores
+		if len(scores) == 0:
+			return
+		# Check the type of the first element to decide which C++ overload to call
 		# if scores are float, then we directly set the emission probabilities
-        if isinstance(scores[0], float):
-            float_scores = scores 
-            self.thisptr.addVariant(position, float_scores)
-        else:
-            int_scores = scores
-            self.thisptr.addVariant(position, int_scores)
+		if isinstance(scores[0], float):
+			float_scores = scores 
+			self.thisptr.addVariant(position, float_scores)
+		else:
+			int_scores = scores
+			self.thisptr.addVariant(position, int_scores)
 
 	def add_haplotag(self, str hp, int ps):
 		cdef string _hp = b''

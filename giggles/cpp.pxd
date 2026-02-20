@@ -13,7 +13,7 @@ from libcpp.unordered_map cimport unordered_map
 
 cdef extern from "../src/read.h":
 	cdef cppclass Read:
-		Read(string, uint32_t, uint32_t, int) except +
+		Read(string, uint32_t, uint32_t) except +
 		Read(Read) except +
 		vector[uint32_t] getMapqs() except +
 		string getName() except +
@@ -23,6 +23,7 @@ cdef extern from "../src/read.h":
 		vector[long double] getEmissionScores(uint32_t) except +
 		void setPosition(uint32_t, uint32_t)  except +
 		void setScores(uint32_t, vector[uint32_t]) except +
+		void setEmissionScores(uint32_t, vector[long double]) except +
 		void addVariant(uint32_t, vector[uint32_t]) except +
 		void addVariant(uint32_t, vector[long double]) except +
 		void setHaplotag(string) except +

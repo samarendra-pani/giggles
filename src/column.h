@@ -5,8 +5,12 @@
 
 #include <vector>
 #include <memory>
-#include "bipartitioniterator.h"
 #include "readset.h"
+
+/**
+ * Forward declaration of BipartitionIterator to avoid circular dependency between Column and BipartitionIterator.
+ */
+class BipartitionIterator;
 
 /**
  * @brief Stores the information of active reads, clusters and auxilary data structures needed for connecting between Columns

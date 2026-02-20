@@ -48,7 +48,7 @@ void Read::setHaplotag(std::string hp) {
 	if (hp == "H1") {this->hp = false; this->has_hp = true;}
 	if (hp == "H2") {this->hp = true; this->has_hp = true;}
 	//if (hp == "none") {throw std::runtime_error("Read with 'none' haplotag found. These should be filtered.");}
-	if (hp == "none") {this->hp = -1; this->has_hp = false;}
+	if (hp == "none") {this->hp = false; this->has_hp = false;}
 }
 
 void Read::setClusterID(uint32_t cluster_id) {
@@ -198,6 +198,11 @@ std::vector<long double> Read::getEmissionScores(size_t variant_idx) const {
 void Read::setScores(size_t variant_idx, std::vector<uint32_t> scores) {
 	assert(variant_idx < variants.size());
 	variants[variant_idx].entry.set_scores(scores);
+}
+
+void Read::setEmissionScores(size_t variant_idx, std::vector<long double> scores) {
+	assert(variant_idx < variants.size());
+	variants[variant_idx].entry.set_emission_scores(scores);
 }
 
 

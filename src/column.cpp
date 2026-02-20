@@ -6,6 +6,7 @@
 #include <numeric>
 
 #include "column.h"
+#include "bipartitioniterator.h"
 
 using namespace std;
 

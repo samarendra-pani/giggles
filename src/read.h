@@ -52,6 +52,7 @@ class Read {
 		void setID(uint32_t id);
 		void setPosition(size_t variant_idx, uint32_t position);
 		void setScores(size_t variant_idx, std::vector<uint32_t> scores);
+		void setEmissionScores(size_t variant_idx, std::vector<long double> scores);
 
 
 		bool hasHaplotag() const;

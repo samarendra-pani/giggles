@@ -515,7 +515,6 @@ void GenotypeHMM::compute_forward_column(size_t column_index, unique_ptr<vector<
 	uint32_t num_curr_bipartitions = curr_indexer->get_num_bipartition();
 	Column* prev_indexer;
 	uint32_t num_prev_bipartitions;
-	vector<int> curr_haplotype_to_allele = variant_info_table->at(column_index).allele_references;     // This contains the haplotype-to-allele mapping for the position column_index		
 	HaplotypeMapper* curr_haplotype_mapper = haplotype_mapper_table.at(column_index);
 	uint32_t num_curr_ref_states = curr_haplotype_mapper->get_num_states();
 	uint32_t n_alleles = variant_info_table->at(column_index).get_num_alleles();
