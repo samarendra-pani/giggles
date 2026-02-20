@@ -14,17 +14,21 @@ struct TransitionProbabilities {
  * Note:
  * We do not normalize these values since we do an overall normalization at the end.
  */
-TransitionProbabilities calculate_transition_probabilities(const float& recombcost, const uint32_t& num_haplotypes) {
-    long double s = (long double)num_haplotypes;
-    long double r = (long double)recombcost;
+TransitionProbabilities calculate_transition_probabilities(float recombcost, uint32_t num_haplotypes) {
+    // Using 'L' suffix for long double literals to maintain precision
+    const long double s = static_cast<long double>(num_haplotypes);
+    const long double r = static_cast<long double>(recombcost);
     
-    long double p = (1.0 - exp(-(r/s))) / s;   // calculating pr
-    long double q = exp(-(r/s)) + p;           // calculating qr
+    const long double exponent = expl(-(r / s));
+    const long double p = (1.0L - exponent) / s;
+    const long double q = exponent + p;
 
-    TransitionProbabilities result;
-    result.p2 = pow(p, 2);
-    result.q2 = pow(q, 2);
-    result.pq = p*q;
+    // Direct return for Mandatory Copy Elision
+    return { 
+        p * p, // p2
+        q * q, // q2
+        p * q  // pq
+    };
 }
 
 #endif // TRANSITIONPROBABILITYCOMPUTER_H
