@@ -1,14 +1,9 @@
-// Code modified from WhatsHap (https://github.com/whatshap/whatshap)
-
 #ifndef BIPARTITIONITERATOR_H
 #define BIPARTITIONITERATOR_H
 
 #include "graycodes.h"
 #include "column.h"
 #include "readset.h"
-
-class Column;
-
 
 /**
  * @brief Iterates over the various biparitions that can be formed by the read clusters at some variant position
@@ -76,17 +71,6 @@ class BipartitionIterator {
 		 */
 		uint32_t bipartition_index;
 		
-		/**
-		 * The positions of the read clusters in the binary vector which are free to vary in Gray Code ordering.
-		 */
-		std::vector<uint32_t> free_positions;
-		
-		/**
-		 * Constrained position mapping
-		 * Key is the position of the representative read cluster in the binary vector (given by the min of the constrained pair)
-		 * Value is the position of the read cluster which is constrained with the representative in the binary vector (max of the constrained pair)
-		 */
-		std::unordered_map<uint32_t, uint32_t> constrained_position_map;
 		
 	public:
 		BipartitionIterator(Column* parent, ReadSet* set);
@@ -126,7 +110,7 @@ class BipartitionIterator {
 		 * Get indices of read ids that are present in the cluster.
 		 * The index is with respect to the parent column's read_ids.
 		 */
-		std::vector<uint32_t> get_read_index_from_cluster_id(uint32_t cluster_id) const;
+		const std::vector<uint32_t>* get_read_index_from_cluster_id(uint32_t cluster_id) const;
 
 		/**
 		 * Returns pointer to the parent column.
@@ -145,11 +129,6 @@ class BipartitionIterator {
 		uint32_t get_read_cluster_bit_representation() const;
 
 		/**
-		 * Returns the number of bipartitions that the iterator will create.
-		 */
-		uint32_t num_bipartitions() const;
-
-		/**
 		 * For a bit changed during the Gray Code ordering, if clusters are involved, the multiple reads have their bits flipped.
 		 * Each cluster will have multiple reads and all of its bipartition gets flipped.
 		 * If there are constrained clusters, then the reads for the constrained cluster will be flipped as well.
@@ -162,7 +141,7 @@ class BipartitionIterator {
 		 * 
 		 * This function generalises the cases of unclustered reads and clusters which do not have constraints.
 		 */
-		std::unordered_map<uint32_t, bool> get_changed_reads(uint32_t cluster_bit_changed) const;
+		void get_changed_reads(uint32_t cluster_bit_changed, std::unordered_map<uint32_t, bool>& changed_reads) const;
 	};
 
 #endif // BIPARTITIONITERATOR_H
