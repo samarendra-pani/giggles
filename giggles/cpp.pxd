@@ -7,7 +7,7 @@ from libcpp cimport bool
 from libcpp.string cimport string
 from libcpp.vector cimport vector
 from libcpp.pair cimport pair
-from libc.stdint cimport uint32_t
+from libc.stdint cimport uint32_t, uint8_t
 from libcpp.unordered_map cimport unordered_map
 
 
@@ -88,3 +88,8 @@ cdef extern from "../src/genotypingalgorithm.h":
 	cdef cppclass GenotypingAlgorithm:
 		GenotypingAlgorithm(ReadSet* readset, vector[float] recombcost, uint32_t n_samples, uint32_t ploidy, vector[uint32_t]* positions, vector[uint32_t]* n_allele_positions, vector[vector[int]]*, vector[bool]*) except +
 		vector[long double] get_genotype_likelihoods(uint32_t position) except +
+
+cdef extern from "../external/wrappers/wfawrapper.h":
+	cdef cppclass WFAWrapper:
+		WFAWrapper(uint32_t) except +
+		uint32_t align(string, string, uint8_t) except +

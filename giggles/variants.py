@@ -6,13 +6,12 @@ Detect variants in reads.
 import re
 from collections import defaultdict, Counter, namedtuple
 from typing import Iterable, Iterator, List
-from pywfa import WavefrontAligner
 
 from giggles.logger import logger
 from giggles.core import Read, ReadSet
 from giggles.gaf import GafParser, rGFA, GafAlignment
 from giggles.vcf import VcfVariant
-from giggles.align import edit_distance
+from giggles.align import edit_distance, WFAWrapper
 from giggles._variants import _iterate_cigar
 
 
@@ -20,18 +19,18 @@ class Realigner:
     """
     Class to encapsulate different aligners
     """
-    def __init__(self, mode:str, params:List):
+    def __init__(self, mode: str, bandwidth: int):
         self.mode = mode
+        self.bandwidth = bandwidth
         if mode is "edit":
             # params are not used.
             self.realigner = edit_distance
         else:
             assert mode is "wfa"
-            default_mismatch, gap_start, gap_extend = params
-            self.realigner = WavefrontAligner(mismatch=default_mismatch, gap_opening=gap_start, gap_extension=gap_extend, scope='score')
+            self.realigner = WFAWrapper(bandwidth)
 
 
-    def get_distance(self, query: str, allele: str):
+    def get_distance(self, query: str, allele: str, state: int):
         """Calculates the distance between query and padded allele.
 
         Args
@@ -42,9 +41,9 @@ class Realigner:
             int: the distance between the two string (always positive)
         """
         if self.mode == "edit":
-            return self.realigner(query, allele)
+            return self.realigner(query, allele, self.bandwidth)
         elif self.mode == "wfa":
-            return -self.realigner(query, allele).score
+            return self.realigner.align(query, allele, state=state)
             
 
     def close(self):
@@ -61,17 +60,13 @@ class AlignmentReader:
             path: List[str],
             mapq_threshold: int,
             realign_mode: str,
-            overhang: int,
-            gap_start: int,
-            gap_extend: int,
-            default_mismatch: int):
+            bandwidth:int,
+            overhang: int):
 
         self._path = path
         self._mapq_threshold = mapq_threshold
-        self._aligner = Realigner(realign_mode, [default_mismatch, gap_start, gap_extend])
-        self._gap_start = gap_start
-        self._gap_extend = gap_extend
-        self._default_mismatch = default_mismatch
+        self._aligner = Realigner(realign_mode, bandwidth)
+        self._bandwidth = bandwidth
         self._overhang = overhang
         
     @property
@@ -237,7 +232,7 @@ class AlignmentReader:
 
             scores = []
             for index, allele in enumerate([ref]+alts):
-                scores.append(edit_distance(query, allele))
+                scores.append(edit_distance(query, allele, aligner.bandwidth))
                 
             return scores
 
@@ -259,22 +254,74 @@ class AlignmentReader:
         
         left_overhang = reference[variant.position - left_ref_bases : variant.position]
         right_overhang = reference[variant.position + right_ref_bases - overhang : variant.position + right_ref_bases]
+
+        closest_allele_idx = None   # this will store which allele is closest to the path the sequence aligned to.
+        path_sequence = reference[variant.position : variant.position + variant.length_on_path] # this is the sequence of the path the variant aligned to.
+        if path_sequence == ref_allele:
+            closest_allele_idx = 0
+        
         ref = left_overhang + ref_allele + right_overhang
         alts = []
-        for alt_allele in variant.alternative_allele:
+        for idx, alt_allele in enumerate(variant.alternative_allele):
             if alt_allele != "*":
                 alt = left_overhang + alt_allele + right_overhang
+                if alt_allele == path_sequence:
+                    closest_allele_idx = idx + 1
             else:
                 alt = left_overhang + right_overhang
             alts.append(alt)
+        
+        if closest_allele_idx != None:
+            """
+            if the allele with the exact seqeunce was not found,
+            then it means that the path is a subsequence of the allele
+            which can only happen with partial alignments
+            """
+            assert variant.state != 0
+        
+        '''
+        New implementation:
+        I have already calculate allele distance matrix which is the distance between allele i and allele j at this variant position. (Using edit distance)
 
-        scores = []
-        for index, allele in enumerate([ref]+alts):
-            if (abs(len(query) - len(allele)) > 5000 ) and (len(query)/len(allele) > 1.5 or len(query)/len(allele) < 1/1.5):
-                # If the distance between the allele and query is too much, add a known high distance
-                scores.append(1e8)
-            else:
-                scores.append(aligner.get_distance(query, allele))        
+        '''
+        
+        if variant.state == 0:
+            best_allele = ref if closest_allele_idx == 0 else alts[closest_allele_idx-1]
+            best_score = aligner.get_distance(query, best_allele)
+            
+            scores = []
+            for idx, allele in enumerate([ref]+alts):
+                if idx == closest_allele_idx:
+                    scores.append(best_score)
+                    continue
+                idx1 = None
+                idx2 = None
+                if idx < closest_allele_idx:
+                    idx1 = idx
+                    idx2 = closest_allele_idx
+                else:
+                    idx1 = closest_allele_idx
+                    idx2 = idx
+                allele_to_allele_distance = variant.get_distance(idx1, idx2)
+                best_possible_score = max(allele_to_allele_distance - best_score, 0)
+                if best_possible_score > aligner.bandwidth:
+                    scores.append(aligner.bandwidth)
+                else:
+                    scores.append(aligner.get_distance(query, allele, 0))
+        else:
+            # if its a partial alignment, then cannot apply the above heuristics
+            for idx, allele in enumerate([ref]+alts):
+                scores.append(aligner.get_distance(query, allele, variant.state))
+
+        
+
+        # Old implementation. Doing realignment for each allele.
+        #for index, allele in enumerate([ref]+alts):
+        #    if (abs(len(query) - len(allele)) > 5000 ) and (len(query)/len(allele) > 1.5 or len(query)/len(allele) < 1/1.5):
+        #        # If the distance between the allele and query is too much, add a known high distance
+        #        scores.append(1e8)
+        #    else:
+        #        scores.append(aligner.get_distance(query, allele))        
                 
         return scores
 
@@ -338,19 +385,15 @@ class GAFReader(AlignmentReader):
         read_fasta_files: List[str],
         mapq_threshold: int = 20,
         realign_mode: str = "edit",
-        overhang: int = 10,
-        gap_start: int = 3,
-        gap_extend: int = 1,
-        default_mismatch: int = 2,
+        bandwidth: int = 30,
+        overhang: int = 10
     ):
         super().__init__(
             alignment_files, 
             mapq_threshold, 
             realign_mode, 
-            overhang, 
-            gap_start, 
-            gap_extend, 
-            default_mismatch)
+            bandwidth,
+            overhang)
 
         self._reader = GafParser(alignment_files=alignment_files, reference=reference, read_fasta_files=read_fasta_files, mapq=self._mapq_threshold)
 
@@ -1006,7 +1049,7 @@ class GAFReader(AlignmentReader):
         self.close()
 
     def close(self):
-        if type(self._aligner.realigner) is WavefrontAligner:
+        if type(self._aligner.realigner) is WFAWrapper:
             logger.debug("Deallocating WavefrontAligner")
             self._aligner.close()
         logger.debug("Closing GAFParser")

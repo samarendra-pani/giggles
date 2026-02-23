@@ -162,10 +162,8 @@ def run_genotype(
     max_coverage=15,
     gt_qual_threshold=0,
     realign_mode="edit",
+    bandwidth=30,
     overhang=10,
-    gap_start=3,
-    gap_extend=1,
-    mismatch=2,
     recombrate=1.26,
     eff_pop_size=10
 ):
@@ -186,10 +184,8 @@ def run_genotype(
         readset_creator_args = (alignment_files, rgfa, read_fasta_files)
         readset_creator_kwargs = {'mapq_threshold': mapping_quality,
                 'realign_mode': realign_mode,
-                'overhang': overhang,
-                'gap_start': gap_start,
-                'gap_extend': gap_extend,
-                'default_mismatch': mismatch}
+                'bandwidth': bandwidth,
+                'overhang': overhang}
         readset_creator_arguments=[readset_creator_args, readset_creator_kwargs]
         readset_creator = stack.enter_context(ReadSetCreator(*readset_creator_arguments[0], **readset_creator_arguments[1]))
 
@@ -296,14 +292,10 @@ def add_arguments(parser):
     arg = parser.add_argument_group('Realignment parameters').add_argument
     arg('--realign-mode', metavar='MODE', default="edit",
         help='Select method which will be used to calculate realignment scores. Available methods are: "wfa", and "edit". (refer to README for more details) (default: %(default)s).')
+    arg('--realignment-bandwidth', metavar='BANDWIDTH', default=30,
+        help='Set a bandwidth to restrict the realignment process (default: %(default)s).')
     arg('--overhang', metavar='OVERHANG', default=10, type=int,
         help='Extend alignment by this many bases to left and right when realigning (default: %(default)s).')
-    arg('--gap-start', metavar='GAPSTART', default=3, type=float,
-        help='gap starting penalty in case wfa is used (default: %(default)s).')
-    arg('--gap-extend', metavar='GAPEXTEND', default=1, type=float,
-        help='gap extend penalty in case wfa is used (default: %(default)s).')
-    arg('--mismatch', metavar='MISMATCH', default=2, type=float,
-        help='mismatch cost in case wfa is used (default: %(default)s)')
     
 
     arg = parser.add_argument_group('HMM parameters').add_argument

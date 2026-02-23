@@ -4,14 +4,26 @@ from distutils.sysconfig import customize_compiler
 import Cython.Build
 from Cython.Build import cythonize
 
-
 def CppExtension(name, sources):
+    
+    include_dirs=[
+            "src/",
+            "external/wfa2/", 
+            "external/wfa2/include/", 
+            "external/wfa2/bindings/cpp/",
+            "external/wrappers/"
+        ]
+    library_dirs=["external/wfa2/lib/"]
+    libraries=["wfacpp"]
+    
     return Extension(
         name,
         sources=sources,
         language="c++",
-        extra_compile_args=["-std=c++11", "-Werror=return-type", "-Werror=narrowing"],
-        include_dirs=["src/"],
+        extra_compile_args=["-std=c++20", "-Werror=return-type", "-Werror=narrowing"],
+        include_dirs=include_dirs,
+        library_dirs=library_dirs,
+        libraries=libraries,
         undef_macros=["NDEBUG"],
     )
 
@@ -43,10 +55,16 @@ extensions = [
             "src/phasing/phasingcolumnindexingscheme.cpp",
             "src/phasing/phasingcolumniterator.cpp",
             "src/phasing/phasingdptable.cpp",
-        ],
+        ]
     ),
     CppExtension("giggles.readselect", sources=["giggles/readselect.pyx"]),
-    CppExtension("giggles.align", sources=["giggles/align.pyx"]),
+    CppExtension(
+        "giggles.align", 
+        sources=[
+            "giggles/align.pyx",
+            "external/wrappers/wfawrapper.cpp"
+        ]
+    ),
     CppExtension("giggles.priorityqueue", sources=["giggles/priorityqueue.pyx"]),
     CppExtension("giggles._variants", sources=["giggles/_variants.pyx"]),
 ]
@@ -80,8 +98,7 @@ else:
         "pysam>=0.18.0",
         "pyfaidx>=0.5.5.2",
         "biopython>=1.73",  # pyfaidx needs this for reading bgzipped FASTA files
-        "xopen>=1.2.0",
-        "pywfa"
+        "xopen>=1.2.0"
     ]
 
 setup(

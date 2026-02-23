@@ -20,6 +20,8 @@ from .core import (
     binomial_coefficient,
     get_max_genotype_alleles
 )
+from .align import edit_distance
+
 from .logger import logger, warn_once
 
 @dataclass
@@ -32,9 +34,9 @@ class VariantCallPhase:
 class VcfVariant:
     """A variant in a VCF file (not to be confused with core.Variant)"""
 
-    __slots__ = ("id", "position", "position_on_ref", "reference_allele", "alternative_allele", "allele_origin", "length_on_path", "state")
+    __slots__ = ("id", "position", "position_on_ref", "reference_allele", "alternative_allele", "allele_origin", "length_on_path", "state", "distance_matrix")
 
-    def __init__(self, id: str, position: int, reference_allele: str, alternative_allele: tuple, allele_origin: list):
+    def __init__(self, id: str, position: int, reference_allele: str, alternative_allele: tuple, allele_origin: list, use_distance_matrix: bool = False):
         
         self.id = id
         # This is the position on the backbone reference (the position given in the VCF in the 0-base)
@@ -58,6 +60,10 @@ class VcfVariant:
         #   - 2: the read ends within this variant.
         #   - 3: the read starts and ends within this variant.
         self.state = None
+        if use_distance_matrix and self.is_sv():
+            self.distance_matrix = self.calculate_distance_matrix()
+        else:
+            self.distance_matrix = None
 
     #def __repr__(self):
     #    return "VcfVariant({}, {}, {}, {!r}, {!r}, {!r})".format(
@@ -122,6 +128,33 @@ class VcfVariant:
         for alt in self.alternative_allele:
             new_alts.append(alt[1:])
         self.alternative_allele = tuple(new_alts)
+    
+    # Calculate distance estimates between alleles. Max distance of 30 is considered.
+    # storing the distance in a 1D array using canonical index
+    def calculate_distance_matrix(self):
+        self.distance_matrix = []
+        alleles = [self.reference_allele] + self.alternative_allele
+        n = len(alleles)
+        for i in range(len(alleles)):
+            for j in range(i+1, len(alleles)):
+                k = (i * ((2*n) - i - 1))/2 + j - i - 1
+                assert (len(self.distance_matrix) == k)     # checking for correctness of cannonical index.
+                allele1 = alleles[i]
+                allele2 = alleles[j]
+                if abs(len(allele1) - len(allele2)) >= 50:
+                    self.distance_matrix.push(50)
+                    continue
+                self.distance_matrix.push(edit_distance(allele1, allele2, 50))
+    
+    # get the distance between allele i and allele j
+    # converting i and j into canonical index
+    def get_distance(self, i, j):
+        if i == j:
+            return 0
+        assert i < j
+        n = len(self.alternative_allele) + 1
+        k = (i * ((2*n) - i - 1))/2 + j - i - 1
+        return self.distance_matrix[k]
 
 
 class VariantTable:
