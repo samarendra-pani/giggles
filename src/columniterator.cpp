@@ -11,6 +11,7 @@ using namespace std;
 
 ColumnIterator::ColumnIterator(const ReadSet& set, const std::vector<variant_information_t>* variant_info_table) : set(set) {
 	this->n = 0;
+	this->next_read_index = 0;
 	positions.resize(variant_info_table->size());
 	for (size_t i=0; i<variant_info_table->size(); ++i){
 		positions.at(i) = variant_info_table->at(i).position;
