@@ -140,7 +140,6 @@ void GenotypeHMM::compute_backward_prob()
 
 void GenotypeHMM::compute_forward_prob()
 {
-	clear_forward_table();
 
 	// if no reads are in read set, nothing to compute
 	if (input_column_iterator.get_column_count() == 0) {
@@ -572,7 +571,7 @@ void GenotypeHMM::compute_forward_column(size_t column_index, unique_ptr<vector<
 	 * initializing the vector to store forward probabilities of current column
 	 */
 	uint32_t num_total_states = num_curr_bipartitions * num_curr_ref_states;
-	vector<long double> current_forward_probabilities(num_total_states, 0.0L);
+	current_forward_probabilities.assign(num_total_states, 0.0L);
 	
 
 	// calculating variables required for all columns other than column 0 (initilization column)
@@ -682,7 +681,7 @@ void GenotypeHMM::compute_forward_column(size_t column_index, unique_ptr<vector<
 						 * and hap_i and hap_j.
 						 */
 						prev_r_index = prev_haplotype_mapper->get_state_index(haplotypes.first, haplotypes.second);
-						ah_0 = forward_probabilities[get_node_index(compatible_bipartition_index, prev_r_index, num_prev_ref_states)];
+						ah_0 = previous_forward_probabilities[get_node_index(compatible_bipartition_index, prev_r_index, num_prev_ref_states)];
 						
 					}
 					// Updating the forward value
@@ -747,9 +746,11 @@ void GenotypeHMM::compute_forward_column(size_t column_index, unique_ptr<vector<
 	variant_info_table->at(column_index).genotype_likelihoods.divide_likelihoods_by(normalization);
 	
 	/**
-	 * Replace the forward values from previous column to current column
+	 * Replace the forward values from previous column to current column.
+	 * 
+	 * Using a swap function to avoid creation and destruction of memory space.
 	 */
-	forward_probabilities = move(current_forward_probabilities);
+	swap(previous_forward_probabilities, current_forward_probabilities);
 	
 	/**
 	 * Replacing the alpha helpers from previous column with

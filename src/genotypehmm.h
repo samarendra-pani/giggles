@@ -56,9 +56,10 @@ class GenotypeHMM {
 		std::vector<std::vector<long double>* > backward_pass_table;
 		
 		/**
-		 * vector to store the forward probabilities.
+		 * vector to store the forward probabilities for the current and previous positions.
 		 */
-		std::vector<long double> forward_probabilities;
+		std::vector<long double> previous_forward_probabilities;
+		std::vector<long double> current_forward_probabilities;
 
 		/**
 		 * vectors for storing the helper variables of previous column
@@ -86,9 +87,8 @@ class GenotypeHMM {
 		std::unique_ptr<std::vector<uint32_t> > extract_read_ids(const std::vector<const Entry *>& entries);
 		
 		/**
-		 * clears the backward and forward pass tables used for the HMM
+		 * clears the backward pass tables used for the HMM
 		 */
-		void clear_forward_table();
 		void clear_backward_table();
 		
 		/**
