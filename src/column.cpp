@@ -22,18 +22,18 @@ Column::Column(const std::vector<uint32_t>& read_ids, const std::vector<uint32_t
 	uint32_t c_id;
 	for (const auto& current_read_id : read_ids) {
         read_obj = set->get(current_read_id);
-
-        if (!read_obj->isClustered()) {
+		if (!read_obj->isClustered()) {
 			// Read is not clustered. So we use it as its own cluster.
             read_cluster_ids.push_back(current_read_id);
-        } else {
-            c_id = read_obj->getClusterID();
+		} else {
+			c_id = read_obj->getClusterID();
             
             // Only add unique cluster IDs to the list
             if (cluster_id_to_read_index_map.count(c_id) == 0) {
                 read_cluster_ids.push_back(c_id);
             }
-            cluster_id_to_read_index_map[c_id].push_back(count);
+		    
+            cluster_id_to_read_index_map[c_id].push_back(count);    
         }
 		count ++;
     }
@@ -56,8 +56,12 @@ Column::Column(const std::vector<uint32_t>& read_ids, const std::vector<uint32_t
 	for (uint32_t c_id : read_cluster_ids) {
         // We can check just the first read of the cluster to find constraints
         // (Assuming all reads in a cluster share the constraint)
-    	first_read_idx = cluster_id_to_read_index_map[c_id][0];
-        read_obj = set->get(read_ids[first_read_idx]); 
+    	if (cluster_id_to_read_index_map.count(c_id) == 0) {
+			// this is a fake cluster.
+			continue;
+		}
+		first_read_idx = cluster_id_to_read_index_map[c_id][0];
+		read_obj = set->get(read_ids[first_read_idx]); 
 
         if (read_obj->hasConstrainedCluster()) {
             con_c_id = read_obj->getConstrainedClusterID();
@@ -70,7 +74,7 @@ Column::Column(const std::vector<uint32_t>& read_ids, const std::vector<uint32_t
             }
         }
     }
-
+	
 	/**
 	 * Figuring out the positions which should be subject to Gray Code ordering.
 	 * We also find the constrained positions mapping for updating the binary vector later.
@@ -100,8 +104,13 @@ Column::Column(const std::vector<uint32_t>& read_ids, const std::vector<uint32_t
 			 * Hence only the min will be varied in Gray Code.
 			 */
 			free_read_cluster_positions.push_back(i);
-			if (cluster_id_to_read_index_map.count(c_id) == 0) { num_reads_per_free_read_cluster_positions.push_back(1); } // cluster is actually just a single read.
-			else { num_reads_per_free_read_cluster_positions.push_back(cluster_id_to_read_index_map.count(c_id)); }
+			if (cluster_id_to_read_index_map.count(c_id) == 0) {
+				// cluster is actually just a single read.
+				num_reads_per_free_read_cluster_positions.push_back(1);
+			} 
+			else {
+				num_reads_per_free_read_cluster_positions.push_back(cluster_id_to_read_index_map[c_id].size());
+			}
 		}
 		else {
 			con_c_id = read_cluster_constraints.at(c_id); // con_c_id is the cluster ID which is included in free_read_cluster_positions
@@ -115,10 +124,10 @@ Column::Column(const std::vector<uint32_t>& read_ids, const std::vector<uint32_t
 				pos_c_id = read_cluster_ids[pos];
 				if (pos_c_id == con_c_id) {
 					// Found the position of representative cluster ID in free_read_cluster_positions vector.
-					// Now we can store the mapping.
-					constrained_position_map[pos] = i;
+					// Now we can store the mapping of MAX ID -> MIN ID.
+					constrained_position_map[i] = pos;
 					// We will also update the num_reads_per_free_read_cluster_positions
-					num_reads_per_free_read_cluster_positions[j] += cluster_id_to_read_index_map.count(c_id);
+					num_reads_per_free_read_cluster_positions[j] += cluster_id_to_read_index_map[c_id].size();
 					found = true;
 					break;
 				}
@@ -143,7 +152,7 @@ Column::Column(const std::vector<uint32_t>& read_ids, const std::vector<uint32_t
 	 */
     std::vector<std::pair<uint32_t, uint32_t>> sort_helper;
     for(uint32_t k = 0; k < free_read_cluster_positions.size(); k++) {
-        sort_helper.push_back({num_reads_per_free_read_cluster_positions[k], free_read_cluster_positions[k]});
+		sort_helper.push_back({num_reads_per_free_read_cluster_positions[k], free_read_cluster_positions[k]});
     }
     std::sort(sort_helper.begin(), sort_helper.end());
     for(const auto& p : sort_helper) {
@@ -165,7 +174,7 @@ Column::Column(const std::vector<uint32_t>& read_ids, const std::vector<uint32_t
     // Remove duplicates from next_read_cluster_ids after sorting
     auto last = std::unique(next_read_cluster_ids.begin(), next_read_cluster_ids.end());
     next_read_cluster_ids.erase(last, next_read_cluster_ids.end());
-
+	
 	precompute_bipartition(next_read_cluster_ids);
 }
 
@@ -278,13 +287,12 @@ void Column::precompute_bipartition(std::vector<uint32_t>& next_read_cluster_ids
 					count++;
 					continue;
 				}
-                current_size = cached_bipartitions.size();
+				current_size = cached_bipartitions.size();
                 cached_bipartitions.resize(2 * current_size);
                 
                 // Pre-calculate the bit value
                 bit_val = (1 << cluster_id_to_graycode_index_map[read_cluster_ids[count]]); 
-
-                for (uint32_t j = 0; j < current_size; j++) {
+				for (uint32_t j = 0; j < current_size; j++) {
                     cached_bipartitions[current_size + j] = cached_bipartitions[j] + bit_val;
                 }
 				count++;
@@ -304,7 +312,7 @@ void Column::precompute_bipartition(std::vector<uint32_t>& next_read_cluster_ids
 		 * 
 		 * From the example above, the for loop processing the clusters 2,3,6,7.
 		 */
-		if (count < read_cluster_ids.size() && next_id == read_cluster_ids.at(count)) {
+		if (count < read_cluster_ids.size() && next_id == read_cluster_ids[count]) {
 			// Storing the position of the shared cluster in the left column
 			if (cluster_id_to_graycode_index_map.count(read_cluster_ids[count]) != 0) {
 				// checking if this cluster is actually part of gray code.
@@ -370,9 +378,7 @@ void Column::get_backward_compatible_bipartitions(uint32_t read_cluster_bit_repr
     }
 
     // Applying the base to all compatible bipartitions
-	if (base > 0) {
-        for (size_t i = 0; i < result.size(); i++) {
-            result[i] += cached_bipartitions[i] + base;
-        }
+	for (size_t i = 0; i < result.size(); i++) {
+    	result[i] = cached_bipartitions[i] + base;
     }
 }

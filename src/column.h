@@ -56,8 +56,8 @@ class Column {
 		 */
 		std::vector<uint32_t> cached_bipartitions;
 		/**
-		 * Keepin track of the masks of the next read clusters based on the position on the cluster in the left column.
-		 * maks = 1 << position_in_left_column
+		 * Keeping track of the masks of the next read clusters based on the position on the cluster in the left column.
+		 * mask = 1 << (position of cluster in the gray code bit representation of left column)
 		 * By knowing these positions, we can quickly determine the compatible bipartitions between the two columns.
 		 * For clusters that are unique to the next column, the mask will be 0.
 		 */
