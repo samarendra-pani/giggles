@@ -58,6 +58,7 @@ extensions = [
         ]
     ),
     CppExtension("giggles.readselect", sources=["giggles/readselect.pyx"]),
+    CppExtension("giggles.cpptests", sources=["giggles/cpptests.pyx"]),
     CppExtension(
         "giggles.align", 
         sources=[

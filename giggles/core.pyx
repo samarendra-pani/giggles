@@ -410,3 +410,4 @@ cdef class GenotypingAlgorithm:
 
 
 include 'readselect.pyx'
+include 'cpptests.pyx'

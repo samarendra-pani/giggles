@@ -1,6 +1,6 @@
 # cython: language_level=3
 
-from . cimport cpp
+from . cimport extcpp
 
 cdef class WFAWrapper:
-	cdef cpp.WFAWrapper *thisptr
+	cdef extcpp.WFAWrapper *thisptr

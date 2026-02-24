@@ -89,7 +89,5 @@ cdef extern from "../src/genotypingalgorithm.h":
 		GenotypingAlgorithm(ReadSet* readset, vector[float] recombcost, uint32_t n_samples, uint32_t ploidy, vector[uint32_t]* positions, vector[uint32_t]* n_allele_positions, vector[vector[int]]*, vector[bool]*) except +
 		vector[long double] get_genotype_likelihoods(uint32_t position) except +
 
-cdef extern from "../external/wrappers/wfawrapper.h":
-	cdef cppclass WFAWrapper:
-		WFAWrapper(uint32_t) except +
-		uint32_t align(string, string, uint8_t) except +
+cdef extern from "../src/tests.h":
+	cdef void run_all_tests() except +

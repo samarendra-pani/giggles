@@ -116,7 +116,7 @@ Wrapper for WFA2-lib
 cdef class WFAWrapper:
 	def __cinit__(self, bandwidth):
 		cdef uint32_t _bandwidth = bandwidth
-		self.thisptr = new cpp.WFAWrapper(_bandwidth)
+		self.thisptr = new extcpp.WFAWrapper(_bandwidth)
 	
 	def __dealloc__(self):
 		del self.thisptr
