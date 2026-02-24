@@ -70,8 +70,11 @@ class Column {
 		std::vector<uint32_t> sorted_free_read_cluster_positions;
 		/**
 		 * Constrained position mapping
-		 * Key is the position of the non-representative read cluster (given by the max of the constrained pair)
-		 * Value is the position of the read cluster which is the representative (min of the constrained pair) in the read_cluster_bit_representation
+		 * Key is the position of the representative read cluster (given by the min of the constrained pair)
+		 * Value is the position of the non-representative read cluster (max of the constrained pair) in the read_cluster_bit_representation
+		 * 
+		 * This map is used to go from the representative to non-representative cluster to convert
+		 * Gray Code index (which only has the representative cluster) to read_cluster_bit_representation (which has both clusters)
 		 */
 		std::unordered_map<uint32_t, uint32_t> constrained_position_map;
 

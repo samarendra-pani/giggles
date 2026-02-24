@@ -24,7 +24,7 @@ BipartitionIterator::BipartitionIterator(Column* parent, ReadSet* set) {
 	uint32_t mask;
 	for (auto pos : *(parent->get_constrained_position_map())) {
 		// Setting the non-representative constrained clusters to true initially.
-		// since these are the only positions which are initially true, we can set b_index accordingly.
+		// since these are the only positions which are initially true, we can set read_cluster_bit_representation accordingly.
 		mask = 1 << pos.second;
 		this->read_cluster_bit_representation |= mask;
 	}
@@ -116,39 +116,30 @@ uint32_t BipartitionIterator::get_read_cluster_bit_representation() const {
 	return this->read_cluster_bit_representation;
 }
 
-bool BipartitionIterator::is_clustered_bit(uint32_t cluster_bit_changed) const {
-	return parent->get_cluster_id_to_read_index_map()->count(cluster_bit_changed) > 0;
-}
-
 bool BipartitionIterator::has_constrained_bit(uint32_t cluster_bit_changed) const {
-
 	return parent->get_constrained_position_map()->count(cluster_bit_changed) > 0;
 }
 
 uint32_t BipartitionIterator::get_constrained_bit(uint32_t cluster_bit_changed) const {
-	assert(is_clustered_bit(cluster_bit_changed));
 	assert(has_constrained_bit(cluster_bit_changed));
 	return parent->get_constrained_position_map()->at(cluster_bit_changed);
 }
 
-const std::vector<uint32_t>* BipartitionIterator::get_read_index_from_cluster_id(uint32_t cluster_id) const {
-	const std::unordered_map<uint32_t, std::vector<uint32_t>> cluster_id_to_read_index_map = *(parent->get_cluster_id_to_read_index_map());
-	return &(cluster_id_to_read_index_map.at(cluster_id));
+std::vector<uint32_t> BipartitionIterator::get_read_index_from_cluster_id(uint32_t cluster_id) const {
+	return parent->get_cluster_id_to_read_index_map()->at(cluster_id);
 }
 
-void BipartitionIterator::get_changed_reads(uint32_t cluster_bit_changed, std::unordered_map<uint32_t, bool>& changed_reads) const {
-	bool new_bit = (read_cluster_bit_representation >> cluster_bit_changed) & 1;
-	uint32_t flipped_cluster_id = parent->get_read_cluster_ids()->at(cluster_bit_changed);
-	if (!is_clustered_bit(cluster_bit_changed)) {
-		// The bit did not correspond to a cluster.
-		changed_reads[flipped_cluster_id] = new_bit; // cluster ID is the read ID.
+void BipartitionIterator::get_changed_reads(int cluster_bit_changed, std::unordered_map<uint32_t, bool>& changed_reads) const {
+	if (cluster_bit_changed == -1) {
+		// for initialization, there is not changed reads
 		return ;
 	}
+	bool new_bit = (read_cluster_bit_representation >> cluster_bit_changed) & 1;
+	uint32_t flipped_cluster_id = parent->get_read_cluster_ids()->at(cluster_bit_changed);
 	/**
-	 * The bit changed corresponds to a cluster.
 	 * Adding the information of the read_ids corresponding to this cluster.
 	 */
-	const std::vector<uint32_t>& read_indices_from_clusters = *get_read_index_from_cluster_id(flipped_cluster_id);
+	const std::vector<uint32_t>& read_indices_from_clusters = get_read_index_from_cluster_id(flipped_cluster_id);
 	for (auto read_index: read_indices_from_clusters) {
 		changed_reads[read_index] = new_bit;
 	}
@@ -157,7 +148,7 @@ void BipartitionIterator::get_changed_reads(uint32_t cluster_bit_changed, std::u
 	 */
 	if (has_constrained_bit(cluster_bit_changed)) {
 		uint32_t constrained_flipped_cluster_id = parent->get_read_cluster_ids()->at(parent->get_constrained_position_map()->at(cluster_bit_changed));
-		std::vector<uint32_t> constrained_read_index_from_clusters = *get_read_index_from_cluster_id(constrained_flipped_cluster_id);
+		const std::vector<uint32_t>& constrained_read_index_from_clusters = get_read_index_from_cluster_id(constrained_flipped_cluster_id);
 		for (auto read_index: constrained_read_index_from_clusters) {
 			changed_reads[read_index] = !new_bit;
 		}

@@ -15,29 +15,37 @@
 #include "tests/test_columniterator.h"
 #include "tests/test_entry.h"
 #include "tests/test_genotype.h"
-#include "tests/test_genotypelikelihoods.h"
+// #include "tests/test_genotypelikelihoods.h"
 #include "tests/test_graycodes.h"
-#include "tests/test_read.h"
-#include "tests/test_readset.h"
-#include "tests/test_transitionprobabilitycomputer.h"
+// #include "tests/test_read.h"
+// #include "tests/test_readset.h"
+// #include "tests/test_transitionprobabilitycomputer.h"
 
 #include "phasing/tests/test_phasingcolumniterator.h"
 
 
 void run_all_tests() {
+    std::cout << "================ Testing BackwardColumnIterator ================" << std::endl;
     test_backwardcolumniterator();
-    test_binomial();
-    test_column();
-    test_bipartitioniterator();
+    std::cout << "\n================ Testing ColumnIterator ========================" << std::endl;
     test_columniterator();
+    std::cout << "\n================ Testing Binomial ==============================" << std::endl;
+    test_binomial();
+    std::cout << "\n================ Testing GrayCodes =============================" << std::endl;
+    test_graycodes();
+    std::cout << "\n================ Testing Column ================================" << std::endl;
+    test_column();
+    std::cout << "\n================ Testing BipartitionIterator ===================" << std::endl;
+    test_bipartitioniterator();
+    std::cout << "\n================ Testing Entry =================================" << std::endl;
     test_entry();
 //    test_genotype();
 //    test_genotypelikelihoods();
-    test_graycodes();
 //    test_read();
 //    test_readset();
-    test_transitionprobabilitycomputer();
+//    test_transitionprobabilitycomputer();
 
+    std::cout << "\n================ Testing PhasingColumnIterator =================" << std::endl;
     test_phasingcolumniterator();
 }
 

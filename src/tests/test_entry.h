@@ -6,18 +6,20 @@
  */
 
 #include "../entry.h"
+#include "../tests_data.h"
 #include <cassert>
 
 void test_entry() {
 
-    Entry* entry = new Entry();
-    assert(entry->get_allele_type() == Entry::BLANK);
+    Entry* entry;
+    entry = new Entry();
+    assert_msg(entry->get_allele_type() == Entry::BLANK, "Entry", "Initialization allele type.");
     delete entry;
 
-    Entry* entry = new Entry(1, std::vector<uint32_t>{10, 90});
+    entry = new Entry(1, std::vector<uint32_t>{10, 90});
     std::vector<long double> emission_scores = entry->get_emission_scores();
-    assert(emission_scores.size() == 2);
-    assert(emission_scores[0] < emission_scores[1]);
+    assert_msg(emission_scores.size() == 2, "Entry", "Emission score size");
+    assert_msg(emission_scores[0] < emission_scores[1], "Entry", "Relative emission scores.");
 }
 
 #endif //TEST_ENTRY_H

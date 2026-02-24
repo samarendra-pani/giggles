@@ -62,7 +62,6 @@ void EmissionProbabilityComputer::update_emission_probability(const int cluster_
 		uint32_t cluster_count;
 		long double value;
 		const std::vector<uint32_t>* cluster_ids;
-		const std::vector<uint32_t>* read_indices;
 		bool bit;
 		for (uint32_t i = 0; i < n_alleles; i++) {
 			for (uint32_t j = 0; j < n_alleles; j++) {
@@ -78,10 +77,10 @@ void EmissionProbabilityComputer::update_emission_probability(const int cluster_
 					 * For each cluster, get the read indices corresponding to that cluster.
 					 * These read indices correspond to the indices of their respective entries.
 					 */
-					read_indices = iterator.get_read_index_from_cluster_id(c_id);
+					const std::vector<uint32_t>& read_indices = iterator.get_read_index_from_cluster_id(c_id);
 					// Determine whether the current cluster is in bipartition 0 or 1
 					bit = (read_cluster_bit_representation & (1 << cluster_count)) != 0;
-					for (uint32_t const r_idx: *read_indices) {
+					for (uint32_t const r_idx: read_indices) {
 						if (entries[r_idx]->get_allele_type() == Entry::BLANK) {
 							continue;
 						}

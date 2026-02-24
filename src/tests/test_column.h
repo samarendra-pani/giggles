@@ -10,14 +10,13 @@
 #include <cassert>
 
 void test_read_cluster_ids_column1(Column* column) {
-    std::cout << "[Column] Testing read_cluster_ids for column 1..." << std::endl;
     const std::vector<uint32_t>* read_cluster_ids = column->get_read_cluster_ids();
     std::vector<uint32_t> expected_clusters = {2, 3, 4, 7, 8, 9, 10, 15, 17};
     assert(read_cluster_ids->size() == expected_clusters.size());
     for (size_t i = 0; i < expected_clusters.size(); i++) {
         assert(read_cluster_ids->at(i) == expected_clusters[i]);
     }
-    assert_msg(true, "Column", "Read cluster IDs test passed.");
+    assert_msg(true, "Column", "Read cluster IDs test passed for column 1.");
 }
 
 void test_num_bipartitions_column1(Column* column) {
@@ -31,14 +30,13 @@ void test_constrained_position_map_column1(Column* column) {
 
     /**
      * Clusters are {2, 3, 4, 7, 8, 9, 10, 15, 17}
-     *  Constrained Pair (2, 7) -> Position of 7 is 3 and Position of 2 is 0. So map is 3 -> 0.
-     *  Constrained Pair (4, 9) -> Position of 9 is 5 and Position of 4 is 2. So map is 5 -> 2.
+     *  Constrained Pair (2, 7) -> Position of 7 is 3 and Position of 2 is 0. So map is 0 -> 3.
+     *  Constrained Pair (4, 9) -> Position of 9 is 5 and Position of 4 is 2. So map is 2 -> 5.
      */
 
     assert_msg(map->size() == 2, "Column", "Size of column 1 constrained position map.");
-
-    assert(map->at(3) == 0);
-    assert(map->at(5) == 2);
+    assert(map->at(0) == 3);
+    assert(map->at(2) == 5);
     assert_msg(true, "Column", "Content of column 1 constrained position map.");
 }
 
@@ -55,16 +53,15 @@ void test_sorted_free_read_cluster_positions_column1(Column* column) {
      */
     
     std::vector<uint32_t> expected = {7, 8, 4, 6, 1, 0, 2};
-    assert_msg(positions->size() == expected.size(), "Column", "Size of sorted free read cluster positions of column 1");
+    assert_msg(positions->size() == expected.size(), "Column", "Size of sorted free read cluster positions of column 1.");
     for (uint32_t i = 0; i < positions->size(); i++) {
         assert(positions->at(i) == expected[i]);
     }
-    assert_msg(true, "Column", "Content of sorted free read cluster positions of column 1");
+    assert_msg(true, "Column", "Content of sorted free read cluster positions of column 1.");
 
 }
 
 void test_cluster_id_to_read_index_map_column1(Column* column) {
-    std::cout << "[Column] Testing cluster_id_to_read_index_map for column 1..." << std::endl;
     const std::unordered_map<uint32_t, std::vector<uint32_t>>* cluster_map = column->get_cluster_id_to_read_index_map();
     
     /**
@@ -72,6 +69,7 @@ void test_cluster_id_to_read_index_map_column1(Column* column) {
      *  Cluster 10 -> read indices {0, 1}
      *  Cluster 8 -> read indices {2, 6}
      *  Cluster 7 -> read indices {3, 4, 13}
+     *  Cluster 15 -> read indices {5}
      *  Cluster 17 -> read indices {7}
      *  Cluster 3 -> read indices {8, 9, 12}
      *  Cluster 9 -> read indices {10, 11, 16}
@@ -79,7 +77,7 @@ void test_cluster_id_to_read_index_map_column1(Column* column) {
      *  Cluster 4 -> read indices {15, 17}
      */
 
-    assert(cluster_map->size() == 8);
+    assert(cluster_map->size() == 9);
     
     assert(cluster_map->at(10).size() == 2);
     assert(cluster_map->at(10)[0] == 0);
@@ -93,6 +91,9 @@ void test_cluster_id_to_read_index_map_column1(Column* column) {
     assert(cluster_map->at(7)[0] == 3);
     assert(cluster_map->at(7)[1] == 4);
     assert(cluster_map->at(7)[2] == 13);
+
+    assert(cluster_map->at(15).size() == 1);
+    assert(cluster_map->at(15)[0] == 5);
 
     assert(cluster_map->at(17).size() == 1);
     assert(cluster_map->at(17)[0] == 7);
@@ -114,7 +115,7 @@ void test_cluster_id_to_read_index_map_column1(Column* column) {
     assert(cluster_map->at(4)[0] == 15);
     assert(cluster_map->at(4)[1] == 17);
 
-    assert_msg(true, "Column", "Cluster ID to Read IDs map test passed.");
+    assert_msg(true, "Column", "Cluster ID to Read IDs map test passed for column 1.");
 }
 
 void test_bipartition_compatibility_column1(Column* column) {
@@ -141,11 +142,10 @@ void test_bipartition_compatibility_column1(Column* column) {
      * Setting read_cluster_bit_representation to 0 gives back the cached bipartitions
      */
     column->get_backward_compatible_bipartitions(0, compatible_bipartitions);
-    
     assert(compatible_bipartitions.size() == 4);
     assert(compatible_bipartitions[0] == 0);
-    assert(compatible_bipartitions[1] == 1);
-    assert(compatible_bipartitions[2] == 8);
+    assert(compatible_bipartitions[2] == 1);
+    assert(compatible_bipartitions[1] == 8);
     assert(compatible_bipartitions[3] == 9);
 
     /**
@@ -176,8 +176,8 @@ void test_bipartition_compatibility_column1(Column* column) {
     column->get_backward_compatible_bipartitions(1, compatible_bipartitions);
     
     assert(compatible_bipartitions[0] == 32);
-    assert(compatible_bipartitions[1] == 33);
-    assert(compatible_bipartitions[2] == 40);
+    assert(compatible_bipartitions[2] == 33);
+    assert(compatible_bipartitions[1] == 40);
     assert(compatible_bipartitions[3] == 41);
     
     column->get_backward_compatible_bipartitions(9, compatible_bipartitions_1);
@@ -199,8 +199,8 @@ void test_bipartition_compatibility_column1(Column* column) {
     column->get_backward_compatible_bipartitions(2, compatible_bipartitions);
     
     assert(compatible_bipartitions[0] == 16);
-    assert(compatible_bipartitions[1] == 17);
-    assert(compatible_bipartitions[2] == 24);
+    assert(compatible_bipartitions[2] == 17);
+    assert(compatible_bipartitions[1] == 24);
     assert(compatible_bipartitions[3] == 25);
 
     column->get_backward_compatible_bipartitions(10, compatible_bipartitions_1);
@@ -222,8 +222,8 @@ void test_bipartition_compatibility_column1(Column* column) {
     column->get_backward_compatible_bipartitions(4, compatible_bipartitions);
 
     assert(compatible_bipartitions[0] == 64);
-    assert(compatible_bipartitions[1] == 65);
-    assert(compatible_bipartitions[2] == 72);
+    assert(compatible_bipartitions[2] == 65);
+    assert(compatible_bipartitions[1] == 72);
     assert(compatible_bipartitions[3] == 73);
 
     column->get_backward_compatible_bipartitions(12, compatible_bipartitions_1);
@@ -245,8 +245,8 @@ void test_bipartition_compatibility_column1(Column* column) {
     column->get_backward_compatible_bipartitions(16, compatible_bipartitions);
     
     assert(compatible_bipartitions[0] == 4);
-    assert(compatible_bipartitions[1] == 5);
-    assert(compatible_bipartitions[2] == 12);
+    assert(compatible_bipartitions[2] == 5);
+    assert(compatible_bipartitions[1] == 12);
     assert(compatible_bipartitions[3] == 13);
 
     column->get_backward_compatible_bipartitions(24, compatible_bipartitions_1);
@@ -268,8 +268,8 @@ void test_bipartition_compatibility_column1(Column* column) {
     column->get_backward_compatible_bipartitions(64, compatible_bipartitions);
 
     assert(compatible_bipartitions[0] == 2);
-    assert(compatible_bipartitions[1] == 3);
-    assert(compatible_bipartitions[2] == 10);
+    assert(compatible_bipartitions[2] == 3);
+    assert(compatible_bipartitions[1] == 10);
     assert(compatible_bipartitions[3] == 11);
 
     column->get_backward_compatible_bipartitions(72, compatible_bipartitions_1);
@@ -285,20 +285,19 @@ void test_bipartition_compatibility_column1(Column* column) {
 }  
 
 void test_read_cluster_ids_column2(Column* column) {
-    std::cout << "[Column] Testing read_cluster_ids for column 2..." << std::endl;
     const std::vector<uint32_t>* read_cluster_ids = column->get_read_cluster_ids();
     std::vector<uint32_t> expected_clusters = {2, 3, 4, 7, 8, 9, 17, 29};
     assert(read_cluster_ids->size() == expected_clusters.size());
     for (size_t i = 0; i < expected_clusters.size(); i++) {
         assert(read_cluster_ids->at(i) == expected_clusters[i]);
     }
-    assert_msg(true, "Column", "Read cluster IDs test passed.");
+    assert_msg(true, "Column", "Read cluster IDs test passed for column 2.");
 }
 
 void test_num_bipartitions_column2(Column* column) {
     uint32_t num_bipartitions = column->get_num_bipartition();
     uint32_t expected_num_bipartitions = 1 << 5; // (2, 7), (4, 9) and (17, 29) are constrained
-    assert_msg(num_bipartitions == expected_num_bipartitions, "Column", "Number of bipartition from column 1.");
+    assert_msg(num_bipartitions == expected_num_bipartitions, "Column", "Number of bipartition from column 2.");
 }
 
 void test_constrained_position_map_column2(Column* column) {
@@ -306,16 +305,16 @@ void test_constrained_position_map_column2(Column* column) {
 
     /**
      * Clusters are {2, 3, 4, 7, 8, 9, 17, 29}
-     *  Constrained Pair (2, 7) -> Position of 7 is 3 and Position of 2 is 0. So map is 3 -> 0.
-     *  Constrained Pair (4, 9) -> Position of 9 is 5 and Position of 4 is 2. So map is 5 -> 2.
-     *  Constrained Pair (17, 29) -> Position of 29 is 7 and Position of 17 is 6. So map is 7 -> 6.
+     *  Constrained Pair (2, 7) -> Position of 7 is 3 and Position of 2 is 0. So map is 0 -> 3.
+     *  Constrained Pair (4, 9) -> Position of 9 is 5 and Position of 4 is 2. So map is 2 -> 5.
+     *  Constrained Pair (17, 29) -> Position of 29 is 7 and Position of 17 is 6. So map is 6 -> 7.
      */
 
     assert_msg(map->size() == 3, "Column", "Size of column 2 constrained position map.");
 
-    assert(map->at(3) == 0);
-    assert(map->at(5) == 2);
-    assert(map->at(7) == 6);
+    assert(map->at(0) == 3);
+    assert(map->at(2) == 5);
+    assert(map->at(6) == 7);
     assert_msg(true, "Column", "Content of column 2 constrained position map.");
 }
 
@@ -332,16 +331,15 @@ void test_sorted_free_read_cluster_positions_column2(Column* column) {
      */
     
     std::vector<uint32_t> expected = {0, 1, 4, 6, 2};
-    assert_msg(positions->size() == expected.size(), "Column", "Size of sorted free read cluster positions of column 2");
+    assert_msg(positions->size() == expected.size(), "Column", "Size of sorted free read cluster positions of column 2.");
     for (uint32_t i = 0; i < positions->size(); i++) {
         assert(positions->at(i) == expected[i]);
     }
-    assert_msg(true, "Column", "Content of sorted free read cluster positions of column 2");
+    assert_msg(true, "Column", "Content of sorted free read cluster positions of column 2.");
 
 }
 
 void test_cluster_id_to_read_index_map_column2(Column* column) {
-    std::cout << "[Column] Testing cluster_id_to_read_index_map for column 2..." << std::endl;
     const std::unordered_map<uint32_t, std::vector<uint32_t>>* cluster_map = column->get_cluster_id_to_read_index_map();
     
     /**
@@ -387,17 +385,18 @@ void test_cluster_id_to_read_index_map_column2(Column* column) {
     assert(cluster_map->at(29).size() == 1);
     assert(cluster_map->at(29)[0] == 13);
 
-    assert_msg(true, "Column", "Cluster ID to Read IDs map test passed.");
+    assert_msg(true, "Column", "Cluster ID to Read IDs map test passed for column 2.");
 }
 
 void test_column() {
     
     ReadSet* read_set = mock_readset_1();
+    Column* column;
+    
+    const std::vector<uint32_t> curr_read_ids = {10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27};
+    const std::vector<uint32_t> next_read_ids = {12, 14, 16, 17, 19, 20, 21, 22, 24, 25, 26, 27, 28, 29};
 
-    std::vector<uint32_t> curr_read_ids = {10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27};
-    std::vector<uint32_t> next_read_ids = {12, 14, 16, 17, 19, 20, 21, 22, 24, 25, 26, 27, 28, 29};
-
-    Column* column = new Column(curr_read_ids, next_read_ids, read_set);
+    column = new Column(curr_read_ids, next_read_ids, read_set);
 
     test_read_cluster_ids_column1(column);
     test_constrained_position_map_column1(column);
@@ -407,7 +406,7 @@ void test_column() {
     test_bipartition_compatibility_column1(column);
     delete column;
 
-    Column* column = new Column(next_read_ids, {}, read_set);
+    column = new Column(next_read_ids, {}, read_set);
 
     test_read_cluster_ids_column2(column);
     test_constrained_position_map_column2(column);

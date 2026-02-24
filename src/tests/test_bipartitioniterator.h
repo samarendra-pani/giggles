@@ -10,37 +10,18 @@
 #include "../tests_data.h"
 #include <cassert>
 
-void test_clustered_bit_column1(BipartitionIterator* iterator) {
-    /**
-     * bit index:       | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
-     * cluster_id:      | 2 | 3 | 4 | 7 | 8 | 9 |10 |15 |17 |
-     * is_clustered:    | T | T | T | T | T | T | T | F | T |
-     */
-    assert(iterator->is_clustered_bit(0) == true);
-    assert(iterator->is_clustered_bit(1) == true);
-    assert(iterator->is_clustered_bit(2) == true);
-    assert(iterator->is_clustered_bit(3) == true);
-    assert(iterator->is_clustered_bit(4) == true);
-    assert(iterator->is_clustered_bit(5) == true);
-    assert(iterator->is_clustered_bit(6) == true);
-    assert(iterator->is_clustered_bit(7) == false);
-    assert(iterator->is_clustered_bit(8) == true);
-
-    assert_msg(true, "BipartitionIterator", "Checking for clustered bits passed in column 1.");
-}
-
 void test_constrained_bit_column1(BipartitionIterator* iterator) {
     /**
      * bit index:            | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
      * cluster_id:           | 2 | 3 | 4 | 7 | 8 | 9 |10 |15 |17 |
-     * has_constrained_bit:  | F | F | F | T | F | T | F | F | F |
+     * has_constrained_bit:  | T | F | T | F | F | F | F | F | F |
      */
-    assert(iterator->has_constrained_bit(0) == false);
+    assert(iterator->has_constrained_bit(0) == true);
     assert(iterator->has_constrained_bit(1) == false);
-    assert(iterator->has_constrained_bit(2) == false);
-    assert(iterator->has_constrained_bit(3) == true);
+    assert(iterator->has_constrained_bit(2) == true);
+    assert(iterator->has_constrained_bit(3) == false);
     assert(iterator->has_constrained_bit(4) == false);
-    assert(iterator->has_constrained_bit(5) == true);
+    assert(iterator->has_constrained_bit(5) == false);
     assert(iterator->has_constrained_bit(6) == false);
     assert(iterator->has_constrained_bit(7) == false);
     assert(iterator->has_constrained_bit(8) == false);
@@ -48,10 +29,10 @@ void test_constrained_bit_column1(BipartitionIterator* iterator) {
     /**
      * bit index:       | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
      * cluster_id:      | 2 | 3 | 4 | 7 | 8 | 9 |10 |15 |17 |
-     * constrained_bit: | - | - | - | 0 | - | 2 | - | - | - |
+     * constrained_bit: | 3 | - | 5 | - | - | - | - | - | - |
      */
-    assert(iterator->get_constrained_bit(3) == 0);
-    assert(iterator->get_constrained_bit(5) == 2);
+    assert(iterator->get_constrained_bit(0) == 3);
+    assert(iterator->get_constrained_bit(2) == 5);
 
     assert_msg(true, "BipartitionIterator", "Checking for constrained bits in column 1.");
 }
@@ -291,46 +272,29 @@ void test_advancement_column1(BipartitionIterator* iterator) {
     assert_msg(true, "BipartitionIterator", "Advance tests passed in column 1.");
 }
 
-void test_clustered_bit_column2(BipartitionIterator* iterator) {
-    /**
-     * bit index:       | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
-     * cluster_id:      | 2 | 3 | 4 | 7 | 8 | 9 |17 |29 |
-     * is_clustered:    | T | T | T | T | T | T | T | T |
-     */
-    assert(iterator->is_clustered_bit(0) == true);
-    assert(iterator->is_clustered_bit(1) == true);
-    assert(iterator->is_clustered_bit(2) == true);
-    assert(iterator->is_clustered_bit(3) == true);
-    assert(iterator->is_clustered_bit(4) == true);
-    assert(iterator->is_clustered_bit(5) == true);
-    assert(iterator->is_clustered_bit(6) == true);
-    assert(iterator->is_clustered_bit(7) == true);
-    assert_msg(true, "BipartitionIterator", "Checking for clustered bits passed in column 2.");
-}
-
 void test_constrained_bit_column2(BipartitionIterator* iterator) {
     /**
      * bit index:              | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
      * cluster_id:             | 2 | 3 | 4 | 7 | 8 | 9 |17 |29 |
-     * has_constrained_bit:    | F | F | F | T | F | T | F | T |
+     * has_constrained_bit:    | T | F | T | F | F | F | T | F |
      */
-    assert(iterator->is_clustered_bit(0) == false);
-    assert(iterator->is_clustered_bit(1) == false);
-    assert(iterator->is_clustered_bit(2) == false);
-    assert(iterator->is_clustered_bit(3) == true);
-    assert(iterator->is_clustered_bit(4) == false);
-    assert(iterator->is_clustered_bit(5) == true);
-    assert(iterator->is_clustered_bit(6) == false);
-    assert(iterator->is_clustered_bit(7) == true);
+    assert(iterator->has_constrained_bit(0) == true);
+    assert(iterator->has_constrained_bit(1) == false);
+    assert(iterator->has_constrained_bit(2) == true);
+    assert(iterator->has_constrained_bit(3) == false);
+    assert(iterator->has_constrained_bit(4) == false);
+    assert(iterator->has_constrained_bit(5) == false);
+    assert(iterator->has_constrained_bit(6) == true);
+    assert(iterator->has_constrained_bit(7) == false);
 
     /**
      * bit index:       | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
      * cluster_id:      | 2 | 3 | 4 | 7 | 8 | 9 |17 |29 |
-     * constrained_bit: | - | - | - | 0 | - | 2 | - | 6 |
+     * constrained_bit: | 3 | - | 5 | - | - | - | 7 | - |
      */
-    assert(iterator->get_constrained_bit(3) == 0);
-    assert(iterator->get_constrained_bit(5) == 2);
-    assert(iterator->get_constrained_bit(7) == 6);
+    assert(iterator->get_constrained_bit(0) == 3);
+    assert(iterator->get_constrained_bit(2) == 5);
+    assert(iterator->get_constrained_bit(6) == 7);
     assert_msg(true, "BipartitionIterator", "Checking for constrained bits in column 2.");
 }
 
@@ -354,6 +318,7 @@ void test_advancement_column2(BipartitionIterator* iterator) {
         156, 149, 151, 158, 142, 135, 133, 140
     };
     std::vector<std::unordered_map<uint32_t, bool>> expected_changed_reads = {
+        {},     // no bits changed for initialization
         {{8, true}, {1, false}},      // bit changed = 0
         {{4, true}, {7, true}},       // bit changed = 1
         {{8, false}, {1, true}},
@@ -367,7 +332,7 @@ void test_advancement_column2(BipartitionIterator* iterator) {
         {{8, true}, {1, false}},      // bit changed = 0
         {{4, true}, {7, true}},       // bit changed = 1
         {{8, false}, {1, true}},
-        {{0, true}, {2, true}},     // bit changed = 4
+        {{0, false}, {2, false}},     // bit changed = 4
         {{8, true}, {1, false}},
         {{4, false}, {7, false}},
         {{8, false}, {1, true}},
@@ -387,7 +352,7 @@ void test_advancement_column2(BipartitionIterator* iterator) {
         {{8, true}, {1, false}},      // bit changed = 0
         {{4, true}, {7, true}},       // bit changed = 1
         {{8, false}, {1, true}},
-        {{0, true}, {2, true}},     // bit changed = 4
+        {{0, false}, {2, false}},     // bit changed = 4
         {{8, true}, {1, false}},
         {{4, false}, {7, false}},
         {{8, false}, {1, true}},
@@ -420,12 +385,13 @@ void test_bipartitioniterator() {
     ReadSet* read_set = mock_readset_1();
     std::vector<uint32_t> curr_read_ids = {10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27};
     std::vector<uint32_t> next_read_ids = {12, 14, 16, 17, 19, 20, 21, 22, 24, 25, 26, 27, 28, 29};
-    
-    // Testing for first column
-    Column* column = new Column(curr_read_ids, next_read_ids, read_set);
-    BipartitionIterator* iterator = new BipartitionIterator(column, read_set);
+    Column* column;
+    BipartitionIterator* iterator;
 
-    test_clustered_bit_column1(iterator);
+    // Testing for first column
+    column = new Column(curr_read_ids, next_read_ids, read_set);
+    iterator = new BipartitionIterator(column, read_set);
+
     test_constrained_bit_column1(iterator);
     test_advancement_column1(iterator);
 
@@ -433,10 +399,9 @@ void test_bipartitioniterator() {
     delete iterator;
 
     // testing for second column
-    Column* column = new Column(next_read_ids, {}, read_set);
-    BipartitionIterator* iterator = new BipartitionIterator(column, read_set);
+    column = new Column(next_read_ids, {}, read_set);
+    iterator = new BipartitionIterator(column, read_set);
 
-    test_clustered_bit_column2(iterator);
     test_constrained_bit_column2(iterator);
     test_advancement_column2(iterator);
 

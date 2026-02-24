@@ -91,11 +91,6 @@ class BipartitionIterator {
 		void advance(int* cluster_bit_changed);
 
 		/**
-		 * Check if the bit changed corresponds to a cluster
-		 */
-		bool is_clustered_bit(uint32_t cluster_bit_changed) const;
-
-		/**
 		 * Check if the bit changed corresponds to a read cluster that has a contrained cluster.
 		 */
 		bool has_constrained_bit(uint32_t cluster_bit_changed) const;
@@ -110,7 +105,7 @@ class BipartitionIterator {
 		 * Get indices of read ids that are present in the cluster.
 		 * The index is with respect to the parent column's read_ids.
 		 */
-		const std::vector<uint32_t>* get_read_index_from_cluster_id(uint32_t cluster_id) const;
+		std::vector<uint32_t> get_read_index_from_cluster_id(uint32_t cluster_id) const;
 
 		/**
 		 * Returns pointer to the parent column.
@@ -141,7 +136,7 @@ class BipartitionIterator {
 		 * 
 		 * This function generalises the cases of unclustered reads and clusters which do not have constraints.
 		 */
-		void get_changed_reads(uint32_t cluster_bit_changed, std::unordered_map<uint32_t, bool>& changed_reads) const;
+		void get_changed_reads(int cluster_bit_changed, std::unordered_map<uint32_t, bool>& changed_reads) const;
 	};
 
 #endif // BIPARTITIONITERATOR_H

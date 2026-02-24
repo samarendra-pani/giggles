@@ -25,6 +25,7 @@ Column::Column(const std::vector<uint32_t>& read_ids, const std::vector<uint32_t
 		if (!read_obj->isClustered()) {
 			// Read is not clustered. So we use it as its own cluster.
             read_cluster_ids.push_back(current_read_id);
+			cluster_id_to_read_index_map[current_read_id].push_back(count);    
 		} else {
 			c_id = read_obj->getClusterID();
             
@@ -124,8 +125,8 @@ Column::Column(const std::vector<uint32_t>& read_ids, const std::vector<uint32_t
 				pos_c_id = read_cluster_ids[pos];
 				if (pos_c_id == con_c_id) {
 					// Found the position of representative cluster ID in free_read_cluster_positions vector.
-					// Now we can store the mapping of MAX ID -> MIN ID.
-					constrained_position_map[i] = pos;
+					// Now we can store the mapping of MIN ID -> MAX ID.
+					constrained_position_map[pos] = i;
 					// We will also update the num_reads_per_free_read_cluster_positions
 					num_reads_per_free_read_cluster_positions[j] += cluster_id_to_read_index_map[c_id].size();
 					found = true;
