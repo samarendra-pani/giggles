@@ -77,6 +77,8 @@ uint32_t Entry::get_allele() const {
 			return alleles[1];
 		case EQUAL_SCORES:
 			return (uint32_t)-1;
+		default:
+			return (uint32_t)-2;
 	}
 }
 
