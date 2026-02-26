@@ -10,6 +10,8 @@ Since WhatsHap phasing is restricted to two alleles, we have to hard code ALLELE
 #include <iostream>
 #include <vector>
 
+#include "genotype.h"
+
 class Entry {
 	
 	public:
@@ -36,8 +38,20 @@ class Entry {
 		
 		uint32_t get_read_id() const;
 		uint32_t get_phred_score() const;
+		/**
+		 * Return allele type: ALLELE1, ALLELE2, BLANK, or EQUAL_SCORES
+		 */
 		allele_t get_allele_type() const;
-
+		/**
+		 * Returns the numeric allele based on allele type and gt
+		 * 
+		 * If allele_type is BLANK or gt is not available, it returns (uint32_t)-2
+		 * if allele_type is EQUAL_SCORES, it returns (uint32_t)-1
+		 */
+		uint32_t get_allele() const;
+		/**
+		 * Returns false if allele_type is BLANK
+		 */
 		bool has_allele_type() const;
 		
 		void convert_scores_to_probability(const std::vector<uint32_t>& scores);
@@ -49,10 +63,9 @@ class Entry {
 		friend std::ostream& operator<<(std::ostream& out, const Entry& e);
 
 	private:
-		uint32_t read_id; // zero-based read identifier
-		allele_t allele; // allele type
-		uint32_t allele1_idx; // index of allele 1
-		uint32_t allele2_idx; // index of allele 2
+		uint32_t read_id;	// zero-based read identifier
+		allele_t allele;	// allele type
+		Genotype gt;		// stored alleles as a Genotype object
 		std::vector<long double> emission_scores; // emission probabilities for all alleles used for genotyping
 };
 
