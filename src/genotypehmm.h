@@ -12,7 +12,6 @@
 #include "read.h"
 #include "readset.h"
 #include "vector2d.h"
-#include "backwardcolumniterator.h"
 #include "transitionprobabilitycomputer.h"
 #include "emissionprobabilitycomputer.h"
 #include "variantinfo.h"
@@ -74,11 +73,8 @@ class GenotypeHMM {
 		std::vector<std::vector<long double>> curr_alpha_helper_2;
 		std::vector<std::vector<long double>> curr_alpha_helper_3;
 
-		//iterator used to iterate the columns of the input matrix (forward)
-		ColumnIterator input_column_iterator;
-		
-		// iterator used to iterate the columns of the input matrix (backward)
-		BackwardColumnIterator backward_input_column_iterator;
+		//iterator used to iterate the columns
+		ColumnIterator column_iterator;
 		
 		// scaling parameters
 		std::vector<long double> scaling_parameters;
@@ -119,7 +115,7 @@ class GenotypeHMM {
 		 * We calculate the finally genotype likelihoods in this function (since backward probabilities have been
 		 * calculated prior to executing this).
 		 */
-		void compute_forward_column(size_t column_index, std::unique_ptr<std::vector<const Entry*>> current_input_column = nullptr);
+		void compute_forward_column(size_t column_index);
 
 		/**
 		 * Computes the backward probabilities for column_index - 1 (NOTE: for column_index - 1 and not column_index)
@@ -131,7 +127,7 @@ class GenotypeHMM {
 		 * they are NOT normalized.
 		 * When the function is called for column_index - 1, the values are normalized (and are now probabilities).
 		 */
-		void compute_backward_column(size_t column_index, std::unique_ptr<std::vector<const Entry*>> current_input_column = nullptr);
+		void compute_backward_column(size_t column_index);
 
 		/**
 		 * Given bipartition index (b_index), the index inside the bipartition (r_index),

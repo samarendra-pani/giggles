@@ -17,14 +17,11 @@ using namespace std;
 GenotypeHMM::GenotypeHMM(ReadSet* read_set, const vector<float>& recombcost, const uint32_t& num_haplotypes, vector<variant_information_t>* variant_info_table)
 	:read_set(read_set),
 	recombcost(recombcost),
-	input_column_iterator(*read_set, variant_info_table),
-	backward_input_column_iterator(*read_set, variant_info_table),
-	scaling_parameters(input_column_iterator.get_column_count(),-1.0L),
+	column_iterator(*read_set, variant_info_table),
+	scaling_parameters(column_iterator.get_column_count(),-1.0L),
 	num_haplotypes(num_haplotypes),
 	variant_info_table(variant_info_table)
 {
-	assert(input_column_iterator.get_column_count() == backward_input_column_iterator.get_column_count());
-
 	//compute forward and backward probabilities
 	compute_index();
 	compute_backward_prob();
@@ -40,7 +37,7 @@ GenotypeHMM::~GenotypeHMM()
 
 void GenotypeHMM::clear_backward_table()
 {
-	size_t column_count = input_column_iterator.get_column_count();
+	size_t column_count = column_iterator.get_column_count();
 	init(backward_pass_table, column_count);
 }
 
@@ -53,33 +50,33 @@ unique_ptr<vector<uint32_t> > GenotypeHMM::extract_read_ids(const vector<const E
 }
 
 void GenotypeHMM::compute_index(){
-	size_t column_count = input_column_iterator.get_column_count();
+	size_t column_count = column_iterator.get_column_count();
 	if(column_count == 0) return;
 	init(hmm_columns, column_count);
 	init(haplotype_mapper_table, column_count);
 	// do one forward pass to get the indexers (that are needed in forward and backward pass)
-	input_column_iterator.jump_to_column(0);
+	column_iterator.jump_to_column(0);
 	unique_ptr<vector<const Entry*> > current_input_column;
 	unique_ptr<vector<const Entry*> > next_input_column;
 	unique_ptr<vector<uint32_t> > current_read_ids;
 	unique_ptr<vector<uint32_t> > next_read_ids;
 	Column* current_column = nullptr;
-	next_input_column = input_column_iterator.get_next();
+	next_input_column = column_iterator.get_next();
 	next_read_ids = extract_read_ids(*next_input_column);
 
-	for(size_t column_index=0; column_index < input_column_iterator.get_column_count(); ++column_index){
+	for(size_t column_index=0; column_index < column_iterator.get_column_count(); ++column_index){
 		
 		current_input_column = std::move(next_input_column);
 		current_read_ids = std::move(next_read_ids);
-		if (input_column_iterator.has_next()) {
-			next_input_column = input_column_iterator.get_next();
+		if (column_iterator.has_next()) {
+			next_input_column = column_iterator.get_next();
 			next_read_ids = extract_read_ids(*next_input_column);
 			current_column = new Column(*current_read_ids, *next_read_ids, read_set);
 			hmm_columns[column_index] = current_column;
 			haplotype_mapper_table[column_index] = new HaplotypeMapper(variant_info_table->at(column_index).genotype_likelihoods, variant_info_table->at(column_index).allele_references);
 		} 
 		else {
-			assert (column_index == input_column_iterator.get_column_count() - 1);
+			assert (column_index == column_iterator.get_column_count() - 1);
 			current_column = new Column(*current_read_ids, vector<uint32_t>{}, read_set); 
 			hmm_columns[column_index] = current_column;
 			haplotype_mapper_table[column_index] = new HaplotypeMapper(variant_info_table->at(column_index).genotype_likelihoods, variant_info_table->at(column_index).allele_references);
@@ -90,34 +87,14 @@ void GenotypeHMM::compute_index(){
 void GenotypeHMM::compute_backward_prob()
 {
 	clear_backward_table();
-	uint32_t column_count = backward_input_column_iterator.get_column_count();
+	uint32_t column_count = column_iterator.get_column_count();
 
-	// if no reads are in the read set, nothing to do
-	if(backward_input_column_iterator.get_column_count() == 0){
-		return;
-	}
-	// do backward pass, start at rightmost column
-	backward_input_column_iterator.jump_to_column(column_count-1);
-	// get the next column (which is left of current one)
-	unique_ptr<vector<const Entry*> > current_input_column;
-	unique_ptr<vector<uint32_t> > current_read_ids;
-	unique_ptr<vector<const Entry*> > next_input_column = backward_input_column_iterator.get_next();
-	unique_ptr<vector<uint32_t> > next_read_ids = extract_read_ids(*next_input_column);
+	// set active column to the rightmost column
+	column_iterator.jump_to_column(column_count-1);
 	// backward pass: create sparse table
 	size_t k = (size_t)sqrt(column_count);
 	for(uint32_t column_index = column_count-1; column_index >= 0; --column_index){
-		// make former next column the current one
-		current_input_column = std::move(next_input_column);
-		current_read_ids = std::move(next_read_ids);
-		// peek ahead and get the next column
-		if (backward_input_column_iterator.has_next()){
-			next_input_column = backward_input_column_iterator.get_next();
-			next_read_ids = extract_read_ids(*next_input_column);
-		} else {
-			assert(next_input_column.get() == 0);
-			assert(next_read_ids.get() == 0);
-		}
-		compute_backward_column(column_index, std::move(current_input_column));
+		compute_backward_column(column_index);
 		/**
 		 * To conserve space, we only keep every k columns' backward values
 		 * k = (size_t)sqrt(column_count)
@@ -138,37 +115,12 @@ void GenotypeHMM::compute_backward_prob()
 	}
 }
 
-void GenotypeHMM::compute_forward_prob()
-{
+void GenotypeHMM::compute_forward_prob() {
 
-	// if no reads are in read set, nothing to compute
-	if (input_column_iterator.get_column_count() == 0) {
-		return;
-	}
-
-	// start at leftmost column (= 0th column)
-	input_column_iterator.jump_to_column(0);
-	// store current and next column
-	unique_ptr<vector<const Entry *> > current_input_column;
-	unique_ptr<vector<const Entry *> > next_input_column;
-	// get the next column ahead of time
-	next_input_column = input_column_iterator.get_next();
-	unique_ptr<vector<uint32_t> > next_read_ids = extract_read_ids(*next_input_column);
-
-	// forward pass: create a sparse table, storing values at every sqrt(#columns)-th position
-	for (size_t column_index=0; column_index < input_column_iterator.get_column_count(); ++column_index) {
-		// make former next column the current one
-		current_input_column = std::move(next_input_column);
-		unique_ptr<vector<uint32_t> > current_read_ids = std::move(next_read_ids);
-		// peek ahead and get the next column
-		if (input_column_iterator.has_next()) {
-			next_input_column = input_column_iterator.get_next();
-			next_read_ids = extract_read_ids(*next_input_column);
-		} else {
-			assert(next_input_column.get() == 0);
-			assert(next_read_ids.get() == 0);
-		}
-		compute_forward_column(column_index,std::move(current_input_column));
+	// reset active column to the leftmost column
+	column_iterator.jump_to_column(0);
+	for (size_t column_index=0; column_index < column_iterator.get_column_count(); ++column_index) {
+		compute_forward_column(column_index);
 	}
 }
 
@@ -182,18 +134,18 @@ void GenotypeHMM::compute_forward_prob()
  * Reason: Since this is backward pass, we have already calculated the values at column_index
  * and now calculate the values at column_index-1.
  */
-void GenotypeHMM::compute_backward_column(size_t column_index, unique_ptr<vector<const Entry*>> current_input_column) {
+void GenotypeHMM::compute_backward_column(size_t column_index) {
 
 	// IMPORTANT: The backward_pass_column_table[column_index - 1] is filled and not backward_pass_column_table[column_index].
 	//            It uses backward_pass_column_table[column_index] to calculate the next column!
 
 	// NOTE: Need column_index = 0 since we need to store the scaling parameter for the column.
-	assert(column_index < backward_input_column_iterator.get_column_count());
+	assert(column_index < column_iterator.get_column_count());
 	// if current input column was not provided, create it
-	if(current_input_column.get() == nullptr) {
-		backward_input_column_iterator.jump_to_column(column_index);
-		current_input_column = backward_input_column_iterator.get_next();
-	}
+	unique_ptr<vector<const Entry*>> current_input_column = nullptr;
+	column_iterator.jump_to_column(column_index);
+	current_input_column = column_iterator.get_prev();
+	
 	if(column_index > 0){
 		/**
 		 * checks if the current column is already filled with scores.
@@ -243,7 +195,7 @@ void GenotypeHMM::compute_backward_column(size_t column_index, unique_ptr<vector
 	 * Check if there are backward scores from previous column.
 	 * If we are at column_count - 1, then they don't exist and we initialize it
 	 */
-	if(column_index < backward_input_column_iterator.get_column_count()-1){
+	if(column_index < column_iterator.get_column_count()-1){
 		previous_backward_scores = backward_pass_table[column_index];
 	}
 	else {
@@ -436,15 +388,9 @@ void GenotypeHMM::compute_backward_column(size_t column_index, unique_ptr<vector
  * Reason: Since this is forward pass, we have already calculated the values at column_index - 1
  * and now calculate the values at column_index.
  */
-void GenotypeHMM::compute_forward_column(size_t column_index, unique_ptr<vector<const Entry*>> current_input_column)
+void GenotypeHMM::compute_forward_column(size_t column_index)
 {
-	assert(column_index < input_column_iterator.get_column_count());
-
-	// if the current input column was not provided, then create it
-	if(current_input_column.get() == nullptr) {
-		input_column_iterator.jump_to_column(column_index);
-		current_input_column = input_column_iterator.get_next();
-	}
+	assert(column_index < column_iterator.get_column_count());
 
 	/**
 	 * To conserve space, we have stored only some columns' backward values.
@@ -483,13 +429,13 @@ void GenotypeHMM::compute_forward_column(size_t column_index, unique_ptr<vector<
 	 * 	- Each column (on average) requires 2 Backward Pass (for initial compute and re-compute) and 1 Forward Pass.
 	 *    (We increase time but the time complexity remains same)
 	 */
-	size_t k = (size_t)sqrt(input_column_iterator.get_column_count());
+	size_t k = (size_t)sqrt(column_iterator.get_column_count());
 	vector<long double>* backward_probabilities = nullptr;
 	backward_probabilities = backward_pass_table[column_index];
 	// if column is not stored, recompute it
-	if(backward_probabilities == nullptr){
+	if(backward_probabilities == nullptr) {
 		// compute index of next column that has been stored
-		size_t next = std::min((uint32_t) ( ((column_index + k) / k) * k ), input_column_iterator.get_column_count()-1);
+		size_t next = std::min((uint32_t) ( ((column_index + k) / k) * k ), column_iterator.get_column_count()-1);
 		for(size_t i = next; i > column_index; --i){
 			compute_backward_column(i);
 		}
@@ -505,6 +451,11 @@ void GenotypeHMM::compute_forward_column(size_t column_index, unique_ptr<vector<
 	}
 	backward_probabilities = backward_pass_table[column_index];
 	assert(backward_probabilities != nullptr);
+
+	// Get the active entries at this position
+	unique_ptr<vector<const Entry*>> current_input_column = nullptr;
+	column_iterator.jump_to_column(column_index);
+	current_input_column = column_iterator.get_next();
 	
 	/**
 	 * Initializing objects and retrieving appropriate information
@@ -765,7 +716,7 @@ void GenotypeHMM::compute_forward_column(size_t column_index, unique_ptr<vector<
 
 vector<long double> GenotypeHMM::get_genotype_likelihoods(uint32_t position)
 {
-	assert(position < input_column_iterator.get_column_count());
+	assert(position < column_iterator.get_column_count());
 	return variant_info_table->at(position).genotype_likelihoods.as_vector();
 }
 

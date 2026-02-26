@@ -33,7 +33,6 @@ extensions = [
         "giggles.core",
         sources=[
             "giggles/core.pyx",
-            "src/backwardcolumniterator.cpp",
             "src/binomial.cpp",
             "src/bipartitioniterator.cpp",
             "src/column.cpp",

@@ -8,7 +8,6 @@
 #ifndef TESTS_H
 #define TESTS_H
 
-#include "tests/test_backwardcolumniterator.h"
 #include "tests/test_binomial.h"
 #include "tests/test_column.h"
 #include "tests/test_bipartitioniterator.h"
@@ -28,8 +27,6 @@
 
 
 void run_all_tests() {
-    std::cout << "================ Testing BackwardColumnIterator ================" << std::endl;
-    test_backwardcolumniterator();
     std::cout << "\n================ Testing ColumnIterator ========================" << std::endl;
     test_columniterator();
     std::cout << "\n================ Testing Binomial ==============================" << std::endl;
