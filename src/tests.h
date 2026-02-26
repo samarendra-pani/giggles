@@ -21,6 +21,9 @@
 // #include "tests/test_readset.h"
 // #include "tests/test_transitionprobabilitycomputer.h"
 
+#include "phasing/readbipartitioning/tests/test_componentfinder.h"
+#include "phasing/readbipartitioning/tests/test_phasesetcomputer.h"
+
 #include "phasing/tests/test_phasingcolumniterator.h"
 
 
@@ -39,12 +42,17 @@ void run_all_tests() {
     test_bipartitioniterator();
     std::cout << "\n================ Testing Entry =================================" << std::endl;
     test_entry();
-//    test_genotype();
+    std::cout << "\n================ Testing Genotype ==============================" << std::endl;
+    test_genotype();
 //    test_genotypelikelihoods();
 //    test_read();
 //    test_readset();
 //    test_transitionprobabilitycomputer();
 
+    std::cout << "\n================ Testing ComponentFinder =======================" << std::endl;
+    test_componentfinder();
+    std::cout << "\n================ Testing PhasesetComputer ======================" << std::endl;
+    test_phasesetcomputer();
     std::cout << "\n================ Testing PhasingColumnIterator =================" << std::endl;
     test_phasingcolumniterator();
 }
