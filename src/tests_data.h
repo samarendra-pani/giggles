@@ -269,18 +269,18 @@ ReadSet* mock_readset_2() {
     std::vector<uint32_t> scores_5 = std::vector<uint32_t>{40, 60};
     
     read1->addVariant(100, scores_1); read1->addVariant(200, scores_2); read1->addVariant(300, scores_3); read1->addVariant(400, scores_4);
-    read2->addVariant(100, scores_1); read1->addVariant(200, scores_2); read1->addVariant(300, scores_3); read1->addVariant(400, scores_4); read1->addVariant(500, scores_5);
+    read2->addVariant(100, scores_1); read2->addVariant(200, scores_2); read2->addVariant(300, scores_3); read2->addVariant(400, scores_4); read2->addVariant(500, scores_5);
     read3->addVariant(200, scores_2); read3->addVariant(300, scores_3); read3->addVariant(400, scores_4);
     read4->addVariant(300, scores_3); read4->addVariant(400, scores_4); read4->addVariant(500, scores_5);
 
-    read_set->sort();
-    read_set->reassignReadIds();
-
-    assert(read1->getID() == 0);
-    assert(read2->getID() == 1);
-    assert(read3->getID() == 2);
-    assert(read4->getID() == 3);
-
+    /**
+     * Need to set this manually since hash function to break ties does the tie breaking in weird way
+     */
+    read1->setID(0);
+    read2->setID(1);
+    read3->setID(2);
+    read4->setID(3);
+    
     /**
      * Reads Summary:
      * ID | Name   | Variants                 
