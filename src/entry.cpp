@@ -28,7 +28,7 @@ void Entry::set_allele_type(const std::vector<bool>& active_alleles) {
 		throw std::runtime_error("Number of alleles greater than max alleles supported.");
 	}
 	assert(active_alleles.size() == emission_scores.size());
-	std::vector<uint32_t> active_scores;
+	std::vector<long double> active_scores;
 	std::vector<uint32_t> indices;
 	for (size_t i = 0; i < active_alleles.size(); i++) {
 		if (active_alleles[i]) {
@@ -70,11 +70,17 @@ uint32_t Entry::get_allele() const {
 	}
 	assert(gt.get_ploidy() == 2);
 	std::vector<uint32_t> alleles = gt.as_vector();
+	/**
+	 * Genotype class stores the genotypes in descending order.
+	 * So active indices 0 and 2 are stored as 2/0.
+	 * 
+	 * So, to retrieve ALLELE1, we need to access alleles[1] and vice-versa.
+	 */
 	switch (get_allele_type()) {
 		case ALLELE1:
-			return alleles[0];
-		case ALLELE2:
 			return alleles[1];
+		case ALLELE2:
+			return alleles[0];
 		case EQUAL_SCORES:
 			return (uint32_t)-1;
 		default:
@@ -96,7 +102,7 @@ void Entry::convert_scores_to_probability(const std::vector<uint32_t>& scores) {
 		long double sum_scores = 0.0L;
 		emission_scores.resize(scores.size());
 		for (size_t i = 0; i < scores.size(); i++) {
-			long double logprob = (long double)std::min(scores[i]*log10(0.0001), 1e-10);
+			long double logprob = (long double)std::min(scores[i]*2, (uint32_t)60);
 			emission_scores[i] = pow(10.0L, -logprob);
 			sum_scores += emission_scores[i];
 		}
