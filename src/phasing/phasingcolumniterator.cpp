@@ -12,32 +12,20 @@ Original filename: src/columniterator.cpp
 
 using namespace std;
 
-PhasingColumnIterator::PhasingColumnIterator(const ReadSet& set, const std::vector<variant_information_t>* variant_info_table, bool is_first_phasing_round) : set(set), is_first_phasing_round(is_first_phasing_round) {
+PhasingColumnIterator::PhasingColumnIterator(const ReadSet& set, const std::vector<variant_information_t>* variant_info_table, bool is_first_phasing_round) : 
+	set(set), 
+	is_first_phasing_round(is_first_phasing_round),
+	variant_info_table(variant_info_table) {
+	
 	n = 0;
 	next_read_index = 0;
-	positions = new vector<uint32_t>(variant_info_table->size());
-	for (size_t i=0; i<variant_info_table->size(); ++i){
-		positions->at(i) = variant_info_table->at(i).position;
-	}
-	n_active_alleles = new vector<uint32_t>(variant_info_table->size());
-	for (size_t i=0; i<variant_info_table->size(); ++i){
-		n_active_alleles->at(i) = variant_info_table->at(i).count_active_alleles();
-	}
-	active_alleles = new vector<vector<bool>>(variant_info_table->size());
-	for (size_t i=0; i<variant_info_table->size(); ++i){
-		active_alleles->at(i) = variant_info_table->at(i).active_alleles;
-	}
-	sv_flag = new vector<bool>(variant_info_table->size());
-	for (size_t i=0; i<variant_info_table->size(); ++i){
-		sv_flag->at(i) = variant_info_table->at(i).is_sv;
-	}
 	// create a mapping of genomic positions to column indices
 	std::unordered_map<uint32_t, size_t> position_map;
-	for (size_t i=0; i<positions->size(); ++i) {
-		position_map[positions->at(i)] = i;
+	for (size_t i=0; i<variant_info_table->size(); ++i) {
+		position_map[variant_info_table->at(i).position] = i;
 	}
 	// precompute first_reads
-	first_reads.assign(positions->size(),  numeric_limits<size_t>::max());
+	first_reads.assign(variant_info_table->size(),  numeric_limits<size_t>::max());
 	int pos = 0;
 	for (size_t i=0; i<set.size(); ++i) {
 		const Read* read = set.get(i);
@@ -47,12 +35,19 @@ PhasingColumnIterator::PhasingColumnIterator(const ReadSet& set, const std::vect
 		if (!read->isSorted()) {
 			throw std::runtime_error("PhasingColumnIterator: encountered read with unsorted variants.");
 		}
+		/**
+		 * @note IS THIS CORRECT?
+		 */
+		if (!read->isSelected()) {
+			// Skipping unselected reads.
+			continue;
+		}
 		auto first_column_it = position_map.find(read->firstPosition());
 		auto last_column_it = position_map.find(read->lastPosition());
 		assert(first_column_it != position_map.end());
 		assert(last_column_it != position_map.end());
 		assert(first_column_it->second <= last_column_it->second);
-		assert(last_column_it->second < this->positions->size());
+		assert(last_column_it->second < variant_info_table->size());
 		for (size_t j=first_column_it->second; j<=last_column_it->second; ++j) {
 			if (first_reads[j] == numeric_limits<size_t>::max()) {
 				first_reads[j] = i;
@@ -80,15 +75,11 @@ PhasingColumnIterator::~PhasingColumnIterator() {
 		delete blank_entries[i];
 	}
 	blank_entries.clear();
-	delete positions;
-	delete n_active_alleles;
-	delete active_alleles;
-	delete sv_flag;
 }
 
 
 uint32_t PhasingColumnIterator::get_column_count() {
-	return positions->size();
+	return variant_info_table->size();
 }
 
 
@@ -97,20 +88,20 @@ uint32_t PhasingColumnIterator::get_read_count() {
 }
 
 
-const vector<uint32_t>* PhasingColumnIterator::get_positions() {
-	return positions;
+const uint32_t PhasingColumnIterator::get_position(uint32_t i) {
+	assert(i < variant_info_table->size());
+	return variant_info_table->at(i).position;
 }
 
 
 bool PhasingColumnIterator::has_next() {
-	return n < positions->size();
+	return n < variant_info_table->size();
 }
 
 
 unique_ptr<vector<const Entry*> > PhasingColumnIterator::get_next() {
 	// genomic position of the column to be returned
-	int next_pos = positions->at(n);
-	
+	int next_pos = variant_info_table->at(n).position;
 	// check which of the current reads remain active
 	list<active_read_t>::iterator list_it = active_reads.begin();
 	while (list_it != active_reads.end()) {
@@ -148,8 +139,8 @@ unique_ptr<vector<const Entry*> > PhasingColumnIterator::get_next() {
 	unique_ptr<vector<const Entry*> > result(new vector<const Entry*>());
 	for (list_it = active_reads.begin(); list_it != active_reads.end(); ++list_it) {
 		Read* read = set.get(list_it->read_index);
-		assert (n_active_alleles->at(n) > 0);
-		if (n_active_alleles->at(n) > 2) {
+		assert (variant_info_table->at(n).count_active_alleles() > 0);
+		if (variant_info_table->at(n).count_active_alleles() > 2) {
 			// the position has multiple possible alleles.
 			// cannot phase
 			Entry* e = new Entry(read->getID(), std::vector<uint32_t>{});
@@ -157,7 +148,7 @@ unique_ptr<vector<const Entry*> > PhasingColumnIterator::get_next() {
 			result->push_back(e);
 			continue;
 		}
-		if (is_first_phasing_round && sv_flag->at(n)) {
+		if (is_first_phasing_round && variant_info_table->at(n).is_sv) {
 			// in the first phasing round, we do not consider structural variants
 			Entry* e = new Entry(read->getID(), std::vector<uint32_t>{});
 			blank_entries.push_back(e);
@@ -165,12 +156,12 @@ unique_ptr<vector<const Entry*> > PhasingColumnIterator::get_next() {
 			continue;
 		}
 		// TODO: What if alleles determined as homozygous are skipped?
-		assert (n_active_alleles->at(n) == 2); // There has to be two active alleles for phasing.
+		assert (variant_info_table->at(n).count_active_alleles() == 2); // There has to be two active alleles for phasing.
 		// Does read cover the current position?
 		if (read->getPosition(list_it->active_entry) == next_pos) {
 			// If so, add the entry to the result is the entry is biallelic
 			Entry* entry = read->getEntry(list_it->active_entry);
-			if (!entry->has_allele_type()) { entry->set_allele_type(active_alleles->at(n)); }
+			if (!entry->has_allele_type()) { entry->set_allele_type(variant_info_table->at(n).active_alleles); }
 			result->push_back(entry);
 		} else {
 			// if not, generate a blank entry
@@ -187,11 +178,11 @@ unique_ptr<vector<const Entry*> > PhasingColumnIterator::get_next() {
 
 void PhasingColumnIterator::jump_to_column(size_t k) {
 	if (k == n) return;
-	assert(k < positions->size());
+	assert(k < variant_info_table->size());
 	active_reads.clear();
 	n = k;
 	next_read_index = first_reads[k];
-	int pos = positions->at(k);
+	u_int32_t pos = variant_info_table->at(k).position;
 
 	// determine set of active reads
 	while (next_read_index < set.size()) {
