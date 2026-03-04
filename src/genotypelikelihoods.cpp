@@ -12,16 +12,16 @@ Original filename: src/phredgenotypelikelihoods.cpp
 
 using namespace std;
 
-GenotypeLikelihoods::GenotypeLikelihoods(const vector<long double>& gl, uint32_t ploidy, uint32_t num_alleles) : gl(gl), ploidy(ploidy), num_alleles(num_alleles) {
-	uint32_t expected_size = binomial_coefficient(ploidy + num_alleles - 1, num_alleles - 1);
+GenotypeLikelihoods::GenotypeLikelihoods(const vector<long double>& gl, uint32_t num_alleles, uint32_t ploidy) : gl(gl), ploidy(ploidy), num_alleles(num_alleles) {
+	uint32_t expected_size = binomial_coefficient(ploidy + num_alleles - 1, ploidy);
 	if (expected_size != this->gl.size()) {
 		throw runtime_error("Error: wrong number of given genotype likelihoods given.");
 	}
 }
 
 
-GenotypeLikelihoods::GenotypeLikelihoods(uint32_t ploidy, uint32_t num_alleles): ploidy(ploidy), num_alleles(num_alleles) {
-	this->gl = vector<long double>(binomial_coefficient(ploidy + num_alleles - 1, num_alleles - 1), 0.0L);
+GenotypeLikelihoods::GenotypeLikelihoods(uint32_t num_alleles, uint32_t ploidy): ploidy(ploidy), num_alleles(num_alleles) {
+	this->gl = vector<long double>(binomial_coefficient(ploidy + num_alleles - 1, ploidy), 0.0L);
 }
 
 

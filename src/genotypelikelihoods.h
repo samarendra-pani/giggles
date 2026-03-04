@@ -11,7 +11,7 @@ Original filename: src/phredgenotypelikelihoods.h
 
 class GenotypeLikelihoods {
 public:
-	GenotypeLikelihoods(const std::vector<long double>& gl, uint32_t ploidy, uint32_t num_alleles);
+	GenotypeLikelihoods(const std::vector<long double>& gl, uint32_t num_alleles, uint32_t ploidy);
 	GenotypeLikelihoods(uint32_t num_alleles, uint32_t ploidy);
 	GenotypeLikelihoods();
 
