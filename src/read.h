@@ -20,7 +20,7 @@ class Read {
 		void addVariant(uint32_t position, std::vector<uint32_t> scores);
 		void addVariant(uint32_t position, std::vector<long double> scores);
 		// adding a variant whose allele has been pre-computed. used for the superread haplotypes.
-		void addVariant(uint32_t position, std::vector<uint32_t> scores, Entry::allele_t allele, uint32_t idx1, uint32_t idx2);
+		void addVariant(uint32_t position, std::vector<uint32_t> scores, Entry::allele_t allele);
 		void setHaplotag(std::string hp);
 		void unsetPhaseSet();
 		void setPhaseSet(uint32_t ps);
@@ -76,8 +76,8 @@ class Read {
 				entry(0, scores), position(position) {}
 			enriched_entry_t(uint32_t position, std::vector<long double> scores) :
 				entry(0, {}), position(position) { entry.set_emission_scores(scores); }
-			enriched_entry_t(uint32_t position, std::vector<uint32_t> scores, Entry::allele_t allele, uint32_t idx1, uint32_t idx2) :
-				entry(0, scores), position(position) { entry.set_allele_type(allele, idx1, idx2); }
+			enriched_entry_t(uint32_t position, std::vector<uint32_t> scores, Entry::allele_t allele) :
+				entry(0, scores), position(position) { entry.set_allele_type(allele); }
 		} enriched_entry_t;
 
 		typedef struct entry_comparator_t {

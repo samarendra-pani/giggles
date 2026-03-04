@@ -127,8 +127,8 @@ void Read::addVariant(uint32_t position, vector<long double> scores) {
 	variants.push_back(enriched_entry_t(position, scores));
 }
 
-void Read::addVariant(uint32_t position, vector<uint32_t> scores, Entry::allele_t allele, uint32_t idx1, uint32_t idx2) {
-	variants.push_back(enriched_entry_t(position, scores, allele, idx1, idx2));
+void Read::addVariant(uint32_t position, vector<uint32_t> scores, Entry::allele_t allele) {
+	variants.push_back(enriched_entry_t(position, scores, allele));
 }
 
 
