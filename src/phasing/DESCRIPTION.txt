@@ -2,20 +2,26 @@ This text file contains a brief description of what all the codes in this direct
 
 phasingcolumncostcomputer
 -------------------------
-* 
+* This class stores the cost/scores associated with different combination of reads being assigned to differnt bipartitions and alleles.
+* allele_assignment_t stores the extra cost that will be incurred if we change from the specified assignment.
+* cost_partition stores the cost of the forcing all the reads to conform to a specific assignment of biparition and alleles.
 
 phasingcolumnindexingiterator
 -----------------------------
-* 
+* This class (along with GrayCode class) helps with the iteration of different biparitions of active reads at a certain position.
 
 phasingcolumnindexingscheme
 ---------------------------
-* 
+* This class tracks the overlap of read IDs with the previous column and then next column.
+* This allows connections between variant positions that have the same read aligning to them.
 
 phasingcolumniterator
 ---------------------
-*
+* This class extracts the reads that are active at some specified position.
+* It finds the Entry objects inside the read that correspond to this position and provides a vector of these Entry objects.
+* If a read is supposed to be active but no Entry object is available (Eg it skipped this position), then it makes BLANK Entry objects.
+* For positions that cannot be phased (Eg with more than two active alleles), then it returns BLANK Entry objects for all active reads.
 
 phasingdptable
 --------------
-* 
+* This is the dynamic programming code: the place where all the above structures converge.
