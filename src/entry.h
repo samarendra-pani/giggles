@@ -15,7 +15,7 @@ Since WhatsHap phasing is restricted to two alleles, we have to hard code ALLELE
 class Entry {
 	
 	public:
-		typedef enum { ALLELE1 = 0, ALLELE2 = 1, BLANK = 2, EQUAL_SCORES = 3 } allele_t;
+		typedef enum: uint8_t { ALLELE1 = 0, ALLELE2 = 1, BLANK = 2, EQUAL_SCORES = 3 } allele_t;
 		
 		Entry(uint32_t r, const std::vector<uint32_t>& s);
 		Entry();
@@ -32,9 +32,8 @@ class Entry {
 		/*
 		* set allele type based on pre-computed allele type.
 		* used for the super-reads created to represent the haplotypes.
-		* need the information of which active alleles are used for 
 		*/
-		void set_allele_type(allele_t a, uint32_t idx1, uint32_t idx2);
+		void set_allele_type(allele_t a);
 		
 		uint32_t get_read_id() const;
 		uint32_t get_phred_score() const;
@@ -42,13 +41,6 @@ class Entry {
 		 * Return allele type: ALLELE1, ALLELE2, BLANK, or EQUAL_SCORES
 		 */
 		allele_t get_allele_type() const;
-		/**
-		 * Returns the numeric allele based on allele type and gt
-		 * 
-		 * If allele_type is BLANK or gt is not available, it returns (uint32_t)-2
-		 * if allele_type is EQUAL_SCORES, it returns (uint32_t)-1
-		 */
-		uint32_t get_allele() const;
 		/**
 		 * Returns false if allele_type is BLANK
 		 */
@@ -65,7 +57,6 @@ class Entry {
 	private:
 		uint32_t read_id;	// zero-based read identifier
 		allele_t allele;	// allele type
-		Genotype gt;		// stored alleles as a Genotype object
 		std::vector<long double> emission_scores; // emission probabilities for all alleles used for genotyping
 };
 
