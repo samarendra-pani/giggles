@@ -27,7 +27,7 @@ class PhasingColumnCostComputer {
 		uint32_t partitioning;
 		std::vector<std::array<uint32_t, 2>> cost_partition;
 		typedef struct allele_assignment_t {
-			/** The i-th bit in assignment gives the allele assigned to pedigree partition i. */
+			/** The i-th bit in assignment gives the allele assigned to partition i. */
 			uint32_t assignment;
 			/** Cost of this assignment incurred by genotype changes. */
 			uint32_t cost;

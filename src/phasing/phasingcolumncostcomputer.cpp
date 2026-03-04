@@ -22,20 +22,29 @@ PhasingColumnCostComputer::PhasingColumnCostComputer(const std::vector <const En
 	variant_info_table(variant_info_table),
 	partitioning(0)
 {
-	// Enumerate all possible assignments of alleles to haplotypes and 
-	// store those that are compatible with genotypes.
-	for (uint32_t i = 0; i < (1<<2); ++i) {
+	/**
+	 * Enumerate all possible assignments of alleles to haplotypes and 
+	 * store those that are compatible with genotypes.
+	 * 
+	 * Let's say we have Haplotypes 0 and 1 and each Haplotype can be either Allele 0 or 1 (where these two are the active alleles.)
+	 * 
+	 * i = 0 -> Hap0 has Allele0 (allele0 = 0) and Hap1 has Allele0 (allele1 = 0)
+	 * i = 1 -> Hap0 has Allele1 (allele0 = 1) and Hap1 has Allele0 (allele1 = 0)
+	 * i = 2 -> Hap0 has Allele0 (allele0 = 0) and Hap1 has Allele1 (allele1 = 1)
+	 * i = 3 -> Hap0 has Allele1 (allele0 = 1) and Hap1 has Allele1 (allele1 = 1)
+	 */
+	std::vector<uint32_t> active_alleles = variant_info_table->at(column_index).get_active_positions();
+	assert (active_alleles.size() ==  2); // Only two should be active.
+	for (uint32_t i = 0; i < 4; ++i) {
 		bool genotypes_compatible = true;
 		uint32_t cost = 0;
-		uint32_t allele0 = (i >> 0) & 1;
-		uint32_t allele1 = (i >> 1) & 1;
+		uint32_t allele0 = active_alleles[(i >> 0) & 1];
+		uint32_t allele1 = active_alleles[(i >> 1) & 1];
 		Genotype genotype(vector<uint32_t>{allele0,allele1});
-		const GenotypeLikelihoods* gls = &variant_info_table->at(column_index).genotype_likelihoods;
-		assert(gls != nullptr);
-		cost += gls->getPhredScore(genotype);
-		if (genotypes_compatible) {
-			allele_assignments.push_back(allele_assignment_t(i,cost));
-		}
+		const GenotypeLikelihoods& gls = variant_info_table->at(column_index).genotype_likelihoods;
+		assert(gls.size() != 0);
+		cost += gls.getPhredScore(genotype);
+		allele_assignments.push_back(allele_assignment_t(i,cost));
 	}
 }
 
@@ -55,6 +64,8 @@ void PhasingColumnCostComputer::set_partitioning(uint32_t partitioning) {
 				(entry_in_partition1 ? cost_partition[0] :cost_partition[1])[0] += entry.get_phred_score();
 				break;
 			case Entry::BLANK:
+				break;
+			case Entry::EQUAL_SCORES:
 				break;
 			default:
 				assert(false);
@@ -79,6 +90,8 @@ void PhasingColumnCostComputer::update_partitioning(int bit_to_flip) {
 			(entry_in_partition1 ? cost_partition[0] :  cost_partition[1])[0] += entry.get_phred_score();
 			break;
 		case Entry::BLANK:
+			break;
+		case Entry::EQUAL_SCORES:
 			break;
 		default:
 			assert(false);
