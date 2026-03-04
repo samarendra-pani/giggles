@@ -1,7 +1,3 @@
-/**
- * TODO: New Assertion Macros
- */
-
 #ifndef TEST_PHASINGCOLUMNITERATOR_H
 #define TEST_PHASINGCOLUMNITERATOR_H
 
