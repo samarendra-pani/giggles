@@ -15,7 +15,7 @@ void assert_msg(bool condition, const std::string& prefix, const std::string& me
     std::cout << "[" << prefix << "] PASSED: " << message << std::endl;
 }
 
-std::vector<variant_information_t> mock_variant_info_table_1() {
+std::vector<variant_information_t>  mock_variant_info_table_1() {
 
     std::vector<variant_information_t> variant_info_table;
     std::vector<uint32_t> position = {1, 100, 200};
@@ -254,10 +254,10 @@ std::vector<variant_information_t> mock_variant_info_table_2() {
 ReadSet* mock_readset_2() {
     
     ReadSet* read_set = new ReadSet();
-    Read* read1 = new Read("read1", 60, 0); read_set->add(read1);
-    Read* read2 = new Read("read2", 60, 0); read_set->add(read2);
-    Read* read3 = new Read("read3", 60, 0); read_set->add(read3);
-    Read* read4 = new Read("read4", 60, 0); read_set->add(read4);
+    Read* read1 = new Read("read1", 60, 0); read_set->add(read1); read1->setSelected(true);
+    Read* read2 = new Read("read2", 60, 0); read_set->add(read2); read2->setSelected(true);
+    Read* read3 = new Read("read3", 60, 0); read_set->add(read3); read3->setSelected(true);
+    Read* read4 = new Read("read4", 60, 0); read_set->add(read4); read4->setSelected(true);
 
     /**
      * Adding variants to the reads
