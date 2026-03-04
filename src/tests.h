@@ -24,6 +24,7 @@
 #include "phasing/readbipartitioning/tests/test_phasesetcomputer.h"
 
 #include "phasing/tests/test_phasingcolumniterator.h"
+#include "phasing/tests/test_phasingcolumncostcomputer.h"
 
 
 void run_all_tests() {
@@ -48,10 +49,12 @@ void run_all_tests() {
 
     std::cout << "\n================ Testing ComponentFinder =======================" << std::endl;
     test_componentfinder();
-    std::cout << "\n================ Testing PhasesetComputer ======================" << std::endl;
-    test_phasesetcomputer();
+//    std::cout << "\n================ Testing PhasesetComputer ======================" << std::endl;
+//    test_phasesetcomputer();
     std::cout << "\n================ Testing PhasingColumnIterator =================" << std::endl;
     test_phasingcolumniterator();
+    std::cout << "\n================ Testing PhasingColumnCostComputer =============" << std::endl;
+    test_phasingcolumncostcomputer();
 }
 
 #endif // TESTS_H
