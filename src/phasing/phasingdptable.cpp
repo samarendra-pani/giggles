@@ -37,6 +37,7 @@ PhasingDPTable::PhasingDPTable(ReadSet* read_set, const vector<variant_informati
 	std::vector<uint32_t>* accessible_positions = new std::vector<uint32_t>();
 	for (uint32_t i = 0; i < variant_info_table->size(); ++i) {
 		if (variant_info_table->at(i).count_active_alleles() <= 2) {
+			assert(variant_info_table->at(i).count_active_alleles() == 2);
 			accessible_positions->push_back(variant_info_table->at(i).position);
 		}
 	}
@@ -294,39 +295,43 @@ void PhasingDPTable::get_super_reads(ReadSet* output_read_set) {
 	assert(output_read_set->size() == 1);
 
 	input_column_iterator.jump_to_column(0);
-	const vector<uint32_t>* positions = input_column_iterator.get_positions();
-
+	
 	std::pair<Read*,Read*> superreads;
 	// removed sample id from the new Read declaration
-		superreads = std::make_pair(
+	superreads = std::make_pair(
 		new Read("superread_0", 0, (uint32_t)-1),
 		new Read("superread_1", 0, (uint32_t)-1)
 	);
 
+	PhasingColumnCostComputer::phased_variant_t population_alleles;
+	vector<uint32_t> active_alleles;
+	uint32_t pos;
+	uint32_t v;
 	if (index_backtrace_table.empty()) {
 		assert(!input_column_iterator.has_next());
 	} else {
 		// run through the file again with the input_column_iterator
 		uint32_t i = 0; // column index
 		while (input_column_iterator.has_next()) {
-			const uint32_t& v = index_path[i];
+			v = index_path[i];
 			unique_ptr<vector<const Entry *> > column = input_column_iterator.get_next();
 			PhasingColumnCostComputer cost_computer(*column, i, variant_info_table);
 			cost_computer.set_partitioning(v);
 
-			auto population_alleles = cost_computer.get_alleles();
+			population_alleles = cost_computer.get_alleles();
 			// some sort of check if see if the alleles are blank?
-			vector<uint32_t> active_allele = variant_info_table->at(i).get_active_positions();
-			if (population_alleles.allele0 == Entry::EQUAL_SCORES) {
-				assert (population_alleles.allele1 == Entry::EQUAL_SCORES);
+			active_alleles = variant_info_table->at(i).get_active_positions();
+			pos = input_column_iterator.get_position(i);
+			if (active_alleles.size() > 2) {
+				// This position was not phased. Adding BLANKs
+				superreads.first->addVariant(pos, vector<long double>{});
+				superreads.second->addVariant(pos, vector<long double>{});	
+			} else {
+				assert (active_alleles.size() == 2);
+				// TODO: compute proper weights based on likelihoods.
+				superreads.first->addVariant(pos, vector<uint32_t>(population_alleles.quality), population_alleles.allele0);
+				superreads.second->addVariant(pos, vector<uint32_t>(population_alleles.quality), population_alleles.allele1);
 			}
-			else {
-				assert (active_allele.size() == 2);
-			}
-			
-			// TODO: compute proper weights based on likelihoods.
-			superreads.first->addVariant(positions->at(i), vector<uint32_t>(population_alleles.quality), population_alleles.allele0, active_allele[0], active_allele[1]);
-			superreads.second->addVariant(positions->at(i), vector<uint32_t>(population_alleles.quality), population_alleles.allele1, active_allele[0], active_allele[1]);
 			++i; // next column
 		}
 	}
