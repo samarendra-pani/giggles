@@ -2,7 +2,7 @@
 #include <stdexcept>
 
 WFAWrapper::WFAWrapper(uint32_t bandwidth) {
-    aligner = new WFAlignerEdit(WFAligner::AlignmentScope::Score, WFAligner::MemoryModel::MemoryUltralow);
+    aligner = new WFAlignerEdit(WFAligner::AlignmentScope::Score, WFAligner::MemoryModel::MemoryHigh);
     aligner->setHeuristicBandedStatic(bandwidth, bandwidth);
 }
 
@@ -13,6 +13,7 @@ WFAWrapper::WFAWrapper(uint32_t bandwidth) {
 int WFAWrapper::align(const std::string& text, const std::string& pattern, uint8_t type) {
     WFAligner::AlignmentStatus status;
     int score;
+    int text_length;
     switch (type) {
         case 0:
             /**
@@ -26,7 +27,7 @@ int WFAWrapper::align(const std::string& text, const std::string& pattern, uint8
             /**
              * full pattern is aligned to beginning part of the text
              */
-            int text_length = (int)text.size();
+            text_length = (int)text.size();
             status = aligner->alignEndsFree(pattern, 0, 0, text, 0, text_length);
             score = aligner->getAlignmentScore();
             break;
@@ -35,7 +36,7 @@ int WFAWrapper::align(const std::string& text, const std::string& pattern, uint8
             /**
              * full pattern is aligned to end part of the text
              */
-            int text_length = (int)text.size();
+            text_length = (int)text.size();
             status = aligner->alignEndsFree(pattern, 0, 0, text, text_length, 0);
             score = aligner->getAlignmentScore();
             break;
@@ -44,7 +45,7 @@ int WFAWrapper::align(const std::string& text, const std::string& pattern, uint8
             /**
              * full pattern is aligned to part of the text
              */
-            int text_length = (int)text.size();
+            text_length = (int)text.size();
             status = aligner->alignEndsFree(pattern, 0, 0, text, text_length, text_length);
             score = aligner->getAlignmentScore();
             break;
