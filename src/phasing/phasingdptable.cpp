@@ -324,8 +324,8 @@ void PhasingDPTable::get_super_reads(ReadSet* output_read_set) {
 			pos = input_column_iterator.get_position(i);
 			if (active_alleles.size() > 2) {
 				// This position was not phased. Adding BLANKs
-				superreads.first->addVariant(pos, vector<long double>{});
-				superreads.second->addVariant(pos, vector<long double>{});	
+				superreads.first->addVariant(pos, vector<uint32_t>{}, Entry::BLANK);
+				superreads.second->addVariant(pos, vector<uint32_t>{}, Entry::BLANK);	
 			} else {
 				assert (active_alleles.size() == 2);
 				// TODO: compute proper weights based on likelihoods.
