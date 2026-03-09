@@ -7,9 +7,6 @@ using namespace wfa;
 
 /**
  * Wrapper class for WFA2-lib (https://github.com/smarco/WFA2-lib/).
- * 
- * @note pywfa (https://github.com/kcleal/pywfa/) exists but does not support edit distance metric
- *   and one-end-free alignment.
  */
 class WFAWrapper {
     
@@ -35,10 +32,7 @@ class WFAWrapper {
         /**
          * aligners defined based on their type
          */
-        WFAlignerEdit* aligner0;
-        WFAlignerEdit* aligner1;
-        WFAlignerEdit* aligner2;
-        WFAlignerEdit* aligner3;
+        WFAlignerEdit* aligner;
 
 };
 
