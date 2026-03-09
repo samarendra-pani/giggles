@@ -1,4 +1,5 @@
 #include "wfawrapper.h"
+#include <stdexcept>
 
 WFAWrapper::WFAWrapper(uint32_t bandwidth) {
     aligner = new WFAlignerEdit(WFAligner::AlignmentScope::Score, WFAligner::MemoryModel::MemoryUltralow);
@@ -9,9 +10,9 @@ WFAWrapper::WFAWrapper(uint32_t bandwidth) {
  * Pattern: read segment
  * Text: allele
  */
-uint32_t WFAWrapper::align(const std::string& text, const std::string& pattern, uint8_t type) {
+int WFAWrapper::align(const std::string& text, const std::string& pattern, uint8_t type) {
     WFAligner::AlignmentStatus status;
-    uint32_t score;
+    int score;
     switch (type) {
         case 0:
             /**
@@ -51,7 +52,9 @@ uint32_t WFAWrapper::align(const std::string& text, const std::string& pattern, 
         default:
             break;
     }
-
+    if ((int)status < 0) {
+        throw std::runtime_error("Error: Non-success status for WFAWrapper.");
+    }
     return score;
 }
 

@@ -26,7 +26,7 @@ class WFAWrapper {
          * 
          * @returns alignment score
          */
-        uint32_t align(const std::string& text, const std::string& pattern, uint8_t type);
+        int align(const std::string& text, const std::string& pattern, uint8_t type);
 
     private:
         /**
