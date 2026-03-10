@@ -14,8 +14,9 @@
 
 using namespace std;
 
-GenotypeHMM::GenotypeHMM(ReadSet* read_set, const vector<float>& recombcost, const uint32_t& num_haplotypes, vector<variant_information_t>* variant_info_table)
+GenotypeHMM::GenotypeHMM(ReadSet* read_set, const uint32_t ploidy, const vector<float>& recombcost, const uint32_t& num_haplotypes, vector<variant_information_t>* variant_info_table)
 	:read_set(read_set),
+	ploidy(ploidy),
 	recombcost(recombcost),
 	column_iterator(*read_set, variant_info_table),
 	scaling_parameters(column_iterator.get_column_count(),-1.0L),
@@ -660,6 +661,7 @@ void GenotypeHMM::compute_forward_column(size_t column_index)
 	vector<uint32_t> sorted_alleles;
 	sorted_alleles.reserve(2);
 	assert (current_forward_probabilities.size() == backward_probabilities->size());
+	variant_info_table->at(column_index).genotype_likelihoods.reset(); // reseting the likelihood vector since it still has values from last genotyping round.
 	for (bipartition_index = 0; bipartition_index < num_curr_bipartitions; bipartition_index++) {
 		for (r_index = 0; r_index < num_curr_ref_states; r_index++) {
 			state_index = get_node_index(bipartition_index, r_index, num_curr_ref_states);
@@ -695,6 +697,9 @@ void GenotypeHMM::compute_forward_column(size_t column_index)
 	}
 	// normalize the likelihoods
 	variant_info_table->at(column_index).genotype_likelihoods.divide_likelihoods_by(normalization);
+
+	// update the variant info tables active alleles based on the calculated likelihoods
+	variant_info_table->at(column_index).update_active_alleles(ploidy);
 	
 	/**
 	 * Replace the forward values from previous column to current column.
@@ -714,10 +719,9 @@ void GenotypeHMM::compute_forward_column(size_t column_index)
 	swap(alpha_helper_3, curr_alpha_helper_3);
 }
 
-vector<long double> GenotypeHMM::get_genotype_likelihoods(uint32_t position)
-{
-	assert(position < column_iterator.get_column_count());
-	return variant_info_table->at(position).genotype_likelihoods.as_vector();
+vector<long double> GenotypeHMM::get_genotype_likelihoods(uint32_t index) {
+	assert(index < column_iterator.get_column_count());
+	return variant_info_table->at(index).genotype_likelihoods.as_vector();
 }
 
 

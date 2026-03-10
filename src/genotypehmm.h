@@ -20,6 +20,9 @@ class GenotypeHMM {
 	private:
 		// number of haplotypes present in the graph.
 		uint32_t num_haplotypes;
+
+		// ploidy
+		uint32_t ploidy;
 		
 		/**
 		 * contains information about each variant position which is to be genotyped.
@@ -156,11 +159,12 @@ class GenotypeHMM {
 		 * @param n_references number of reference haplotypes in the graph
 		 * @param variant_info_table contains information about each variant position which is to be genotyped.
 		 */
-		GenotypeHMM(ReadSet* read_set, const std::vector<float>& recombcost, const uint32_t& n_references, std::vector<variant_information_t>* variant_info_table);
+		GenotypeHMM(ReadSet* read_set, const uint32_t ploidy, const std::vector<float>& recombcost, const uint32_t& n_references, std::vector<variant_information_t>* variant_info_table);
 		~GenotypeHMM();
 
-		// returns the computed genotype likelihoods for a given position
-		std::vector<long double> get_genotype_likelihoods(uint32_t position);
+		// returns the computed genotype likelihoods for a given index
+		std::vector<long double> get_genotype_likelihoods(uint32_t index);
 
 };
+
 #endif
