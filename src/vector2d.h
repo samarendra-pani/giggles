@@ -17,7 +17,7 @@ public:
 		this->size0 = size0;
 		this->size1 = size1;
 		v.clear();
-		v.resize(size0*size1); 
+		v.resize(size0*size1, initial_value); 
 	}
 
 	const T& at(size_t index0, size_t index1) const {
