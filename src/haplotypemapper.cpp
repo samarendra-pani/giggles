@@ -90,14 +90,11 @@ std::vector<uint32_t> HaplotypeMapper::select_genotypes(const GenotypeLikelihood
         current_sum += item.first;
         result.push_back(item.second);
         count += 1;
-        if (current_sum > THRESHOLD) {
+        if (current_sum >= THRESHOLD) {
             break;
         }
     }
-
-    return result;
-
-     
+    return result;     
 }
 
 uint32_t HaplotypeMapper::get_num_states() const {

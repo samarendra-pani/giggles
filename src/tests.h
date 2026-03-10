@@ -16,6 +16,7 @@
 #include "tests/test_genotype.h"
 // #include "tests/test_genotypelikelihoods.h"
 #include "tests/test_graycodes.h"
+#include "tests/test_haplotypemapper.h"
 #include "tests/test_variantinfo.h"
 // #include "tests/test_read.h"
 // #include "tests/test_readset.h"
@@ -45,6 +46,8 @@ void run_all_tests() {
     test_columniterator();
     std::cout << "\n================ Testing BipartitionIterator ===================" << std::endl;
     test_bipartitioniterator();
+    std::cout << "\n================ Testing HaplotypeMapper =======================" << std::endl;
+    test_haplotypemapper();
     
 //    test_genotypelikelihoods();
 //    test_read();
