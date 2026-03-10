@@ -316,8 +316,8 @@ void test_multiallelic_site() {
     variant_info_table[0].genotype_likelihoods.set_by_index(7, 0.1L);   // 1/3
     variant_info_table[0].genotype_likelihoods.set_by_index(8, 0.1L);   // 2/3
     variant_info_table[0].genotype_likelihoods.set_by_index(9, 0.025L); // 3/3 (Active)
-    variant_info_table[0].set_allele_inactive(1);
-    variant_info_table[0].set_allele_inactive(2);
+    variant_info_table[0].active_alleles[1] = false;
+    variant_info_table[0].active_alleles[2] = false;
 
     /**
      * Setting up reads
