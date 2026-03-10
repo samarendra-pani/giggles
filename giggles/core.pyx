@@ -266,31 +266,24 @@ cdef class GenotypeLikelihoods:
 	def __str__(self):
 		return self.thisptr.toString().decode('utf-8')
 
-	def __getitem__(self, Genotype genotype):
+	def __getitem__(self, uint32_t index):
 		assert self.thisptr != NULL
-		return self.thisptr.get_by_genotype(genotype.thisptr[0])
+		return self.thisptr.get_by_index(index)
 
 	def __len__(self):
 		return self.thisptr.size()
 
 	def __iter__(self):
-		for genotype in self.genotypes():
-			yield self[genotype]
+		for index in range(len(self)):
+			yield self[index]
 			
 	def __eq__(self, GenotypeLikelihoods other):
-		if self.genotypes() != other.genotypes():
+		if len(self) != len(other):
 			return False
-		for genotype in self.genotypes():
-			if self[genotype] != other[genotype]:
+		for index in range(len(self)):
+			if self[index] != other[index]:
 				return False
 		return True
-		
-	def genotypes(self):
-		cdef vector[cpp.Genotype]* genotypes = new vector[cpp.Genotype]()
-		self.thisptr.get_genotypes(deref(genotypes))
-		result = [Genotype(genotype.as_vector()) for genotype in genotypes[0]]
-		del genotypes
-		return result
 	
 	
 def binomial_coefficient(int n, int k):

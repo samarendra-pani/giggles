@@ -4,7 +4,6 @@ import gzip
 import itertools
 from typing import Sequence
 import pyfaidx
-from abc import ABC, abstractmethod
 
 from giggles.logger import logger
 from giggles import __version__
@@ -96,14 +95,13 @@ def bin_coeff(n, k):
     return int(result)
 
 
-def int_to_diploid_multiallelic_gt(numeric_repr):
+def int_to_diploid_multiallelic_gt(numeric_repr, ploidy):
     """Converts the classic numeric representation of multi-allelic, diploid genotypes
     into a genotype object
     """
     if numeric_repr == -1:
         return Genotype([])
-    ploidy = 2
-    genotype = [-1,-1]
+    genotype = [-1] * ploidy
     pth = ploidy
     max_allele_index = numeric_repr
     leftover_genotype_index = numeric_repr
@@ -123,20 +121,20 @@ def int_to_diploid_multiallelic_gt(numeric_repr):
     return Genotype(genotype)
 
 
-def determine_genotype(likelihoods: Sequence[float], threshold_prob: float, n_allele: int) -> float:
+def determine_genotype(likelihoods: Sequence[float], threshold_prob: float, n_allele: int, ploidy: int) -> float:
     """given genotype likelihoods for 0/0, 0/1, 1/1, determines likeliest genotype"""
 
     assert bin_coeff(n_allele + 1, n_allele - 1) == len(likelihoods)
     to_sort = []
     for i in range(len(likelihoods)):
-        to_sort.append((likelihoods[int_to_diploid_multiallelic_gt(i)], i))
+        to_sort.append((likelihoods[i], i))
     to_sort.sort(key=lambda x: x[0])
 
     # make sure there is a unique maximum which is greater than the threshold
     if (to_sort[-1][0] > to_sort[-2][0]) and (to_sort[-1][0]-to_sort[-2][0] > threshold_prob):
-        return int_to_diploid_multiallelic_gt(to_sort[-1][1])
+        return int_to_diploid_multiallelic_gt(to_sort[-1][1], ploidy)
     else:
-        return int_to_diploid_multiallelic_gt(-1)
+        return int_to_diploid_multiallelic_gt(-1, ploidy)
 
 def reverse_complement(seq):
     seq = seq.replace("A", "t").replace(

@@ -12,7 +12,7 @@ Original filename: src/phredgenotypelikelihoods.cpp
 
 using namespace std;
 
-GenotypeLikelihoods::GenotypeLikelihoods(const vector<long double>& gl, uint32_t num_alleles, uint32_t ploidy) : gl(gl), ploidy(ploidy), num_alleles(num_alleles) {
+GenotypeLikelihoods::GenotypeLikelihoods(const vector<long double>& gl, uint32_t num_alleles, uint32_t ploidy) : gl(gl), num_alleles(num_alleles) {
 	uint32_t expected_size = binomial_coefficient(ploidy + num_alleles - 1, ploidy);
 	if (expected_size != this->gl.size()) {
 		throw runtime_error("Error: wrong number of given genotype likelihoods given.");
@@ -20,7 +20,7 @@ GenotypeLikelihoods::GenotypeLikelihoods(const vector<long double>& gl, uint32_t
 }
 
 
-GenotypeLikelihoods::GenotypeLikelihoods(uint32_t num_alleles, uint32_t ploidy): ploidy(ploidy), num_alleles(num_alleles) {
+GenotypeLikelihoods::GenotypeLikelihoods(uint32_t num_alleles, uint32_t ploidy): num_alleles(num_alleles) {
 	this->gl = vector<long double>(binomial_coefficient(ploidy + num_alleles - 1, ploidy), 0.0L);
 }
 
@@ -28,18 +28,6 @@ GenotypeLikelihoods::GenotypeLikelihoods(uint32_t num_alleles, uint32_t ploidy):
 GenotypeLikelihoods::GenotypeLikelihoods() {
 	this->num_alleles = 0;
 	this->gl = vector<long double>();
-}
-
-long double GenotypeLikelihoods::get_by_genotype(Genotype genotype) const {
-	uint32_t index = genotype.get_index();
-	assert(index < this->gl.size());
-	return this->gl[index];
-}
-
-void GenotypeLikelihoods::set_by_genotype(Genotype genotype, long double value) {
-	uint32_t index = genotype.get_index();
-	assert(index < this->gl.size());
-	this->gl[index] = value;
 }
 
 long double GenotypeLikelihoods::get_by_index(uint32_t index) const {
@@ -67,7 +55,6 @@ std::string GenotypeLikelihoods::toString() const {
 	return oss.str();
 }
 
-
 uint32_t GenotypeLikelihoods::get_num_alleles() const {
 	return this->num_alleles;
 }
@@ -80,12 +67,9 @@ const vector<long double>& GenotypeLikelihoods::as_vector() const {
 	return this->gl;
 }
 
-void GenotypeLikelihoods::get_genotypes(vector<Genotype>& genotypes) const {
-	for (uint32_t i = 0; i < this->size(); ++i) {
-		genotypes.push_back(Genotype(i, ploidy));
-	}
-} 
-
+void GenotypeLikelihoods::reset() {
+	std::fill(gl.begin(), gl.end(), 0.0L);
+}
 
 // TODO: need to test this phred score calculation
 std::vector<uint32_t> GenotypeLikelihoods::getPhredScores() const {

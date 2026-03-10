@@ -52,8 +52,7 @@ cdef extern from "../src/genotypelikelihoods.h":
 	cdef cppclass GenotypeLikelihoods:
 		GenotypeLikelihoods(vector[long double], uint32_t, uint32_t) except +
 		string toString() except +
-		long double get_by_genotype(Genotype) except +
-		void get_genotypes(vector[Genotype]&) except +
+		long double get_by_index(uint32_t) except +
 		uint32_t size() except +
 
 

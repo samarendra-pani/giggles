@@ -15,9 +15,6 @@ public:
 	GenotypeLikelihoods(uint32_t num_alleles, uint32_t ploidy);
 	GenotypeLikelihoods();
 
-	long double get_by_genotype(Genotype genotype) const;	// get likelihood for given genotype
-	void set_by_genotype(Genotype genotype, long double value);	// set likelihood for given genotype
-
 	long double get_by_index(uint32_t index) const;	// get likelihood for given index
 	void set_by_index(uint32_t index, long double value);	// set likelihood for given index
 
@@ -29,9 +26,9 @@ public:
 
 	uint32_t size() const;
 
-	const std::vector<long double>& as_vector() const;
+	void reset();
 
-	void get_genotypes(std::vector<Genotype>& genotypes) const;
+	const std::vector<long double>& as_vector() const;
 
 	std::vector<uint32_t> getPhredScores() const;
 	uint32_t getPhredScore(Genotype genotype) const;
@@ -41,7 +38,6 @@ public:
 private:
 	std::vector<long double> gl;
 	uint32_t num_alleles;
-	uint32_t ploidy;
 };
 
 

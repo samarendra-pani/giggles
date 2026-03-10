@@ -118,30 +118,21 @@ def genotype_chromosome(variant_table,
             accessible_positions_allele_references,
             accessible_positions_is_sv
         )
-        
-#        forward_backward_table = GenotypeHMM(
-#            selected_reads,
-#            recombination_costs,
-#            n_haplotypes,
-#            accessible_positions,
-#            accessible_positions_n_allele,
-#            accessible_positions_allele_references
-#        )
     
-    # store results
-    likelihood_list = variant_table.query_genotype_likelihoods_of()
-    genotypes_list = variant_table.query_genotypes_of()
+        # store results
+        likelihood_list = variant_table.query_genotype_likelihoods_of()
+        genotypes_list = variant_table.query_genotypes_of()
 
-    for pos in range(len(accessible_positions)):
-        likelihoods = result.get_genotype_likelihoods(pos, accessible_positions_n_allele[pos])
-        # compute genotypes from likelihoods and store information
-        geno = determine_genotype(likelihoods, gt_prob, accessible_positions_n_allele[pos])
-        assert isinstance(geno, Genotype)
-        genotypes_list[var_pos_to_ind[accessible_positions[pos]]] = geno
-        likelihood_list[var_pos_to_ind[accessible_positions[pos]]] = likelihoods
+        for pos in range(len(accessible_positions)):
+            likelihoods = result.get_genotype_likelihoods(pos, accessible_positions_n_allele[pos])
+            # compute genotypes from likelihoods and store information
+            geno = determine_genotype(likelihoods, gt_prob, accessible_positions_n_allele[pos], ploidy)
+            assert isinstance(geno, Genotype)
+            genotypes_list[var_pos_to_ind[accessible_positions[pos]]] = geno
+            likelihood_list[var_pos_to_ind[accessible_positions[pos]]] = likelihoods
 
-    variant_table.query_set_genotypes_of(genotypes_list)
-    variant_table.query_set_genotype_likelihoods_of(likelihood_list)
+        variant_table.query_set_genotypes_of(genotypes_list)
+        variant_table.query_set_genotype_likelihoods_of(likelihood_list)
 
     return (variant_table, chromosome)
 
