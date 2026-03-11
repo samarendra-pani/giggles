@@ -401,6 +401,7 @@ cdef class GenotypingAlgorithm:
 	def get_genotype_likelihoods(self, uint32_t pos, uint32_t ploidy, uint32_t num_allele):
 		return GenotypeLikelihoods(self.thisptr.get_genotype_likelihoods(pos), ploidy = ploidy, num_alleles = num_allele)
 
+def run_cpp_tests():
+	cpp.run_all_tests()
 
 include 'readselect.pyx'
-include 'cpptests.pyx'

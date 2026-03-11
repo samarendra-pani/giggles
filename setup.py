@@ -27,37 +27,59 @@ def CppExtension(name, sources):
         undef_macros=["NDEBUG"],
     )
 
+core_cpp_sources = [
+    "src/binomial.cpp",
+    "src/bipartitioniterator.cpp",
+    "src/column.cpp",
+    "src/columniterator.cpp",
+    "src/emissionprobabilitycomputer.cpp",
+    "src/entry.cpp",
+    "src/genotype.cpp",
+    "src/genotypehmm.cpp",
+    "src/genotypelikelihoods.cpp",
+    "src/genotypingalgorithm.cpp",
+    "src/graycodes.cpp",
+    "src/haplotypemapper.cpp",
+    "src/indexset.cpp",
+    "src/read.cpp",
+    "src/readset.cpp",
+    "src/transitionprobabilitycomputer.cpp"
+]
+phasing_cpp_sources = [
+    "src/phasing/phasingcolumncostcomputer.cpp",
+    "src/phasing/phasingcolumnindexingiterator.cpp",
+    "src/phasing/phasingcolumnindexingscheme.cpp",
+    "src/phasing/phasingcolumniterator.cpp",
+    "src/phasing/phasingdptable.cpp",
+    "src/phasing/readbipartitioning/haplotagcomputer.cpp",
+    "src/phasing/readbipartitioning/phasesetcomputer.cpp",
+    "src/phasing/readbipartitioning/set_cluster_ids.cpp"
+]
+test_sources = [
+    "src/tests.cpp",
+    "src/tests_data.cpp",
+    "src/tests/test_binomial.cpp",
+    "src/tests/test_bipartitioniterator.cpp",
+    "src/tests/test_column.cpp",
+    "src/tests/test_columniterator.cpp",
+    "src/tests/test_entry.cpp",
+    "src/tests/test_genotype.cpp",
+    "src/tests/test_genotypelikelihoods.cpp",
+    "src/tests/test_graycodes.cpp",
+    "src/tests/test_haplotypemapper.cpp",
+    "src/tests/test_variantinfo.cpp",
+    "src/phasing/tests/test_phasingcolumncostcomputer.cpp",
+    "src/phasing/tests/test_phasingcolumniterator.cpp",
+    "src/phasing/readbipartitioning/tests/test_componentfinder.cpp",
+    "src/phasing/readbipartitioning/tests/test_phasesetcomputer.cpp"
+]
 
 extensions = [
     CppExtension(
         "giggles.core",
-        sources=[
-            "giggles/core.pyx",
-            "src/binomial.cpp",
-            "src/bipartitioniterator.cpp",
-            "src/column.cpp",
-            "src/columniterator.cpp",
-            "src/emissionprobabilitycomputer.cpp",
-            "src/entry.cpp",
-            "src/genotype.cpp",
-            "src/genotypehmm.cpp",
-            "src/genotypelikelihoods.cpp",
-            "src/genotypingalgorithm.cpp",
-            "src/graycodes.cpp",
-            "src/haplotypemapper.cpp",
-            "src/indexset.cpp",
-            "src/read.cpp",
-            "src/readset.cpp",
-            "src/transitionprobabilitycomputer.cpp",
-            "src/phasing/phasingcolumncostcomputer.cpp",
-            "src/phasing/phasingcolumnindexingiterator.cpp",
-            "src/phasing/phasingcolumnindexingscheme.cpp",
-            "src/phasing/phasingcolumniterator.cpp",
-            "src/phasing/phasingdptable.cpp",
-        ]
+        sources=["giggles/core.pyx"] + core_cpp_sources + phasing_cpp_sources + test_sources
     ),
     CppExtension("giggles.readselect", sources=["giggles/readselect.pyx"]),
-    CppExtension("giggles.cpptests", sources=["giggles/cpptests.pyx"]),
     CppExtension(
         "giggles.align", 
         sources=[
@@ -98,7 +120,6 @@ else:
         "pysam>=0.18.0",
         "pyfaidx>=0.5.5.2",
         "biopython>=1.73",  # pyfaidx needs this for reading bgzipped FASTA files
-        "xopen>=1.2.0"
     ]
 
 setup(
