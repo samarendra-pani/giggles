@@ -14,7 +14,7 @@
 #include "tests/test_columniterator.h"
 #include "tests/test_entry.h"
 #include "tests/test_genotype.h"
-// #include "tests/test_genotypelikelihoods.h"
+#include "tests/test_genotypelikelihoods.h"
 #include "tests/test_graycodes.h"
 #include "tests/test_haplotypemapper.h"
 #include "tests/test_variantinfo.h"

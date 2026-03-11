@@ -11,6 +11,8 @@ void run_all_tests() {
     test_entry();
     std::cout << "\n================ Testing Genotype ==============================" << std::endl;
     test_genotype();
+    std::cout << "\n================ Testing GenotypeLikelihoods ===================" << std::endl;
+    test_genotypelikelihoods();
     std::cout << "\n================ Testing Column ================================" << std::endl;
     test_column();
     std::cout << "\n================ Testing ColumnIterator ========================" << std::endl;
@@ -19,8 +21,7 @@ void run_all_tests() {
     test_bipartitioniterator();
     std::cout << "\n================ Testing HaplotypeMapper =======================" << std::endl;
     test_haplotypemapper();
-    
-//    test_genotypelikelihoods();
+
 //    test_read();
 //    test_readset();
 //    test_transitionprobabilitycomputer();

@@ -4,6 +4,10 @@
 #include "../genotypelikelihoods.h"
 #include "../tests_data.h"
 
+void test_genotypelikelihood_size();
+
+void test_genotypelikelihood_phredscores();
+
 void test_genotypelikelihoods();
 
 #endif // TEST_GENOTYPELIKELIHOODS_H
