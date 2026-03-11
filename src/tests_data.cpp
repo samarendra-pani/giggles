@@ -323,22 +323,72 @@ ReadSet* mock_superreads() {
     superread0->addVariant(900, std::vector<uint32_t>{5}, Entry::ALLELE1);
     superread1->addVariant(900, std::vector<uint32_t>{20}, Entry::ALLELE2);
 
-    superread0->addVariant(1000, std::vector<uint32_t>{5}, Entry::EQUAL_SCORES);
-    superread1->addVariant(1000, std::vector<uint32_t>{20}, Entry::EQUAL_SCORES);
+    superread0->addVariant(1000, std::vector<uint32_t>{}, Entry::BLANK);
+    superread1->addVariant(1000, std::vector<uint32_t>{}, Entry::BLANK);
     
     superread0->addVariant(1100, std::vector<uint32_t>{5}, Entry::ALLELE2);
     superread1->addVariant(1100, std::vector<uint32_t>{20}, Entry::ALLELE1);
 
     superread0->addVariant(1200, std::vector<uint32_t>{15}, Entry::ALLELE1);
     superread1->addVariant(1200, std::vector<uint32_t>{10}, Entry::ALLELE1);
+
+    superread0->addVariant(1300, std::vector<uint32_t>{0}, Entry::EQUAL_SCORES);
+    superread1->addVariant(1300, std::vector<uint32_t>{10}, Entry::ALLELE1);
     
+    superread0->addVariant(1400, std::vector<uint32_t>{10}, Entry::ALLELE2);
+    superread1->addVariant(1400, std::vector<uint32_t>{0}, Entry::EQUAL_SCORES);
+    
+    superread0->addVariant(1500, std::vector<uint32_t>{5}, Entry::ALLELE2);
+    superread1->addVariant(1500, std::vector<uint32_t>{20}, Entry::ALLELE1);
+
     /**
      * Summary of Superreads
-     * Positions | 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900 | 1000 | 1100 | 1200 |
-     * SR1       | A1  | EQ  | A1  | A2  | BL  | A1  | A2  | A2  | A1  | EQ   | A2   | A1   |
-     * SR2       | A2  | EQ  | A1  | A1  | BL  | A2  | A2  | A1  | A2  | EQ   | A1   | A1   |
-     * Het Pos?  | Y   | N   | N   | Y   | N   | Y   | N   | Y   | Y   | N    | Y    | N    |
+     * Positions | 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900 | 1000 | 1100 | 1200 | 1300 | 1400 | 1500 |
+     * SR1       | A1  | EQ  | A1  | A2  | BL  | A1  | A2  | A2  | A1  | BL   | A2   | A1   | EQ   | A2   | A2   |
+     * SR2       | A2  | EQ  | A1  | A1  | BL  | A2  | A2  | A1  | A2  | BL   | A1   | A1   | A1   | EQ   | A1   |
+     * Het Pos?  | Y   | N   | N   | Y   | N   | Y   | N   | Y   | Y   | N    | Y    | N    | N    | N    | Y    |
      */
 
     return superreads;
+}
+
+/**
+ * Variant information table for the mock super-reads
+ */
+std::vector<variant_information_t> mock_variant_info_table_3() {
+
+    std::vector<variant_information_t> variant_info_table;
+    std::vector<uint32_t> position = {100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400, 1500};
+    uint32_t ploidy = 2;
+    std::vector<uint32_t> n_alleles = {2, 2, 4, 3, 3, 2, 2, 2, 2, 4, 2, 3, 3, 4, 2};
+    std::vector<std::vector<int>> allele_references = { {1, 0, 1, 0, 1, 0},
+                                                        {0, 1, 0, 0, 1, 0},
+                                                        {1, 1, 0, 2, 1, 3},
+                                                        {0, 1, 0, 2, 1, 0},
+                                                        {0, 0, 1, 2, 1, 0},
+                                                        {1, 0, 1, 0, 1, 0},
+                                                        {0, 1, 0, 0, 1, 0},
+                                                        {1, 1, 0, 0, 1, 0},
+                                                        {0, 1, 0, 1, 1, 0},
+                                                        {0, 0, 1, 2, 3, 2},
+                                                        {1, 0, 1, 0, 1, 0},
+                                                        {0, 1, 0, 2, 1, 0},
+                                                        {1, 1, 0, 2, 1, 0},
+                                                        {0, 1, 3, 2, 1, 0},
+                                                        {0, 0, 1, 0, 1, 0}};
+    std::vector<bool> is_sv_position = {false, true, false, true, false, false, true, true, false, true, false, false, false, false, false};
+
+    for (uint32_t i = 0; i < position.size(); i++) {
+        variant_info_table.push_back(variant_information_t(position[i], ploidy, n_alleles[i], allele_references[i], is_sv_position[i]));
+    }
+    
+    /**
+     * Variant Information Table:
+     * ........................| v1   | v2   | v3   | v4   | v5   | v6   | v7   | v8   | v9   | v10  | v11  | v12  | v13  | v14  | v15  |
+     * ------------------------|------|------|------|------|------|------|------|------|------|------|------|------|------|------|------|
+     * Position                | 100  | 200  | 300  | 400  | 500  | 600  | 700  | 800  | 900  | 1000 | 1100 | 1200 | 1300 | 1400 | 1500 |
+     * Number of Alleles       | 2    | 2    | 4    | 3    | 3    | 2    | 2    | 2    | 2    | 4    | 2    | 3    | 3    | 4    | 2    |
+     * Is a SV?                | N    | Y    | N    | Y    | N    | N    | Y    | Y    | N    | Y    | N    | N    | N    | N    | N    |
+     */
+    return variant_info_table;
 }
