@@ -30,7 +30,7 @@ struct variant_information_t {
     /**
      * Update active alleles based on the genotype likelihoods
      */
-    void update_active_alleles(uint32_t ploidy);
+    void update_active_alleles(const uint32_t ploidy, const std::vector<uint32_t>& selected_genotype_indices);
 };
 
 #endif // VARIANTINFO_H

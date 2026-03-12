@@ -24,10 +24,8 @@ std::vector<uint32_t> variant_information_t::get_active_positions() const {
     return indices;
 }
 
-void variant_information_t::update_active_alleles(uint32_t ploidy) {
+void variant_information_t::update_active_alleles(const uint32_t ploidy, const std::vector<uint32_t>& selected_genotype_indices) {
     
-    std::vector<uint32_t> selected_genotype_indices = genotype_likelihoods.select_genotypes();
-    // setting all alleles as false
     std::fill(active_alleles.begin(), active_alleles.end(), false);
     // getting all alleles from selected genotype indices and setting them as true.
     for (auto& selected_genotype_index: selected_genotype_indices) {
