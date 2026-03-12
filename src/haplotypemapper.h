@@ -42,12 +42,6 @@ class HaplotypeMapper {
     private:
 
         /**
-         * Selects the genotypes which are "likely" and returns a vector of their canonical index.
-         * The likely genotypes are the m genotypes with the highest likelihoods scores such that sum of their scores >= 0.9
-         */
-        std::vector<uint32_t> select_genotypes(const GenotypeLikelihoods& genotype_likelihoods) const;
-
-        /**
          * This maps the NxN haplotype pairs to index of the linearized reduced-space states.
          * The vector stores -1 for the haplotype pairs which were not selected.
          */

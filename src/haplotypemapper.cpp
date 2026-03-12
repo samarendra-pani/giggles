@@ -4,7 +4,7 @@
 
 HaplotypeMapper::HaplotypeMapper(const GenotypeLikelihoods& genotype_likelihoods, const std::vector<int>& allele_references) {
 
-    std::vector<uint32_t> selected_indices = select_genotypes(genotype_likelihoods);
+    std::vector<uint32_t> selected_indices = genotype_likelihoods.select_genotypes();
     std::vector<bool> is_genotype_selected(genotype_likelihoods.size(), false);
     for (uint32_t idx : selected_indices) {
         if (idx < is_genotype_selected.size()) {
@@ -47,54 +47,6 @@ HaplotypeMapper::HaplotypeMapper(const GenotypeLikelihoods& genotype_likelihoods
             }
         }
     }
-}
-
-std::vector<uint32_t> HaplotypeMapper::select_genotypes(const GenotypeLikelihoods& genotype_likelihoods) const {
-
-    std::vector<std::pair<long double, uint32_t>> indexed_values;
-    uint32_t gl_size = genotype_likelihoods.size();
-    indexed_values.reserve(gl_size);
-
-    long double sum = 0.0L;
-    for (uint32_t i = 0; i < gl_size; i++) {
-        long double value = genotype_likelihoods.get_by_index(i);
-        indexed_values.push_back({value, i});
-        sum += value;
-    }
-
-    if (sum == 0.0L) {
-        /**
-         * no genotype likelihood values available yet.
-         * returning all genotypes as possible
-         */
-        std::vector<uint32_t> result(gl_size);
-        std::iota(std::begin(result), std::end(result), 0);
-        return result;
-    }
-
-    /**
-     * sorting the genotype likelihoods in descending order.
-     */
-    std::sort(indexed_values.begin(), indexed_values.end(), 
-        [](const std::pair<long double, uint32_t>& a, const std::pair<long double, uint32_t>& b) {
-            return a.first > b.first; 
-        }
-    );
-
-    std::vector<uint32_t> result;
-    long double current_sum = 0.0L;
-    const long double THRESHOLD = 0.9L;
-
-    uint32_t count = 0;
-    for (const auto& item : indexed_values) {
-        current_sum += item.first;
-        result.push_back(item.second);
-        count += 1;
-        if (current_sum >= THRESHOLD) {
-            break;
-        }
-    }
-    return result;     
 }
 
 uint32_t HaplotypeMapper::get_num_states() const {

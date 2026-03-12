@@ -7,6 +7,7 @@ Original filename: src/phredgenotypelikelihoods.h
 #define GENOTYPE_LIKELIHOODS_H
 
 #include <array>
+#include <numeric>
 #include "genotype.h"
 
 class GenotypeLikelihoods {
@@ -34,6 +35,12 @@ public:
 	uint32_t getPhredScore(Genotype genotype) const;
 
 	void divide_likelihoods_by(long double& val);
+
+	/**
+     * Selects the genotypes which are "likely" and returns a vector of their canonical index.
+     * The likely genotypes are the m genotypes with the highest likelihoods scores such that sum of their scores >= 0.9
+     */
+	std::vector<uint32_t> select_genotypes() const;
 
 private:
 	std::vector<long double> gl;
