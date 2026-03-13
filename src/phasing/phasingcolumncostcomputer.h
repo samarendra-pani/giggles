@@ -23,24 +23,21 @@ class PhasingColumnCostComputer {
 	
 	private:
 		const std::vector<const Entry*>& column;
-		size_t column_index;
 		uint32_t partitioning;
+		bool phasable;
 		std::vector<std::array<uint32_t, 2>> cost_partition;
-		typedef struct allele_assignment_t {
-			/** The i-th bit in assignment gives the allele assigned to partition i. */
-			uint32_t assignment;
-			/** Cost of this assignment incurred by genotype changes. */
-			uint32_t cost;
-			allele_assignment_t() : assignment(0), cost(0) {}
-			allele_assignment_t(uint32_t assignment, uint32_t cost) : assignment(assignment), cost(cost) {}
-		} allele_assignment_t;
-		/** All allowed assignments and their costs. */
-		std::vector<allele_assignment_t> allele_assignments;
-		const std::vector<variant_information_t>* variant_info_table;
+		
+		/** All allowed assignments. */
+		std::vector<uint32_t> allele_assignments;
+		/** 
+		 * A pile-up analysis of Entries to check if there is enough evidence to support HOM or HET.
+		 * Returns 0 for HOM-ALLELE1, 1 for HET/HOM-ALLELE1, 2 for HET, 3 for HET/HOM-ALLELE2, 4 for HOM-ALLELE2 and -1 for insufficient evidence.
+		 */
+		int analyse_entry_alleles();
 
 	public:
 
-		PhasingColumnCostComputer(const std::vector<const Entry*>& column, size_t column_index, const std::vector<variant_information_t>* variant_info_table);
+		PhasingColumnCostComputer(const std::vector<const Entry*>& column, const variant_information_t& variant_info);
 
 		void set_partitioning(uint32_t partitioning);
 

@@ -71,40 +71,6 @@ void GenotypeLikelihoods::reset() {
 	std::fill(gl.begin(), gl.end(), 0.0L);
 }
 
-// TODO: need to test this phred score calculation
-std::vector<uint32_t> GenotypeLikelihoods::getPhredScores() const {
-	long double max = 0.0;
-	for (int i=0; i<gl.size(); ++i) {
-		if (gl[i] > max) max = gl[i];
-	}
-	if (max == 0.0) {
-		return std::vector<uint32_t>(gl.size(), 0);
-	}
-	std::vector<uint32_t> phred_scores;
-	for (int i=0; i<gl.size(); ++i) {
-		long double prob = gl[i] / max;
-		uint32_t phred = (uint32_t)(-10.0L * log10(prob));
-		phred_scores.push_back(phred);
-	}
-	return phred_scores;
-}
-
-// TODO: need to test this phred score calculation
-uint32_t GenotypeLikelihoods::getPhredScore(Genotype genotype) const {
-	uint32_t index = genotype.get_index();
-	assert(index < this->gl.size());
-	long double max = 0.0;
-	for (int i=0; i<gl.size(); ++i) {
-		if (gl[i] > max) max = gl[i];
-	}
-	if (max == 0.0) {
-		return 0;
-	}
-	long double prob = gl[index] / max;
-	uint32_t phred = (uint32_t)(-10.0L * log10(prob));
-	return phred;
-}
-
 void GenotypeLikelihoods::divide_likelihoods_by(long double& val) {
 	std::transform(gl.begin(), gl.end(), gl.begin(), std::bind2nd(std::divides<long double>(), val));
 }

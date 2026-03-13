@@ -36,8 +36,7 @@ PhasingDPTable::PhasingDPTable(ReadSet* read_set, const vector<variant_informati
 	// getting accessible positions
 	std::vector<uint32_t>* accessible_positions = new std::vector<uint32_t>();
 	for (uint32_t i = 0; i < variant_info_table->size(); ++i) {
-		if (variant_info_table->at(i).count_active_alleles() <= 2) {
-			assert(variant_info_table->at(i).count_active_alleles() == 2);
+		if (variant_info_table->at(i).phasable) {
 			accessible_positions->push_back(variant_info_table->at(i).position);
 		}
 	}
@@ -217,8 +216,17 @@ void PhasingDPTable::compute_column(size_t column_index, unique_ptr<vector<const
 	}
 
 	// create column cost computers
-	PhasingColumnCostComputer cost_computer(*current_input_column, column_index, variant_info_table);
+	PhasingColumnCostComputer cost_computer(*current_input_column, variant_info_table->at(column_index));
 	
+	size_t backward_projection_index;
+	size_t current_index;
+	uint32_t current_cost;
+	uint32_t min;
+	uint32_t val;
+	uint32_t previous_cost;
+	uint32_t forward_index;
+	uint32_t it_idx;
+
 	// iterate over all bipartitions
 	unique_ptr<PhasingColumnIndexingIterator> iterator = current_indexer->get_iterator();
 	while (iterator->has_next()) {
@@ -231,19 +239,19 @@ void PhasingDPTable::compute_column(size_t column_index, unique_ptr<vector<const
 		}
 
 		// Determine index in backward projection column from where to fetch the previous cost
-		size_t backward_projection_index = 0;
+		backward_projection_index = 0;
 		if (column_index > 0) {
 			backward_projection_index = iterator->get_backward_projection();
 		}
 		// Determine index in the current DP column to be written
-		size_t current_index = iterator->get_index();
+		current_index = iterator->get_index();
 
 		// Compute cost incurred by current cell of DP table
-		uint32_t current_cost = cost_computer.get_cost();
-		uint32_t min = numeric_limits<uint32_t>::max();
+		current_cost = cost_computer.get_cost();
+		min = numeric_limits<uint32_t>::max();
 		// add up cost from current_cost column and previous columns
-		uint32_t val;
-		uint32_t previous_cost = 0;
+		val;
+		previous_cost = 0;
 		if (column_index > 0) {
 			previous_cost = previous_projection_column->at(backward_projection_index);
 		}
@@ -267,8 +275,8 @@ void PhasingDPTable::compute_column(size_t column_index, unique_ptr<vector<const
 				optimal_score_index = iterator->get_index();
 			}
 		} else {
-			uint32_t forward_index = iterator->get_forward_projection();
-			uint32_t it_idx = iterator->get_index();
+			forward_index = iterator->get_forward_projection();
+			it_idx = iterator->get_index();
 			if (dp_column.at(current_index) < current_projection_column->at(forward_index)) {
 				current_projection_column->at(forward_index) = dp_column.at(current_index);
 				index_backtrace_column->at(forward_index) = it_idx;
@@ -315,7 +323,7 @@ void PhasingDPTable::get_super_reads(ReadSet* output_read_set) {
 		while (input_column_iterator.has_next()) {
 			v = index_path[i];
 			unique_ptr<vector<const Entry *> > column = input_column_iterator.get_next();
-			PhasingColumnCostComputer cost_computer(*column, i, variant_info_table);
+			PhasingColumnCostComputer cost_computer(*column, variant_info_table->at(i));
 			cost_computer.set_partitioning(v);
 
 			population_alleles = cost_computer.get_alleles();

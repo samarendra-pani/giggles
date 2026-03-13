@@ -31,9 +31,6 @@ public:
 
 	const std::vector<long double>& as_vector() const;
 
-	std::vector<uint32_t> getPhredScores() const;
-	uint32_t getPhredScore(Genotype genotype) const;
-
 	void divide_likelihoods_by(long double& val);
 
 	/**
