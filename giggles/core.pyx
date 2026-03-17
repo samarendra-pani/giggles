@@ -76,7 +76,7 @@ cdef class Read:
 		if isinstance(key, slice):
 			raise NotImplementedError("Read does not support slices")
 		assert isinstance(key, int)
-		cdef uint32_t n = self.thisptr.getVariantCount()
+		cdef int n = self.thisptr.getVariantCount()
 		if not (-n <= key < n):
 			raise IndexError('Index out of bounds: {}'.format(key))
 		if key < 0:
@@ -88,7 +88,7 @@ cdef class Read:
 
 	def __setitem__(self, index, variant):
 		assert self.thisptr != NULL
-		cdef uint32_t n = self.thisptr.getVariantCount()
+		cdef int n = self.thisptr.getVariantCount()
 		if not (-n <= index < n):
 			raise IndexError('Index out of bounds: {}'.format(index))
 		if index < 0:
