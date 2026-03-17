@@ -226,11 +226,7 @@ cdef readselection_helper(coverages, max_cov, cpp.ReadSet* readset, vcf_indices,
 				for i in range(1, read.getVariantCount()):
 					component_finder.merge(read.getPosition(0), read.getPosition(i))
 		loop += 1
-		logger.debug(
-			'... iteration %d: selected %d reads (source: %s) to cover positions and %d reads (source: %s) for bridging; %d reads left undecided',
-			loop, len(reads_in_slice), format_read_source_stats(readset, reads_in_slice), len(bridging_reads),
-			format_read_source_stats(readset, bridging_reads), len(undecided_reads)
-		)
+		logger.debug(f'... iteration {loop}: selected {len(reads_in_slice)} reads (source: {format_read_source_stats(readset, reads_in_slice)}) to cover positions and {len(bridging_reads)} reads (source: {format_read_source_stats(readset, bridging_reads)}) for bridging; {len(undecided_reads)} reads left undecided')
 	return selected_reads
 
 
@@ -243,7 +239,7 @@ def readselection(ReadSet pyreadset, max_cov, preferred_source_ids=None, bridgin
 
 	positions, vcf_indices, variant_to_reads_map, preferred_reads = _construct_indexes(pyreadset, preferred_source_ids)
 
-	logger.debug('Running read selection for %d reads covering %d variants (bridging %s)', len(pyreadset), len(positions),'ON' if bridging else 'OFF')
+	logger.debug(f'Running read selection for {len(pyreadset)} reads covering {len(positions)} variants (bridging {"ON" if bridging else "OFF"})')
 
 	#initialization of Coverage Monitor
 	coverages = CovMonitor(len(positions))
