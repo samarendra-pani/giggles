@@ -29,13 +29,12 @@ void Entry::set_allele_type(const std::vector<bool>& active_alleles) {
 	}
 	assert(active_alleles.size() == emission_scores.size());
 	std::vector<long double> active_scores;
-	std::vector<uint32_t> indices;
 	for (size_t i = 0; i < active_alleles.size(); i++) {
 		if (active_alleles[i]) {
 			active_scores.push_back(this->emission_scores[i]);
-			indices.push_back(i);
 		}
 	}
+	if (active_scores.size() == 1) { allele = ALLELE1; return; }
 	assert(active_scores.size() == 2);
 	if (active_scores[0] > active_scores[1]) { allele = ALLELE1; }
 	if (active_scores[0] < active_scores[1]) { allele = ALLELE2; }
