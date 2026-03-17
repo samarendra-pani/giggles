@@ -25,13 +25,23 @@ class PhasingColumnCostComputer {
 		const std::vector<const Entry*>& column;
 		uint32_t partitioning;
 		bool phasable;
+		bool homozygous;
+		Entry::allele_t homozygous_allele;
 		std::vector<std::array<uint32_t, 2>> cost_partition;
 		
 		/** All allowed assignments. */
 		std::vector<uint32_t> allele_assignments;
 		/** 
 		 * A pile-up analysis of Entries to check if there is enough evidence to support HOM or HET.
-		 * Returns 0 for HOM-ALLELE1, 1 for HET/HOM-ALLELE1, 2 for HET, 3 for HET/HOM-ALLELE2, 4 for HOM-ALLELE2 and -1 for insufficient evidence.
+		 * Returns 
+		 * 	0 for HOM-ALLELE1
+		 * 	1 for HET/HOM-ALLELE1
+		 * 	2 for HET
+		 * 	3 for HET/HOM-ALLELE2
+		 * 	4 for HOM-ALLELE2
+		 * 	-1 for insufficient evidence.
+		 * 	-2 for absolutely no evidence (all are BLANK or EQUAL_SCORES)
+		 * 
 		 */
 		int analyse_entry_alleles();
 

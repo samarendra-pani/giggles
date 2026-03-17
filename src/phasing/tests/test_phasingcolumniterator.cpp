@@ -148,6 +148,7 @@ void test_phasingcolumniterator_unselected_reads(std::vector<variant_information
     // Second round of phasing
     read_set->getByName("read3", 0)->setSelected(true);
     variant_info_table[1].active_alleles[2] = false; // setting allele 2 for SV at 200 as inactive
+    variant_info_table[1].phasable = true;
     variant_info_table[3].active_alleles[3] = false; // setting allele 3 for SV at 400 as inactive
     iterator = new PhasingColumnIterator(*read_set, &variant_info_table, false);
     {
@@ -185,6 +186,7 @@ void test_phasingcolumniterator_unselected_reads(std::vector<variant_information
     // third round of phasing
     read_set->getByName("read2", 0)->setSelected(true);
     variant_info_table[3].active_alleles[2] = false; // setting allele 2 for SV at 400 as inactive
+    variant_info_table[3].phasable = true;
     iterator = new PhasingColumnIterator(*read_set, &variant_info_table, false);
     {
         std::vector<std::vector<uint32_t>> expected_entry_id = {
@@ -259,8 +261,8 @@ void test_phasingcolumniterator_gapped_reads(std::vector<variant_information_t> 
      * 3  | read4  | 300, 400, 500
      */
 
-    variant_info_table[3].active_alleles[0] = false; variant_info_table[3].active_alleles[1] = false;
-    variant_info_table[1].active_alleles[2] = false;
+    variant_info_table[3].active_alleles[0] = false; variant_info_table[3].active_alleles[1] = false; variant_info_table[3].phasable = true;
+    variant_info_table[1].active_alleles[2] = false; variant_info_table[1].phasable = true;
     PhasingColumnIterator* iterator;
     iterator = new PhasingColumnIterator(*read_set, &variant_info_table, true);
 
@@ -354,6 +356,7 @@ void test_phasingcolumniterator() {
 
     // setting the active alleles for SVs
     variant_info_table[1].active_alleles[2] = false; // setting allele 2 for SV at 200 as inactive
+    variant_info_table[1].phasable = true;
     variant_info_table[3].active_alleles[3] = false; // setting allele 3 for SV at 400 as inactive
     column_iterator = new PhasingColumnIterator(*read_set, &variant_info_table, false);
     second_round_phasing_tests(column_iterator);
@@ -361,6 +364,7 @@ void test_phasingcolumniterator() {
 
     
     variant_info_table[3].active_alleles[2] = false; // setting allele 2 for SV at 400 as inactive
+    variant_info_table[3].phasable = true;
     column_iterator = new PhasingColumnIterator(*read_set, &variant_info_table, false);
     third_round_phasing_tests(column_iterator);
     delete read_set;

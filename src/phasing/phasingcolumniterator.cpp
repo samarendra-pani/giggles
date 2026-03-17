@@ -139,8 +139,7 @@ unique_ptr<vector<const Entry*> > PhasingColumnIterator::get_next() {
 	unique_ptr<vector<const Entry*> > result(new vector<const Entry*>());
 	for (list_it = active_reads.begin(); list_it != active_reads.end(); ++list_it) {
 		Read* read = set.get(list_it->read_index);
-		assert (variant_info_table->at(n).count_active_alleles() > 0);
-		if (variant_info_table->at(n).count_active_alleles() > 2) {
+		if (!variant_info_table->at(n).phasable) {
 			// the position has multiple possible alleles.
 			// cannot phase
 			Entry* e = new Entry(read->getID(), std::vector<uint32_t>{});
@@ -155,8 +154,6 @@ unique_ptr<vector<const Entry*> > PhasingColumnIterator::get_next() {
 			result->push_back(e);
 			continue;
 		}
-		// TODO: What if alleles determined as homozygous are skipped?
-		assert (variant_info_table->at(n).count_active_alleles() == 2); // There has to be two active alleles for phasing.
 		// Does read cover the current position?
 		if (read->getPosition(list_it->active_entry) == next_pos) {
 			// If so, add the entry to the result is the entry is biallelic

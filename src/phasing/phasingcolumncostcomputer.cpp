@@ -25,6 +25,7 @@ PhasingColumnCostComputer::PhasingColumnCostComputer(const std::vector <const En
 		this->phasable = false;
 		return;
 	}
+	this->phasable = true;
 
 	/** Pileup analysis of the entry alleles to get some idea about which genotype it might be. */
 	std::vector<uint32_t> selected_genotype_indices = variant_info.genotype_likelihoods.select_genotypes();
@@ -34,25 +35,36 @@ PhasingColumnCostComputer::PhasingColumnCostComputer(const std::vector <const En
 		/** All genotype combinations seems to be possible. Doing a pileup analysis of entries */
 		switch (analyse_entry_alleles()) {
 			case 0:
+				homozygous = true;
+				homozygous_allele = Entry::ALLELE1;
 				compatible_genotype_indices.push_back(selected_genotype_indices[0]); // Adding index for HOM-ALLELE1
 				break;
 			case 1:
+				homozygous = false;
 				compatible_genotype_indices.push_back(selected_genotype_indices[0]); // Adding index for HOM-ALLELE1
 				compatible_genotype_indices.push_back(selected_genotype_indices[1]); // Adding index for HET
 				break;
 			case 2:
+				homozygous = false;
 				compatible_genotype_indices.push_back(selected_genotype_indices[1]); // Adding index for HET
 				break;
 			case 3:
+				homozygous = false;
 				compatible_genotype_indices.push_back(selected_genotype_indices[1]); // Adding index for HET
 				compatible_genotype_indices.push_back(selected_genotype_indices[2]); // Adding index for HOM-ALLELE2
 				break;
 			case 4:
+				homozygous = true;
+				homozygous_allele = Entry::ALLELE2;
 				compatible_genotype_indices.push_back(selected_genotype_indices[2]); // Adding index for HOM-ALLELE2
 				break;
 			case -1:
+				homozygous = false;
 				compatible_genotype_indices = selected_genotype_indices; // Adding all genotype indices.
 				break;
+			case -2:
+				homozygous = false;
+				phasable = false;
 			default:
 				// there should not be any other output
 				assert(false);
@@ -61,6 +73,7 @@ PhasingColumnCostComputer::PhasingColumnCostComputer(const std::vector <const En
 	} else {
 		/** Adding the genotype indices selected through genotype likelihoods. */
 		compatible_genotype_indices = selected_genotype_indices;
+		homozygous = false;
 	}
 	/**
 	 * Enumerate all possible assignments of alleles to haplotypes and 
@@ -82,6 +95,8 @@ PhasingColumnCostComputer::PhasingColumnCostComputer(const std::vector <const En
 	if (active_alleles.size() == 1) {
 		assert(compatible_genotype_indices.size() == 1); // There should be only compatible genotype -> homozygous of the active allele.
 		allele_assignments.push_back(0);
+		homozygous = true;
+		homozygous_allele = Entry::ALLELE1;
 	} else {
 		assert(active_alleles.size() == 2);
 		for (uint32_t i = 0; i < 4; ++i) {
@@ -99,22 +114,22 @@ PhasingColumnCostComputer::PhasingColumnCostComputer(const std::vector <const En
 
 
 void PhasingColumnCostComputer::set_partitioning(uint32_t partitioning) {
-	if (!phasable) {
+	if (!phasable || homozygous) {
 		return;
 	}
 
 	cost_partition.assign(2, {0,0});	// two partitions, each with cost for ref and alt
 
-	partitioning = partitioning;
+	this->partitioning = partitioning;
 	for (vector < const Entry * >::const_iterator it = column.begin(); it != column.end(); ++it) {
 		auto & entry = **it;
-		bool entry_in_partition1 = (partitioning & ((uint32_t) 1)) == 0;
+		bool entry_in_partition0 = (partitioning & ((uint32_t) 1)) == 0;  // is the current entry in partition 0
 		switch (entry.get_allele_type()) {
 			case Entry::ALLELE1:
-				(entry_in_partition1 ? cost_partition[0] :cost_partition[1])[1] += entry.get_phred_score();
+				(entry_in_partition0 ? cost_partition[0] :cost_partition[1])[1] += entry.get_phred_score();
 				break;
 			case Entry::ALLELE2:
-				(entry_in_partition1 ? cost_partition[0] :cost_partition[1])[0] += entry.get_phred_score();
+				(entry_in_partition0 ? cost_partition[0] :cost_partition[1])[0] += entry.get_phred_score();
 				break;
 			case Entry::BLANK:
 				break;
@@ -129,21 +144,20 @@ void PhasingColumnCostComputer::set_partitioning(uint32_t partitioning) {
 
 
 void PhasingColumnCostComputer::update_partitioning(int bit_to_flip) {
-	if (!phasable) {
+	if (!phasable || homozygous) {
 		return;
 	}
 	const Entry & entry = *column[bit_to_flip];
 	partitioning = partitioning ^ (((uint32_t) 1) << bit_to_flip);
-	bool entry_in_partition1 = (partitioning & (((uint32_t) 1) << bit_to_flip)) == 0;
-	uint32_t ind_id = 0; // only one individual in the pedigree
+	bool entry_in_partition0 = (partitioning & (((uint32_t) 1) << bit_to_flip)) == 0; // is the flipped entry now in partition 0
 	switch (entry.get_allele_type()) {
 		case Entry::ALLELE1:
-			(entry_in_partition1 ? cost_partition[1] : cost_partition[0])[1] -= entry.get_phred_score();
-			(entry_in_partition1 ? cost_partition[0] :  cost_partition[1])[1] += entry.get_phred_score();
+			(entry_in_partition0 ? cost_partition[1] : cost_partition[0])[1] -= entry.get_phred_score();
+			(entry_in_partition0 ? cost_partition[0] :  cost_partition[1])[1] += entry.get_phred_score();
 			break;
 		case Entry::ALLELE2:
-			(entry_in_partition1 ? cost_partition[1] : cost_partition[0])[0] -= entry.get_phred_score();
-			(entry_in_partition1 ? cost_partition[0] :  cost_partition[1])[0] += entry.get_phred_score();
+			(entry_in_partition0 ? cost_partition[1] : cost_partition[0])[0] -= entry.get_phred_score();
+			(entry_in_partition0 ? cost_partition[0] :  cost_partition[1])[0] += entry.get_phred_score();
 			break;
 		case Entry::BLANK:
 			break;
@@ -157,6 +171,9 @@ void PhasingColumnCostComputer::update_partitioning(int bit_to_flip) {
 
 uint32_t PhasingColumnCostComputer::get_cost() {
 	if (!phasable) {
+		return 0;
+	}
+	if (homozygous) {
 		return 0;
 	}
 	uint32_t best_cost = numeric_limits < uint32_t >::max();
@@ -182,6 +199,13 @@ PhasingColumnCostComputer::phased_variant_t PhasingColumnCostComputer::get_allel
 		haps.allele0 = Entry::EQUAL_SCORES;
 		haps.allele1 = Entry::EQUAL_SCORES;
 		haps.quality = 0;
+		return haps;
+	}
+	if (homozygous) {
+		assert(homozygous_allele == Entry::ALLELE1 || homozygous_allele == Entry::ALLELE2);
+		haps.allele0 = homozygous_allele;
+		haps.allele1 = homozygous_allele;
+		haps.quality = numeric_limits<uint32_t>::max();
 		return haps;
 	}
 	uint32_t best_cost = numeric_limits < uint32_t >::max();
@@ -222,7 +246,6 @@ PhasingColumnCostComputer::phased_variant_t PhasingColumnCostComputer::get_allel
 	if (best_cost == numeric_limits < uint32_t >::max()) {
 		throw std::runtime_error("Error: Mendelian conflict");
 	}
-
 	// Test whether some of the allele assignments are ambiguous
 	for (size_t haplotype = 0; haplotype < 2; ++haplotype) {
 		uint32_t quality = abs(((int)(best_cost_for_allele.at(haplotype)[0])) - ((int)(best_cost_for_allele.at(haplotype)[1])));
@@ -262,10 +285,13 @@ int PhasingColumnCostComputer::analyse_entry_alleles() {
 		}
 	}
 	// ratio of informative enties is low
-	if ((allele1_count + allele2_count)/total_count < 0.7) {
+	if (((float)allele1_count + (float)allele2_count)/(float)total_count < 0.7) {
 		return -1;
 	}
-	double allele1_frac = (allele1_count)/((allele1_count + allele2_count));
+	if (unknown_count == total_count) {
+		return -2;
+	}
+	float allele1_frac = ((float)allele1_count)/(((float)allele1_count + (float)allele2_count));
 	if (allele1_frac > 0.9) { return 0; } // HOM-ALLELE1
 	if (allele1_frac > 0.6) { return 1; } // HET/HOM-ALLELE1
 	if (allele1_frac > 0.4) { return 2; } // HET
