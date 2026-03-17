@@ -43,7 +43,8 @@ core_cpp_sources = [
     "src/indexset.cpp",
     "src/read.cpp",
     "src/readset.cpp",
-    "src/transitionprobabilitycomputer.cpp"
+    "src/transitionprobabilitycomputer.cpp",
+    "src/variantinfo.cpp"
 ]
 phasing_cpp_sources = [
     "src/phasing/phasingcolumncostcomputer.cpp",
@@ -70,6 +71,7 @@ test_sources = [
     "src/tests/test_variantinfo.cpp",
     "src/phasing/tests/test_phasingcolumncostcomputer.cpp",
     "src/phasing/tests/test_phasingcolumniterator.cpp",
+    "src/phasing/tests/test_phasingdptable.cpp",
     "src/phasing/readbipartitioning/tests/test_componentfinder.cpp",
     "src/phasing/readbipartitioning/tests/test_phasesetcomputer.cpp"
 ]
@@ -79,7 +81,6 @@ extensions = [
         "giggles.core",
         sources=["giggles/core.pyx"] + core_cpp_sources + phasing_cpp_sources + test_sources
     ),
-    CppExtension("giggles.readselect", sources=["giggles/readselect.pyx"]),
     CppExtension(
         "giggles.align", 
         sources=[
@@ -117,9 +118,7 @@ else:
     cmdclass = {"build_ext": BuildExt}
     ext_modules = extensions
     install_requires = [
-        "pysam>=0.18.0",
-        "pyfaidx>=0.5.5.2",
-        "biopython>=1.73",  # pyfaidx needs this for reading bgzipped FASTA files
+        "pysam>=0.23.0"
     ]
 
 setup(
