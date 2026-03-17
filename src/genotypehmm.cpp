@@ -699,7 +699,8 @@ void GenotypeHMM::compute_forward_column(size_t column_index)
 	variant_info_table->at(column_index).genotype_likelihoods.divide_likelihoods_by(normalization);
 
 	// update the variant info tables active alleles based on the calculated likelihoods
-	variant_info_table->at(column_index).update_active_alleles(ploidy);
+	std::vector<uint32_t> selected_genotype_indices = variant_info_table->at(column_index).genotype_likelihoods.select_genotypes();
+	variant_info_table->at(column_index).update_active_alleles(ploidy, selected_genotype_indices);
 	
 	/**
 	 * Replace the forward values from previous column to current column.
