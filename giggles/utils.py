@@ -3,7 +3,6 @@
 import gzip
 import itertools
 from typing import Sequence
-import pyfaidx
 
 from giggles.logger import logger
 from giggles import __version__
