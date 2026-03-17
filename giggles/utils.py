@@ -37,13 +37,6 @@ def detect_file_format(path):
     return None
 
 
-def IndexedFasta(path):
-    try:
-        f = pyfaidx.Fasta(path, as_raw=True, sequence_always_upper=True, build_index=False)
-    except pyfaidx.IndexNotFoundError:
-        raise Exception(f"FASTA file {path} is not indexed")
-    return f
-
 def select_reads(readset, max_coverage, preferred_source_ids=None):
     logger.info(f"Reducing coverage to at most {max_coverage}X by selecting most informative reads ...")
     selected_indices = readselection(readset, max_coverage, preferred_source_ids)
