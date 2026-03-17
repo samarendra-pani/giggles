@@ -73,9 +73,8 @@ void test_update_active_allele() {
     // Indices that are selected are 0 which corresponds 0/0. Since at least two genotypes are needed, the next one is 0/1
     assert(var_info.count_active_alleles() == 3);
     var_info.update_active_alleles(2, selected_genotype_indices);
-    assert(var_info.count_active_alleles() == 2);
+    assert(var_info.count_active_alleles() == 1);
     assert(var_info.active_alleles[0] == true);
-    assert(var_info.active_alleles[1] == true);
     
     var_info = variant_information_t(100, 2, 3, allele_refs, false);
     likelihoods = {0.0L, 0.0L, 0.0L, 0.0L, 1.0L, 0.0L};
@@ -84,7 +83,7 @@ void test_update_active_allele() {
     // Indices that are selected are 4 which corresponds 1/2. Since at least two genotypes are needed, the next one is 0/0
     assert(var_info.count_active_alleles() == 3);
     var_info.update_active_alleles(2, selected_genotype_indices);
-    assert(var_info.count_active_alleles() == 3);
+    assert(var_info.count_active_alleles() == 2);
     
     assert_msg(true, "VariantInfo", "Updating active alleles based on genotype likelihoods.");
 

@@ -9,11 +9,31 @@
 
 struct variant_information_t {
 
-    uint32_t position; // position in the reference genome
-    std::vector<bool> active_alleles; // alleles that were genotyped to be above a certain quality threshold (for use in phasing at further steps)
-    std::vector<int> allele_references; // contains the info of which allele came from which reference path (0 - reference, 1... - assemblies/GRCh38)
-    bool is_sv; // is this variant a structural variant?
-    GenotypeLikelihoods genotype_likelihoods; // stores genotype likelihoods calculated by the HMM
+    /**
+     * position in the reference genome
+     */
+    uint32_t position;
+    /**
+     * alleles that were genotyped to be above a certain quality threshold (for use in phasing at further steps)
+     */
+    std::vector<bool> active_alleles;
+    /**
+     * contains the info of which allele came from which reference path (0 - reference, 1... - assemblies/GRCh38)
+     */
+    std::vector<int> allele_references;
+    /**
+     * is this variant a structural variant?
+     */
+    bool is_sv;
+    /**
+     * Can this variant position be phased?
+     * Yes if it has 2 or less active alleles.
+     */
+    bool phasable; 
+    /**
+     * stores genotype likelihoods calculated by the HMM
+     */
+    GenotypeLikelihoods genotype_likelihoods;
 
     variant_information_t();
     variant_information_t(uint32_t pos, uint32_t ploidy, const uint32_t n_alleles, const std::vector<int> allele_refs, bool sv_flag);

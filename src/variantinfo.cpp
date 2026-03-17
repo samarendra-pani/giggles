@@ -1,5 +1,28 @@
 #include "variantinfo.h"
 
+variant_information_t::variant_information_t():
+    position(0),
+    active_alleles(),
+    genotype_likelihoods(),
+    allele_references(),
+    is_sv(false),
+    phasable(false) {}
+
+variant_information_t::variant_information_t(uint32_t pos, uint32_t ploidy, const uint32_t n_alleles, const std::vector<int> allele_refs, bool sv_flag): 
+    position(pos),
+    active_alleles(std::vector<bool>(n_alleles, true)),
+    genotype_likelihoods(n_alleles, ploidy),
+    allele_references(allele_refs),
+    is_sv(sv_flag) {
+
+    if (n_alleles == 2 && !is_sv) {
+        phasable = true;
+    }
+    else {
+        phasable = false;
+    }
+}
+
 uint32_t variant_information_t::get_num_alleles() const {
     return active_alleles.size();
 }
@@ -33,5 +56,10 @@ void variant_information_t::update_active_alleles(const uint32_t ploidy, const s
         for (auto allele: alleles) {
             active_alleles[allele] = true;
         }
+    }
+    if (count_active_alleles() <= 2) {
+        phasable = true;
+    } else {
+        phasable = false;
     }
 }
