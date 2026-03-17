@@ -22,11 +22,11 @@ class Realigner:
     def __init__(self, mode: str, bandwidth: int):
         self.mode = mode
         self.bandwidth = bandwidth
-        if mode is "edit":
+        if mode == "edit":
             # params are not used.
             self.realigner = edit_distance
         else:
-            assert mode is "wfa"
+            assert mode == "wfa"
             self.realigner = WFAWrapper(bandwidth)
 
 
