@@ -110,16 +110,13 @@ class BuildExt(Cython.Build.build_ext):
 
 
 # Avoid compilation if we are being installed within Read The Docs
+install_requires = []
 if os.environ.get("READTHEDOCS") == "True":
     cmdclass = {}
     ext_modules = []
-    install_requires = []
 else:
     cmdclass = {"build_ext": BuildExt}
     ext_modules = extensions
-    install_requires = [
-        "pysam>=0.23.0"
-    ]
 
 setup(
     use_scm_version={"write_to": "giggles/_version.py"},

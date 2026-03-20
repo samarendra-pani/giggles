@@ -1,3 +1,81 @@
 [build-system]
 requires = ["setuptools>=43", "setuptools_scm", "cython~=0.29.20"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "giggles"
+authors = [
+    {name = "Samarendra Pani", email = "samarendra.pani@hhu.de"},
+    {name = "Tobias Marschall"}
+]
+maintainers = [
+    {name = "Samarendra Pani", email = "samarendra.pani@hhu.de"}
+]
+description = "Genome inference using long read alignments and pangenome graphs"
+readme = 'docs/README.rst'
+requires-python = ">=3.9"
+license = "MIT"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: C++",
+    "Programming Language :: Cython",
+    "Operating System :: OS Independent",
+    "Environment :: Console",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Bio-Informatics"
+]
+dynamic = ["version"]
+keywords = ["bioinformatics", "genome inference", "pangenome", "long reads"]
+dependencies = [
+    "pysam>=0.23.0"
+]
+
+[project.urls]
+"Homepage" = "https://github.com/samarendra-pani/giggles/"
+"Issues" = "https://github.com/samarendra-pani/giggles/issues"
+"Changelog" = "https://github.com/samarendra-pani/giggles/blob/main/CHANGES.rst"
+
+[project.scripts]
+giggles = "giggles.__main__:main"
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "coverage",
+    "tox",
+    "ruff",
+    "pre-commit",
+    "sphinx",
+    "sphinx-issues",
+    "sphinx-rtd-theme",
+    "sphinx-better-subsection",
+    "setuptools_scm",
+]
+docs = [
+    "sphinx",
+    "sphinx-rtd-theme",
+    "sphinx-issues",
+    "sphinx-better-subsection"
+]
+
+[tool.setuptools]
+has-external-modules = true
+
+[tool.setuptools.packages.find]
+include = ["giggles*"]
+
+[tool.setuptools_scm]
+write_to = "giggles/_version.py"
+
+[tool.pytest.ini_options]
+addopts = "--doctest-modules"
+testpaths = ["tests", "giggles"]
+
+[tool.ruff]
+line-length = 100
+lint.ignore = [
+    "E203",  # whitespace before ':' -- must be ignored for Black
+    "E501",  # line too long
+    "E741",  # Ambiguous variable name
+]
