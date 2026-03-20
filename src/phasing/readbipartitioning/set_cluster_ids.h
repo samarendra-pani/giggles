@@ -5,9 +5,14 @@
 #include <cassert>
 #include <unordered_map>
 #include <utility>
-#include <boost/functional/hash.hpp>
+#include <functional>
 
 #include "../../readset.h"
+
+/**
+ * A pair hash for PS + HP tags together.
+ */
+struct pair_hash;
 
 /**
  * From the tags created for all the reads, this function creates a consistent tag
