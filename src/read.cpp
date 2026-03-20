@@ -78,7 +78,7 @@ void Read::setConstrainedClusterID(uint32_t constrained_cluster_id) {
 
 uint32_t Read::getConstrainedClusterID() const {
 	if (!has_constrained_cluster) {
-		throw std::runtime_error("Constrained cluster ID not set for read " + name);
+		return (uint32_t)-1;
 	}
 	return constrained_cluster_id;
 }
