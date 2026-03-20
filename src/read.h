@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 #include <unordered_set>
+#include <cstdint>
 
 #include "entry.h"
 

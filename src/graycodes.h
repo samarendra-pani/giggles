@@ -5,6 +5,7 @@
 
 #include <iostream>
 #include <vector>
+#include <cstdint>
 
 /** A class to generate Gray codes. 
   * Implementation is based on
