@@ -40,10 +40,30 @@ PhasingDPTable::PhasingDPTable(ReadSet* read_set, const vector<variant_informati
 			accessible_positions->push_back(variant_info_table->at(i).position);
 		}
 	}
+	std::cout << "[0]" << std::endl;
+	for (uint32_t i = 0; i < read_set->size(); i++) {
+        std::cout << read_set->get(i)->getName() << "\t\t" << read_set->get(i)->getClusterStatus() << "\t\t" << read_set->get(i)->getClusterID() <<"\t\t" << read_set->get(i)->getConstrainedClusterID() << std::endl;
+    }
 	compute_phasesets(accessible_positions, read_set, superreads);
+	std::cout << "\n[1]" << std::endl;
+	for (uint32_t i = 0; i < read_set->size(); i++) {
+        std::cout << read_set->get(i)->getName() << "\t\t" << read_set->get(i)->getClusterStatus() << "\t\t" << read_set->get(i)->getClusterID() <<"\t\t" << read_set->get(i)->getConstrainedClusterID() << std::endl;
+    }
 	haplotag_selected_reads(read_set, optimal_partitioning);
+	std::cout << "\n[2]" << std::endl;
+	for (uint32_t i = 0; i < read_set->size(); i++) {
+        std::cout << read_set->get(i)->getName() << "\t\t" << read_set->get(i)->getClusterStatus() << "\t\t" << read_set->get(i)->getClusterID() <<"\t\t" << read_set->get(i)->getConstrainedClusterID() << std::endl;
+    }
 	haplotag_unselected_reads(read_set, superreads); // phasesets have to be called before this function.
+	std::cout << "\n[3]" << std::endl;
+	for (uint32_t i = 0; i < read_set->size(); i++) {
+        std::cout << read_set->get(i)->getName() << "\t\t" << read_set->get(i)->getClusterStatus() << "\t\t" << read_set->get(i)->getClusterID() <<"\t\t" << read_set->get(i)->getConstrainedClusterID() << std::endl;
+    }
 	set_read_cluster_ids(read_set);
+	std::cout << "\n[4]" << std::endl;
+	for (uint32_t i = 0; i < read_set->size(); i++) {
+        std::cout << read_set->get(i)->getName() << "\t\t" << read_set->get(i)->getClusterStatus() << "\t\t" << read_set->get(i)->getClusterID() <<"\t\t" << read_set->get(i)->getConstrainedClusterID() << std::endl;
+    }
 	delete superreads;
 	delete accessible_positions;
 }
@@ -300,7 +320,7 @@ uint32_t PhasingDPTable::get_optimal_score() {
 
 void PhasingDPTable::get_super_reads(ReadSet* output_read_set) {
 	assert(output_read_set != nullptr);
-	assert(output_read_set->size() == 1);
+	assert(output_read_set->size() == 0);
 
 	input_column_iterator.jump_to_column(0);
 	
@@ -337,8 +357,8 @@ void PhasingDPTable::get_super_reads(ReadSet* output_read_set) {
 			} else {
 				assert (active_alleles.size() == 2);
 				// TODO: compute proper weights based on likelihoods.
-				superreads.first->addVariant(pos, vector<uint32_t>(population_alleles.quality), population_alleles.allele0);
-				superreads.second->addVariant(pos, vector<uint32_t>(population_alleles.quality), population_alleles.allele1);
+				superreads.first->addVariant(pos, vector<uint32_t>{}, population_alleles.allele0);
+				superreads.second->addVariant(pos, vector<uint32_t>{}, population_alleles.allele1);
 			}
 			++i; // next column
 		}

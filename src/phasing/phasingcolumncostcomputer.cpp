@@ -198,14 +198,12 @@ PhasingColumnCostComputer::phased_variant_t PhasingColumnCostComputer::get_allel
 	if (!phasable) {
 		haps.allele0 = Entry::EQUAL_SCORES;
 		haps.allele1 = Entry::EQUAL_SCORES;
-		haps.quality = 0;
 		return haps;
 	}
 	if (homozygous) {
 		assert(homozygous_allele == Entry::ALLELE1 || homozygous_allele == Entry::ALLELE2);
 		haps.allele0 = homozygous_allele;
 		haps.allele1 = homozygous_allele;
-		haps.quality = numeric_limits<uint32_t>::max();
 		return haps;
 	}
 	uint32_t best_cost = numeric_limits < uint32_t >::max();
@@ -249,7 +247,6 @@ PhasingColumnCostComputer::phased_variant_t PhasingColumnCostComputer::get_allel
 	// Test whether some of the allele assignments are ambiguous
 	for (size_t haplotype = 0; haplotype < 2; ++haplotype) {
 		uint32_t quality = abs(((int)(best_cost_for_allele.at(haplotype)[0])) - ((int)(best_cost_for_allele.at(haplotype)[1])));
-		haps.quality = (uint32_t)quality;
 		if (quality == 0) {
 			if (haplotype == 0) {
 				haps.allele0 = Entry::EQUAL_SCORES;
