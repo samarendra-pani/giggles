@@ -9,7 +9,7 @@ tmp/
 *.bak
 MANIFEST
 raw/
-doc/_build
+docs/_build
 dist/
 giggles.egg-info/
 .tox
