@@ -55,11 +55,13 @@ void find_phasesets_tag_reads(ComponentFinder<uint32_t>* component_finder, const
         else {
             // finding heterozygous positions in the read and checking their components
             bool all_same_component = true;
+            bool has_het_position = false;
             uint32_t rep = 0;
             for (uint32_t j = 0; j < read->getVariantCount(); ++j) {
                 uint32_t pos = read->getPosition(j);
                 if (heterozygous_positions.find(pos) != heterozygous_positions.end())
                 {
+                    has_het_position = true;
                     uint32_t comp = component_finder->find(pos);
                     if (rep == 0) {
                         rep = comp;
@@ -69,8 +71,10 @@ void find_phasesets_tag_reads(ComponentFinder<uint32_t>* component_finder, const
                         break;
                     }
                 }
+                else {
+                }
             }
-            if (all_same_component) {
+            if (all_same_component && has_het_position) {
                 read->setPhaseSet(rep);
             }
         }  
