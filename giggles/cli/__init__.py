@@ -43,7 +43,10 @@ class ReadSetCreator:
                     if haplotag.hp != 'none':
                         assert haplotag.hp == 'H1' or haplotag.hp == 'H2'
                         read.sort()
-                        read.add_haplotag(haplotag.hp)
+                        if haplotag.hp == 'H1':
+                            read.add_haplotag(False)
+                        else:
+                            read.add_haplotag(True)
                         read.add_phaseset(haplotag.ps)
                         new_readset.add(read)
                 else:

@@ -22,7 +22,8 @@ class Read {
 		void addVariant(uint32_t position, std::vector<long double> scores);
 		// adding a variant whose allele has been pre-computed. used for the superread haplotypes.
 		void addVariant(uint32_t position, std::vector<uint32_t> scores, Entry::allele_t allele);
-		void setHaplotag(std::string hp);
+		void setHaplotag(bool hp);
+		void unsetHaplotag();
 		void unsetPhaseSet();
 		void setPhaseSet(uint32_t ps);
 		void setClusterID(uint32_t cluster_id);

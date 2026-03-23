@@ -149,10 +149,8 @@ cdef class Read:
 			int_scores = scores
 			self.thisptr.addVariant(position, int_scores)
 
-	def add_haplotag(self, str hp, int ps):
-		cdef string _hp = b''
-		_hp = hp.encode('UTF-8')
-		self.thisptr.setHaplotag(_hp)
+	def add_haplotag(self, bool hp):
+		self.thisptr.setHaplotag(hp)
 	
 	def add_phaseset(self, int ps):
 		self.thisptr.setPhaseSet(ps)

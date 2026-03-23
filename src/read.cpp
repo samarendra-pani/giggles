@@ -43,12 +43,14 @@ string Read::toString() {
 	return oss.str();
 }
 
+void Read::unsetHaplotag() {
+	this->hp = false;
+	this->has_hp = false;
+}
 
-void Read::setHaplotag(std::string hp) {
-	if (hp == "H1") {this->hp = false; this->has_hp = true;}
-	if (hp == "H2") {this->hp = true; this->has_hp = true;}
-	//if (hp == "none") {throw std::runtime_error("Read with 'none' haplotag found. These should be filtered.");}
-	if (hp == "none") {this->hp = false; this->has_hp = false;}
+void Read::setHaplotag(bool hp) {
+	this->hp = hp;
+	this->has_hp = true;
 }
 
 void Read::setClusterID(uint32_t cluster_id) {

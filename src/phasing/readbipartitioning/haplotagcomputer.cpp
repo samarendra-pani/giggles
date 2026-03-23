@@ -29,6 +29,7 @@ void haplotag_unselected_reads(ReadSet* read_set, ReadSet* superreads) {
     std::unordered_map<uint32_t, uint32_t> position_to_index;
     for (uint32_t i = 0; i < superread0->getVariantCount(); ++i) {
         uint32_t pos = superread0->getPosition(i);
+        assert(pos == superread1->getPosition(i));
         position_to_index[pos] = i;
     }
 
@@ -45,9 +46,9 @@ void haplotag_unselected_reads(ReadSet* read_set, ReadSet* superreads) {
         uint32_t distance_to_hap1 = calculate_distance_from_superread(read, superread1, position_to_index);
 
         if (distance_to_hap0 < distance_to_hap1) {
-            read->setHaplotag("H1");
+            read->setHaplotag(false);
         } else if (distance_to_hap1 < distance_to_hap0) {
-            read->setHaplotag("H2");
+            read->setHaplotag(true);
         }
     }
 }
@@ -61,9 +62,9 @@ void haplotag_selected_reads(ReadSet* read_set, const std::vector<bool>* partiti
             continue;
         }
         if (partitioning->at(i)) {
-            read->setHaplotag("H1");
+            read->setHaplotag(false);
         } else {
-            read->setHaplotag("H2");
+            read->setHaplotag(true);
         }
     }
 }
