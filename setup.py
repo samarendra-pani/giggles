@@ -73,7 +73,8 @@ test_sources = [
     "src/phasing/tests/test_phasingcolumniterator.cpp",
     "src/phasing/tests/test_phasingdptable.cpp",
     "src/phasing/readbipartitioning/tests/test_componentfinder.cpp",
-    "src/phasing/readbipartitioning/tests/test_phasesetcomputer.cpp"
+    "src/phasing/readbipartitioning/tests/test_phasesetcomputer.cpp",
+    "src/phasing/readbipartitioning/tests/test_haplotagcomputer.cpp"
 ]
 
 extensions = [
@@ -82,12 +83,13 @@ extensions = [
         sources=["giggles/core.pyx"] + core_cpp_sources + phasing_cpp_sources + test_sources
     ),
     CppExtension(
-        "giggles.align", 
+        "giggles.ext",
         sources=[
-            "giggles/align.pyx",
+            "giggles/ext.pyx",
             "external/wrappers/wfawrapper.cpp"
         ]
     ),
+    CppExtension("giggles.align", sources=["giggles/align.pyx"]),
     CppExtension("giggles.priorityqueue", sources=["giggles/priorityqueue.pyx"]),
     CppExtension("giggles._variants", sources=["giggles/_variants.pyx"]),
 ]

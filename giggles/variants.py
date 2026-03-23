@@ -11,7 +11,8 @@ from giggles.logger import logger
 from giggles.core import Read, ReadSet
 from giggles.gaf import GafParser, rGFA, GafAlignment
 from giggles.vcf import VcfVariant
-from giggles.align import edit_distance, WFAWrapper
+from giggles.align import edit_distance
+from giggles.ext import WFAWrapper
 from giggles._variants import _iterate_cigar
 
 
