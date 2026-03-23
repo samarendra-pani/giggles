@@ -36,7 +36,7 @@ void test_heterozygous_positions() {
     std::vector<uint32_t> expected_het_positions = {100, 400, 600, 800, 900, 1100, 1500};
     std::unordered_set<uint32_t> tempSet(expected_het_positions.begin(), expected_het_positions.end());
     assert(tempSet == heterozygous_positions);
-    assert_msg(true, "PhaseSetComputer", "Heterozygous positions.");
+    assert_msg(true, "PhasesetComputer", "Heterozygous positions.");
 
     delete superreads;
     delete accessible_positions;
@@ -69,7 +69,7 @@ void test_non_overlapping_reads() {
     assert(read2->hasPhaseSet());
     assert(read2->getPhaseSet() == 400);
 
-    assert_msg(true, "PhaseSetComputer", "Reads without overlapping HET position.");
+    assert_msg(true, "PhasesetComputer", "Reads without overlapping HET position.");
 }
 
 void test_overlapping_reads() {
@@ -101,7 +101,7 @@ void test_overlapping_reads() {
     assert(read2->hasPhaseSet());
     assert(read2->getPhaseSet() == 100);
 
-    assert_msg(true, "PhaseSetComputer", "Reads with overlapping HET position.");
+    assert_msg(true, "PhasesetComputer", "Reads with overlapping HET position.");
 
 }
 
@@ -126,7 +126,7 @@ void test_read_not_covering_het() {
     assert(!read1->hasPhaseSet());
     assert(!read2->hasPhaseSet());
     
-    assert_msg(true, "PhaseSetComputer", "Reads not covering any HET positions.");
+    assert_msg(true, "PhasesetComputer", "Reads not covering any HET positions.");
 }
 
 void test_unselected_read() {
@@ -254,7 +254,7 @@ void test_unselected_read() {
     compute_phasesets(&accessible_positions, read_set, superreads);
     assert(!read3->hasPhaseSet());
     
-    assert_msg(true, "PhaseSetComputer", "Reads not selected for phasing.");
+    assert_msg(true, "PhasesetComputer", "Reads not selected for phasing.");
     
 }
 
