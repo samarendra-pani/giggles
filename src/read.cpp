@@ -19,7 +19,7 @@ Read::Read(const std::string& name, uint32_t mapq, uint32_t source_id):
 	hp = false;
 	has_hp = false;
 	ps = 0;
-	has_hp = false;
+	has_ps = false;
 	is_clustered = false;
 	cluster_id = 0;
 	constrained_cluster_id = 0;
