@@ -28,10 +28,14 @@ void run_all_tests() {
 
     std::cout << "\n================ Testing ComponentFinder =======================" << std::endl;
     test_componentfinder();
-//    std::cout << "\n================ Testing PhasesetComputer ======================" << std::endl;
-//    test_phasesetcomputer();
+    std::cout << "\n================ Testing PhasesetComputer ======================" << std::endl;
+    test_phasesetcomputer();
+    std::cout << "\n================ Testing HaplotagComputer ======================" << std::endl;
+    test_haplotagcomputer();
     std::cout << "\n================ Testing PhasingColumnIterator =================" << std::endl;
     test_phasingcolumniterator();
     std::cout << "\n================ Testing PhasingColumnCostComputer =============" << std::endl;
     test_phasingcolumncostcomputer();
+    std::cout << "\n================ Testing PhasingDPTable ========================" << std::endl;
+    test_phasingdptable();
 }

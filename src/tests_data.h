@@ -19,4 +19,6 @@ ReadSet* mock_readset_2();
 
 ReadSet* mock_superreads();
 
+std::vector<variant_information_t> mock_variant_info_table_3();
+
 #endif // TESTS_DATA_H

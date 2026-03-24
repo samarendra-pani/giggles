@@ -370,14 +370,14 @@ void PhasingDPTable::get_super_reads(ReadSet* output_read_set) {
 
 
 const vector<bool>* PhasingDPTable::get_optimal_partitioning() {
-	vector<bool>* partitioning = new vector<bool>(read_set->size(),false);
+	vector<bool>* partitioning = new vector<bool>(read_set->size(), false);
 
 	for(size_t i=0; i< index_path.size(); ++i) {
 		uint32_t mask = 1; // mask to pass over the partitioning (i.e., index)
 		for(size_t j=0; j< indexers[i]->get_read_ids()->size(); ++j) {
 			uint32_t index = index_path[i];
 			if((index & mask) == 0) { // id at this index is in p0 (i.e., in the part.)
-				partitioning->at(indexers[i]->get_read_ids()->at(j)) = true;
+				partitioning->at(indexers[i]->get_read_ids()->at(j)) = false;
 			}
 			mask = mask << 1;
 		}

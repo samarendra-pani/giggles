@@ -10,6 +10,15 @@ uint32_t calculate_distance_from_superread(Read* read, Read* superread, const st
             uint32_t superread_index = it->second;
             Entry* read_entry = read->getEntry(i);
             Entry* superread_entry = superread->getEntry(superread_index);
+            /** Not considering positions where the allele type is BLANK or EQUAL SCORE */
+            if (superread_entry->get_allele_type() == Entry::BLANK || superread_entry->get_allele_type() == Entry::EQUAL_SCORES) {
+                continue;
+            }
+            if (read_entry->get_allele_type() == Entry::BLANK || read_entry->get_allele_type() == Entry::EQUAL_SCORES) {
+                continue;
+            }
+            assert(read_entry->get_allele_type() == Entry::ALLELE1 || read_entry->get_allele_type() == Entry::ALLELE2);
+            assert(superread_entry->get_allele_type() == Entry::ALLELE1 || superread_entry->get_allele_type() == Entry::ALLELE2);
             if (read_entry->get_allele_type() != superread_entry->get_allele_type()) {
                 distance += 1; // Increment distance for mismatch
             }
@@ -36,15 +45,12 @@ void haplotag_unselected_reads(ReadSet* read_set, ReadSet* superreads) {
     // Haplotag each read based on distance to superreads
     for (uint32_t i = 0; i < read_set->size(); ++i) {
         Read* read = read_set->get(i);
-        if (read->isSelected()) {
-            continue; // Skip selected reads. Their haplotag comes from the DP table.
-        }
-        if (read->getPhaseSet() == -1) {
-            continue; // Skip reads without a phaseset.
-        }
+        /** Skip selected reads. Their haplotag comes from the DP table. */
+        if (read->isSelected()) { continue; }
+        /** Skip reads without a phaseset. */
+        if (!read->hasPhaseSet()) { continue; }
         uint32_t distance_to_hap0 = calculate_distance_from_superread(read, superread0, position_to_index);
         uint32_t distance_to_hap1 = calculate_distance_from_superread(read, superread1, position_to_index);
-
         if (distance_to_hap0 < distance_to_hap1) {
             read->setHaplotag(false);
         } else if (distance_to_hap1 < distance_to_hap0) {
@@ -58,13 +64,9 @@ void haplotag_selected_reads(ReadSet* read_set, const std::vector<bool>* partiti
     for (uint32_t i = 0; i < read_set->size(); ++i) {
         Read* read = read_set->get(i);
         if (!read->isSelected()) {
-            assert (partitioning->at(i) == false); // they should be partitioned in the DP table as false/
+            assert (partitioning->at(i) == false); // they should be partitioned in the DP table as false
             continue;
         }
-        if (partitioning->at(i)) {
-            read->setHaplotag(false);
-        } else {
-            read->setHaplotag(true);
-        }
+        read->setHaplotag(partitioning->at(i));
     }
 }

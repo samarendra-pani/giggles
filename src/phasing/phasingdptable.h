@@ -77,8 +77,10 @@ class PhasingDPTable {
 		 */
 		void get_super_reads(ReadSet* output_read_set);
 
-		/** Performs a backtrace through the DP table and returns optimal partitioning of the reads.
-		 *  Pointer ownership is transferred to caller. */
+		/** 
+		 * Performs a backtrace through the DP table and returns optimal partitioning of the reads.
+		 * Reads are given the bool value false if they are in partition0 and true if they are in partition1.
+		 */
 		const std::vector<bool>* get_optimal_partitioning();
 
 	public:

@@ -24,9 +24,11 @@
 
 #include "phasing/readbipartitioning/tests/test_componentfinder.h"
 #include "phasing/readbipartitioning/tests/test_phasesetcomputer.h"
+#include "phasing/readbipartitioning/tests/test_haplotagcomputer.h"
 
 #include "phasing/tests/test_phasingcolumniterator.h"
 #include "phasing/tests/test_phasingcolumncostcomputer.h"
+#include "phasing/tests/test_phasingdptable.h"
 
 void run_all_tests();
 

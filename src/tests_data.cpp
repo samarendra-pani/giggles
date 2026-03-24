@@ -296,50 +296,50 @@ ReadSet* mock_superreads() {
     superreads->add(superread0);
     superreads->add(superread1);
 
-    superread0->addVariant(100, std::vector<uint32_t>{10}, Entry::ALLELE1);
-    superread1->addVariant(100, std::vector<uint32_t>{20}, Entry::ALLELE2);
+    superread0->addVariant(100, std::vector<uint32_t>{}, Entry::ALLELE1);
+    superread1->addVariant(100, std::vector<uint32_t>{}, Entry::ALLELE2);
     
-    superread0->addVariant(200, std::vector<uint32_t>{10}, Entry::EQUAL_SCORES);
-    superread1->addVariant(200, std::vector<uint32_t>{10}, Entry::EQUAL_SCORES);
+    superread0->addVariant(200, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
+    superread1->addVariant(200, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
     
-    superread0->addVariant(300, std::vector<uint32_t>{20}, Entry::ALLELE1);
-    superread1->addVariant(300, std::vector<uint32_t>{30}, Entry::ALLELE1);
+    superread0->addVariant(300, std::vector<uint32_t>{}, Entry::ALLELE1);
+    superread1->addVariant(300, std::vector<uint32_t>{}, Entry::ALLELE1);
     
-    superread0->addVariant(400, std::vector<uint32_t>{5}, Entry::ALLELE2);
-    superread1->addVariant(400, std::vector<uint32_t>{20}, Entry::ALLELE1);
+    superread0->addVariant(400, std::vector<uint32_t>{}, Entry::ALLELE2);
+    superread1->addVariant(400, std::vector<uint32_t>{}, Entry::ALLELE1);
     
     superread0->addVariant(500, std::vector<uint32_t>{}, Entry::BLANK);
     superread1->addVariant(500, std::vector<uint32_t>{}, Entry::BLANK);
     
-    superread0->addVariant(600, std::vector<uint32_t>{5}, Entry::ALLELE1);
-    superread1->addVariant(600, std::vector<uint32_t>{20}, Entry::ALLELE2);
+    superread0->addVariant(600, std::vector<uint32_t>{}, Entry::ALLELE1);
+    superread1->addVariant(600, std::vector<uint32_t>{}, Entry::ALLELE2);
 
-    superread0->addVariant(700, std::vector<uint32_t>{5}, Entry::ALLELE2);
-    superread1->addVariant(700, std::vector<uint32_t>{5}, Entry::ALLELE2);
+    superread0->addVariant(700, std::vector<uint32_t>{}, Entry::ALLELE2);
+    superread1->addVariant(700, std::vector<uint32_t>{}, Entry::ALLELE2);
 
-    superread0->addVariant(800, std::vector<uint32_t>{5}, Entry::ALLELE2);
-    superread1->addVariant(800, std::vector<uint32_t>{20}, Entry::ALLELE1);
+    superread0->addVariant(800, std::vector<uint32_t>{}, Entry::ALLELE2);
+    superread1->addVariant(800, std::vector<uint32_t>{}, Entry::ALLELE1);
     
-    superread0->addVariant(900, std::vector<uint32_t>{5}, Entry::ALLELE1);
-    superread1->addVariant(900, std::vector<uint32_t>{20}, Entry::ALLELE2);
+    superread0->addVariant(900, std::vector<uint32_t>{}, Entry::ALLELE1);
+    superread1->addVariant(900, std::vector<uint32_t>{}, Entry::ALLELE2);
 
     superread0->addVariant(1000, std::vector<uint32_t>{}, Entry::BLANK);
     superread1->addVariant(1000, std::vector<uint32_t>{}, Entry::BLANK);
     
-    superread0->addVariant(1100, std::vector<uint32_t>{5}, Entry::ALLELE2);
-    superread1->addVariant(1100, std::vector<uint32_t>{20}, Entry::ALLELE1);
+    superread0->addVariant(1100, std::vector<uint32_t>{}, Entry::ALLELE2);
+    superread1->addVariant(1100, std::vector<uint32_t>{}, Entry::ALLELE1);
 
-    superread0->addVariant(1200, std::vector<uint32_t>{15}, Entry::ALLELE1);
-    superread1->addVariant(1200, std::vector<uint32_t>{10}, Entry::ALLELE1);
+    superread0->addVariant(1200, std::vector<uint32_t>{}, Entry::ALLELE1);
+    superread1->addVariant(1200, std::vector<uint32_t>{}, Entry::ALLELE1);
 
-    superread0->addVariant(1300, std::vector<uint32_t>{0}, Entry::EQUAL_SCORES);
-    superread1->addVariant(1300, std::vector<uint32_t>{10}, Entry::ALLELE1);
+    superread0->addVariant(1300, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
+    superread1->addVariant(1300, std::vector<uint32_t>{}, Entry::ALLELE1);
     
-    superread0->addVariant(1400, std::vector<uint32_t>{10}, Entry::ALLELE2);
-    superread1->addVariant(1400, std::vector<uint32_t>{0}, Entry::EQUAL_SCORES);
+    superread0->addVariant(1400, std::vector<uint32_t>{}, Entry::ALLELE2);
+    superread1->addVariant(1400, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
     
-    superread0->addVariant(1500, std::vector<uint32_t>{5}, Entry::ALLELE2);
-    superread1->addVariant(1500, std::vector<uint32_t>{20}, Entry::ALLELE1);
+    superread0->addVariant(1500, std::vector<uint32_t>{}, Entry::ALLELE2);
+    superread1->addVariant(1500, std::vector<uint32_t>{}, Entry::ALLELE1);
 
     /**
      * Summary of Superreads
@@ -380,6 +380,9 @@ std::vector<variant_information_t> mock_variant_info_table_3() {
 
     for (uint32_t i = 0; i < position.size(); i++) {
         variant_info_table.push_back(variant_information_t(position[i], ploidy, n_alleles[i], allele_references[i], is_sv_position[i]));
+        /** Just changing the phasable bool value. */
+        if (position[i] == 500 || position[i] == 1000) { variant_info_table[i].phasable = false; }
+        else { variant_info_table[i].phasable = true; }
     }
     
     /**
@@ -389,6 +392,7 @@ std::vector<variant_information_t> mock_variant_info_table_3() {
      * Position                | 100  | 200  | 300  | 400  | 500  | 600  | 700  | 800  | 900  | 1000 | 1100 | 1200 | 1300 | 1400 | 1500 |
      * Number of Alleles       | 2    | 2    | 4    | 3    | 3    | 2    | 2    | 2    | 2    | 4    | 2    | 3    | 3    | 4    | 2    |
      * Is a SV?                | N    | Y    | N    | Y    | N    | N    | Y    | Y    | N    | Y    | N    | N    | N    | N    | N    |
+     * Phasable?               | Y    | Y    | Y    | Y    | N    | Y    | Y    | Y    | Y    | N    | Y    | Y    | Y    | Y    | Y    |
      */
     return variant_info_table;
 }
