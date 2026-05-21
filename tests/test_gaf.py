@@ -132,7 +132,7 @@ def test_gaf_variant_position_identification_with_ext(tmp_path):
         chromosome = variant_table.chromosome
         alignments = gaf_reader._usable_alignments(chromosome=chromosome)
         updated_variants = gaf_reader._update_variants_in_alignments(alignments=alignments, variants=variant_table.variants)
-        for variants_in_alignment, alignment, _, _ in updated_variants:
+        for variants_in_alignment, alignment, _ in updated_variants:
             count_not_in_test = 0
             read_id = alignment.read_id
             expected = truth_data[read_id]
@@ -203,7 +203,7 @@ def test_gaf_variant_position_identification_no_ext(tmp_path):
         chromosome = variant_table.chromosome
         alignments = gaf_reader._usable_alignments(chromosome=chromosome)
         updated_variants = gaf_reader._update_variants_in_alignments(alignments=alignments, variants=variant_table.variants)
-        for variants_in_alignment, alignment, _, _ in updated_variants:
+        for variants_in_alignment, alignment, _ in updated_variants:
             count_not_in_test = 0
             read_id = alignment.read_id
             expected = truth_data[read_id]
