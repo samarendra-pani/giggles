@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=43", "setuptools_scm", "cython~=0.29.20"]
+requires = ["setuptools>=43", "setuptools_scm", "cython>=3.1.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -23,7 +23,7 @@ classifiers = [
     "Operating System :: OS Independent",
     "Environment :: Console",
     "Intended Audience :: Science/Research",
-    "Topic :: Scientific/Engineering :: Bio-Informatics"
+    "Topic :: Scientific/Engineering :: Bioinformatics"
 ]
 dynamic = ["version"]
 keywords = ["bioinformatics", "genome inference", "pangenome", "long reads"]
