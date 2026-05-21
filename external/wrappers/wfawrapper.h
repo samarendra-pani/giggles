@@ -12,7 +12,7 @@ class WFAWrapper {
     
     public:
         
-        WFAWrapper(uint32_t bandwidth);
+        WFAWrapper(int32_t bandwidth);
 
         virtual ~WFAWrapper();
        
@@ -33,6 +33,9 @@ class WFAWrapper {
          * aligners defined based on their type
          */
         WFAlignerEdit* aligner;
+
+        /** the bandwidth */
+        int32_t bandwidth;
 
 };
 

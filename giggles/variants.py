@@ -37,6 +37,7 @@ class Realigner:
         Args
             query: the sequence on the read
             allele: the sequence of alleles given in the VCF (padded with some overhangs)
+            state: type of alignment (0, 1, 2, or 3)
         
         Returns
             int: the distance between the two string (always positive)
@@ -288,7 +289,7 @@ class AlignmentReader:
         
         if variant.state == 0:
             best_allele = ref if closest_allele_idx == 0 else alts[closest_allele_idx-1]
-            best_score = aligner.get_distance(query, best_allele)
+            best_score = aligner.get_distance(query, best_allele, 0)
             
             scores = []
             for idx, allele in enumerate([ref]+alts):

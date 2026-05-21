@@ -1,14 +1,14 @@
 # cython: language_level=3
 
 from libcpp.string cimport string
-from libc.stdint cimport uint8_t, uint32_t
+from libc.stdint cimport uint8_t, int32_t
 
 """
 Wrapper for WFA2-lib
 """
 cdef class WFAWrapper:
 	def __cinit__(self, bandwidth):
-		cdef uint32_t _bandwidth = bandwidth
+		cdef int32_t _bandwidth = bandwidth
 		self.thisptr = new extcpp.WFAWrapper(_bandwidth)
 	
 	def __dealloc__(self):
