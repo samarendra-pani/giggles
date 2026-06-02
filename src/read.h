@@ -42,7 +42,6 @@ class Read {
 		bool getHaplotag() const;
 		uint32_t getPhaseSet() const;
 		uint32_t getClusterID() const;
-		bool getClusterStatus() const;
 		uint32_t getConstrainedClusterID() const;
 		const std::vector<uint32_t>& getMapqs() const;
 		uint32_t getVariantCount() const;

@@ -69,10 +69,6 @@ uint32_t Read::getClusterID() const {
 	return cluster_id;
 }
 
-bool Read::getClusterStatus() const {
-	return is_clustered;
-}
-
 void Read::setConstrainedClusterID(uint32_t constrained_cluster_id) {
 	this->has_constrained_cluster = true;
 	this->constrained_cluster_id = constrained_cluster_id;
