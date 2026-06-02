@@ -20,11 +20,9 @@ void set_read_cluster_ids(ReadSet* read_set) {
     for (uint32_t i = 0; i < read_set->size(); ++i) {
         Read* read = read_set->get(i);
         if (read->hasPhaseSet() && read->hasHaplotag()) {
-            std::pair<u_int32_t, bool> key = std::make_pair(read->getPhaseSet(), read->getHaplotag());
-            if (cluster_map.find(key) == cluster_map.end()) {
-                cluster_map[key] = read->getID();
-            }
-            read->setClusterID(cluster_map[key]);
+            std::pair<uint32_t, bool> key = std::make_pair(read->getPhaseSet(), read->getHaplotag());
+            auto [it, inserted] = cluster_map.try_emplace(key, read->getID());
+            read->setClusterID(it->second);
             read->setClusterStatus(true);
         } else {
             // Untagged reads get their own read ID as cluster ID.
@@ -38,15 +36,22 @@ void set_read_cluster_ids(ReadSet* read_set) {
      */
     for (uint32_t i = 0; i < read_set->size(); ++i) {
         Read* read = read_set->get(i);
-        if (read->getClusterStatus()) {
+        if (read->isClustered()) {
             uint32_t cluster_ps = read->getPhaseSet();
             bool cluster_hp = read->getHaplotag();
             // Find other haplotag in the same phaseset
-            uint32_t constrained_cluster_id = cluster_map[std::make_pair(cluster_ps, !cluster_hp)];
-            read->setConstrainedClusterID(constrained_cluster_id);
+            auto key = std::make_pair(cluster_ps, !cluster_hp);
+            auto it = cluster_map.find(key);
+            if (it != cluster_map.end()) {
+                uint32_t constrained_cluster_id = it->second;
+                read->setConstrainedClusterID(constrained_cluster_id);
+            }
+            else {
+                // read might be clustered but the constrained cluster might not exist.
+            }
         }
         else {
-            // untagged reads do not have constrained clusters
+            // unclustered reads do not have constrained clusters
         }
     }
 }
