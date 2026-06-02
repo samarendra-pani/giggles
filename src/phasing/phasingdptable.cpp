@@ -40,30 +40,10 @@ PhasingDPTable::PhasingDPTable(ReadSet* read_set, const vector<variant_informati
 			accessible_positions->push_back(variant_info_table->at(i).position);
 		}
 	}
-	std::cout << "[0]" << std::endl;
-	for (uint32_t i = 0; i < read_set->size(); i++) {
-        std::cout << read_set->get(i)->getName() << "\t\t" << read_set->get(i)->getClusterStatus() << "\t\t" << read_set->get(i)->getClusterID() <<"\t\t" << read_set->get(i)->getConstrainedClusterID() << std::endl;
-    }
 	compute_phasesets(accessible_positions, read_set, superreads);
-	std::cout << "\n[1]" << std::endl;
-	for (uint32_t i = 0; i < read_set->size(); i++) {
-        std::cout << read_set->get(i)->getName() << "\t\t" << read_set->get(i)->getClusterStatus() << "\t\t" << read_set->get(i)->getClusterID() <<"\t\t" << read_set->get(i)->getConstrainedClusterID() << std::endl;
-    }
 	haplotag_selected_reads(read_set, optimal_partitioning);
-	std::cout << "\n[2]" << std::endl;
-	for (uint32_t i = 0; i < read_set->size(); i++) {
-        std::cout << read_set->get(i)->getName() << "\t\t" << read_set->get(i)->getClusterStatus() << "\t\t" << read_set->get(i)->getClusterID() <<"\t\t" << read_set->get(i)->getConstrainedClusterID() << std::endl;
-    }
 	haplotag_unselected_reads(read_set, superreads); // phasesets have to be called before this function.
-	std::cout << "\n[3]" << std::endl;
-	for (uint32_t i = 0; i < read_set->size(); i++) {
-        std::cout << read_set->get(i)->getName() << "\t\t" << read_set->get(i)->getClusterStatus() << "\t\t" << read_set->get(i)->getClusterID() <<"\t\t" << read_set->get(i)->getConstrainedClusterID() << std::endl;
-    }
 	set_read_cluster_ids(read_set);
-	std::cout << "\n[4]" << std::endl;
-	for (uint32_t i = 0; i < read_set->size(); i++) {
-        std::cout << read_set->get(i)->getName() << "\t\t" << read_set->get(i)->getClusterStatus() << "\t\t" << read_set->get(i)->getClusterID() <<"\t\t" << read_set->get(i)->getConstrainedClusterID() << std::endl;
-    }
 	delete superreads;
 	delete accessible_positions;
 }
