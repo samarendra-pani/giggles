@@ -41,14 +41,23 @@ string ReadSet::toString() {
 }
 
 
-void ReadSet::sort() {
+void ReadSet::initialize() {
 	// Sort the reads by position
 	std::sort(reads.begin(), reads.end(), read_comparator_t());
-	
 	// Update read_name_map
 	read_name_map.clear();
+	pos_to_entry_map.clear();
 	for (size_t i=0; i<reads.size(); ++i) {
-		read_name_map[name_and_source_id_t(reads[i]->getName(), reads[i]->getSourceID())] = i;
+		Read* read = reads[i];
+		read_name_map[name_and_source_id_t(read->getName(), read->getSourceID())] = i;
+		read->setID(i);
+		// iterating through the Entries and creating the map from variant position to Entry pointers.
+		for (size_t j=0; j < read->getVariantCount(); ++j) {
+			uint32_t pos = read->getPosition(j);
+            Entry* e = read->getEntry(j);
+            auto [it, inserted] = pos_to_entry_map.try_emplace(pos, std::vector<Entry*>());
+            it->second.push_back(e);
+		}
 	}
 }
 
@@ -100,20 +109,21 @@ void ReadSet::assign_selection_status(const IndexSet* indices) {
 	for (; it != indices->end(); ++it) {
 		reads[*it]->setSelected(true);
 	}
-
-}
-
-
-void ReadSet::reassignReadIds() {
-	for (size_t i=0; i<reads.size(); ++i) {
-		reads[i]->setID(i);
-	}
 }
 
 
 void ReadSet::resetTags() {
 	for (size_t i = 0; i < reads.size(); ++i) {
-		reads[i]->unsetPhaseSet();
-		reads[i]->unsetHaplotag();
+		reads[i]->resetTags();
 	}
+}
+
+void ReadSet::setEntryAlleles(uint32_t pos, std::vector<bool> active_alleles) {
+	for (Entry* e: pos_to_entry_map[pos]) {
+		e->set_allele_type(active_alleles);
+	}
+}
+
+std::vector<Entry*> ReadSet::TEST_get_pos_to_entry_map(uint32_t pos) {
+	return pos_to_entry_map[pos];
 }

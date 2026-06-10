@@ -18,8 +18,13 @@ public:
 	virtual ~ReadSet();
 	/** Ownership of pointer is transferred from caller to the ReadSet. */
 	void add(Read* read);
-	/** Sort reads by first variant position. */
-	void sort();
+	/** 
+	 * - Sort reads by first variant position.
+	 * - Assigns read_ids to all instances of Entry stored in the reads such that
+	 * 	  each read_id matches the index of the corresponding read in the ReadSet.
+	 * - Create the position to Entry map
+	 */
+	void initialize();
 	/** Returns the set of SNP positions. To create this set,
 	 *  this method iterates over all contained reads.
 	 *  Caller owns the returned pointer. */
@@ -36,39 +41,38 @@ public:
 	ReadSet* subset(const IndexSet* indices) const;
 	/** Marks reads as selected/unselected based on the given indices. */
 	void assign_selection_status(const IndexSet* indices);
-	/** Assigns read_ids to all instances of Entry stored in the reads such that
-	 *  each read_id matches the index of the corresponding read in the ReadSet. */
-	void reassignReadIds();
 	/**
 	 * Resets all haplotags and phasesets in the reads to -1 (i.e., untagged).
 	 */
 	void resetTags();
+	/* Sets the allele type for Entry objects at phasable positions */
+	void setEntryAlleles(uint32_t pos, std::vector<bool> active_alleles);
+	/* TEST function to inspect pos_to_entry_map */
+	std::vector<Entry*> TEST_get_pos_to_entry_map(uint32_t pos);
+
+
 private:
 	typedef struct read_comparator_t {
 		read_comparator_t() {}
 		bool operator()(const Read* r1, const Read* r2) {
-			if ((r1->getVariantCount() > 0) || (r2->getVariantCount() > 0)) {
-				// put reads with no variants first in the set
-				if (r1->getVariantCount() == 0) return true;
-				if (r2->getVariantCount() == 0) return false;
-				// standard case: sort by positions
+			// 1. Sort by presence of variants (reads with 0 variants go first)
+			if (r1->getVariantCount() == 0 && r2->getVariantCount() > 0) return true;
+			if (r2->getVariantCount() == 0 && r1->getVariantCount() > 0) return false;
+
+			// 2. Standard case: sort by positions (if both have variants)
+			if (r1->getVariantCount() > 0 && r2->getVariantCount() > 0) {
 				if (r1->firstPosition() != r2->firstPosition()) {
 					return r1->firstPosition() < r2->firstPosition();
 				}
 			}
-			// break ties by using hash value
-			name_and_source_id_hasher_t hasher;
-			std::size_t hash1 = hasher(name_and_source_id_t(r1->getName(), r1->getSourceID()));
-			std::size_t hash2 = hasher(name_and_source_id_t(r2->getName(), r2->getSourceID()));
-			if (hash1 != hash2) {
-				return hash1 < hash2;
-			}
-			// this is the extremely unlikely case of a hash collision
-			// ressort to comparing names and source_ids.
+
+			// 3. Break ties using string names directly (Deterministic & easy to test!)
 			int name_cmp = r1->getName().compare(r2->getName());
 			if (name_cmp != 0) {
-				return name_cmp < 0;
+				return name_cmp < 0; // Negative means r1 < r2
 			}
+
+			// 4. Ultimate tie-breaker
 			return r1->getSourceID() < r2->getSourceID();
 		}
 	} read_comparator_t;
@@ -92,6 +96,8 @@ private:
 	// Maps names of reads it their index in the "reads" vector
 	typedef std::unordered_map<name_and_source_id_t,size_t,name_and_source_id_hasher_t> read_name_map_t;
 	read_name_map_t read_name_map;
+	typedef std::unordered_map<uint32_t, std::vector<Entry*>> entry_pos_map_t;
+	entry_pos_map_t pos_to_entry_map;
 };
 
 #endif
