@@ -27,6 +27,7 @@ PhasingDPTable::PhasingDPTable(ReadSet* read_set, const vector<variant_informati
 	input_column_iterator(*read_set, variant_info_table, first_phasing_round),
 	variant_info_table(variant_info_table)
 {	
+	std::cerr << "[Core::Phasing] Computing DP Table." << std::endl;
 	compute_table();
 	// creating the haplotypes as super reads
 	ReadSet* superreads = new ReadSet();
@@ -40,9 +41,13 @@ PhasingDPTable::PhasingDPTable(ReadSet* read_set, const vector<variant_informati
 			accessible_positions->push_back(variant_info_table->at(i).position);
 		}
 	}
+	std::cerr << "[Core::Phasing] Computing Phasesets." << std::endl;
 	compute_phasesets(accessible_positions, read_set, superreads);
+	std::cerr << "[Core::Phasing] Haplotagging selected reads." << std::endl;
 	haplotag_selected_reads(read_set, optimal_partitioning);
+	std::cerr << "[Core::Phasing] Haplotagging unselected reads." << std::endl;
 	haplotag_unselected_reads(read_set, superreads); // phasesets have to be called before this function.
+	std::cerr << "[Core::Phasing] Setting cluster IDs." << std::endl;
 	set_read_cluster_ids(read_set);
 	delete superreads;
 	delete accessible_positions;
@@ -50,6 +55,7 @@ PhasingDPTable::PhasingDPTable(ReadSet* read_set, const vector<variant_informati
 
 
 PhasingDPTable::~PhasingDPTable() {
+	std::cerr << "[Core::Phasing] Deleting DP Table." << std::endl;
 	init(projection_column_table, 0);
 	init(index_backtrace_table, 0);
 	init(indexers, 0);
@@ -127,7 +133,6 @@ void PhasingDPTable::compute_table() {
 			assert(next_read_ids.get() == 0);
 			next_indexer = 0;
 		}
-
 		compute_column(column_index, std::move(current_input_column));
 
 		// determine whether to delete previous column (to save space)
@@ -232,6 +237,8 @@ void PhasingDPTable::compute_column(size_t column_index, unique_ptr<vector<const
 	while (iterator->has_next()) {
 		int bit_changed = -1;
 		iterator->advance(&bit_changed);
+		// Determine index in the current DP column to be written
+		current_index = iterator->get_index();
 		if (bit_changed >= 0) {
 			cost_computer.update_partitioning(bit_changed);
 		} else {
@@ -243,9 +250,7 @@ void PhasingDPTable::compute_column(size_t column_index, unique_ptr<vector<const
 		if (column_index > 0) {
 			backward_projection_index = iterator->get_backward_projection();
 		}
-		// Determine index in the current DP column to be written
-		current_index = iterator->get_index();
-
+		
 		// Compute cost incurred by current cell of DP table
 		current_cost = cost_computer.get_cost();
 		min = numeric_limits<uint32_t>::max();
@@ -325,7 +330,6 @@ void PhasingDPTable::get_super_reads(ReadSet* output_read_set) {
 			unique_ptr<vector<const Entry *> > column = input_column_iterator.get_next();
 			PhasingColumnCostComputer cost_computer(*column, variant_info_table->at(i));
 			cost_computer.set_partitioning(v);
-
 			population_alleles = cost_computer.get_alleles();
 			// some sort of check if see if the alleles are blank?
 			active_alleles = variant_info_table->at(i).get_active_positions();
@@ -356,8 +360,8 @@ const vector<bool>* PhasingDPTable::get_optimal_partitioning() {
 		uint32_t mask = 1; // mask to pass over the partitioning (i.e., index)
 		for(size_t j=0; j< indexers[i]->get_read_ids()->size(); ++j) {
 			uint32_t index = index_path[i];
-			if((index & mask) == 0) { // id at this index is in p0 (i.e., in the part.)
-				partitioning->at(indexers[i]->get_read_ids()->at(j)) = false;
+			if((index & mask) != 0) { // id at this index is in p1 (i.e., in the partition given by true)
+				partitioning->at(indexers[i]->get_read_ids()->at(j)) = true;
 			}
 			mask = mask << 1;
 		}
