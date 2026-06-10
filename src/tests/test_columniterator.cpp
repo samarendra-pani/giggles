@@ -77,9 +77,8 @@ void test_iterator_empty_columns() {
     read2->addVariant(300, scores_1);
     read3->addVariant(500, scores_1);
 
-    read_set->sort();
-    read_set->reassignReadIds();
-
+    read_set->initialize();
+    
     assert(read1->getID() == 0);
     assert(read2->getID() == 1);
     assert(read3->getID() == 2);
@@ -122,9 +121,8 @@ void test_iterator_gapped_reads() {
     read2->addVariant(300, scores_1);
     read3->addVariant(500, scores_1);
 
-    read_set->sort();
-    read_set->reassignReadIds();
-
+    read_set->initialize();
+    
     assert(read1->getID() == 0);
     assert(read2->getID() == 1);
     assert(read3->getID() == 2);
@@ -233,9 +231,8 @@ void test_backwarditerator_empty_columns() {
     read2->addVariant(300, scores_1);
     read3->addVariant(500, scores_1);
 
-    read_set->sort();
-    read_set->reassignReadIds();
-
+    read_set->initialize();
+    
     assert(read1->getID() == 0);
     assert(read2->getID() == 1);
     assert(read3->getID() == 2);
@@ -278,9 +275,8 @@ void test_backwarditerator_gapped_reads() {
     read2->addVariant(300, scores_1);
     read3->addVariant(500, scores_1);
 
-    read_set->sort();
-    read_set->reassignReadIds();
-
+    read_set->initialize();
+    
     assert(read1->getID() == 0);
     assert(read2->getID() == 1);
     assert(read3->getID() == 2);

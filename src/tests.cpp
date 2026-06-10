@@ -23,7 +23,8 @@ void run_all_tests() {
     test_haplotypemapper();
 
 //    test_read();
-//    test_readset();
+    std::cout << "\n================ Testing ReadSet ===============================" << std::endl;
+    test_readset();
 //    test_transitionprobabilitycomputer();
 
     std::cout << "\n================ Testing ComponentFinder =======================" << std::endl;
@@ -32,6 +33,8 @@ void run_all_tests() {
     test_phasesetcomputer();
     std::cout << "\n================ Testing HaplotagComputer ======================" << std::endl;
     test_haplotagcomputer();
+    std::cout << "\n================ Testing SetClusterIds ======================" << std::endl;
+    test_set_cluster_ids();
     std::cout << "\n================ Testing PhasingColumnIterator =================" << std::endl;
     test_phasingcolumniterator();
     std::cout << "\n================ Testing PhasingColumnCostComputer =============" << std::endl;

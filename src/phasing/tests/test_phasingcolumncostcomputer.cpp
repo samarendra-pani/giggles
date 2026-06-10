@@ -41,7 +41,7 @@ void test_unphasable_position() {
     read10->addVariant(100, std::vector<uint32_t>{10, 90}); // ALLELE1
 
     PhasingColumnIterator* iterator = new PhasingColumnIterator(*read_set, &variant_info_table, false);
-    std::unique_ptr<std::vector<const Entry*> > column = iterator->get_next();
+    std::unique_ptr<std::vector<const Entry*> > column = iterator->get_next(true);
     PhasingColumnCostComputer* cost_computer = new PhasingColumnCostComputer(*column, variant_info_table.at(0));
     uint32_t cost;
     PhasingColumnCostComputer::phased_variant_t alleles;
@@ -111,7 +111,7 @@ void test_homozygous_position() {
     read5->addVariant(100, std::vector<uint32_t>{20, 20, 30, 10});
 
     PhasingColumnIterator* iterator = new PhasingColumnIterator(*read_set, &variant_info_table, false);
-    std::unique_ptr<std::vector<const Entry*> > column = iterator->get_next();
+    std::unique_ptr<std::vector<const Entry*> > column = iterator->get_next(true);
     PhasingColumnCostComputer* cost_computer = new PhasingColumnCostComputer(*column, variant_info_table.at(0));
     uint32_t cost;
     PhasingColumnCostComputer::phased_variant_t alleles;
@@ -162,7 +162,7 @@ void test_homozygous_position() {
     read5->addVariant(100, std::vector<uint32_t>{20, 5});
 
     iterator = new PhasingColumnIterator(*read_set, &variant_info_table, false);
-    column = iterator->get_next();
+    column = iterator->get_next(true);
     cost_computer = new PhasingColumnCostComputer(*column, variant_info_table.at(0));
     
     /** Checking all possible partitions */
@@ -227,7 +227,7 @@ void test_setting_partition_no_gl() {
     read10->addVariant(100, std::vector<uint32_t>{10, 90}); // ALLELE1
 
     PhasingColumnIterator* iterator = new PhasingColumnIterator(*read_set, &variant_info_table, false);
-    std::unique_ptr<std::vector<const Entry*> > column = iterator->get_next();
+    std::unique_ptr<std::vector<const Entry*> > column = iterator->get_next(true);
     PhasingColumnCostComputer* cost_computer = new PhasingColumnCostComputer(*column, variant_info_table.at(0));
     uint32_t cost;
     PhasingColumnCostComputer::phased_variant_t alleles;
@@ -352,7 +352,7 @@ void test_setting_partition_with_gl() {
     read10->addVariant(100, std::vector<uint32_t>{10, 90}); // ALLELE1
 
     PhasingColumnIterator* iterator = new PhasingColumnIterator(*read_set, &variant_info_table, false);
-    std::unique_ptr<std::vector<const Entry*> > column = iterator->get_next();
+    std::unique_ptr<std::vector<const Entry*> > column = iterator->get_next(true);
     PhasingColumnCostComputer* cost_computer = new PhasingColumnCostComputer(*column, variant_info_table.at(0));
     uint32_t cost;
     PhasingColumnCostComputer::phased_variant_t alleles;
@@ -469,7 +469,7 @@ void test_update_partition_no_gl() {
     read10->addVariant(100, std::vector<uint32_t>{10, 90}); // ALLELE1
 
     PhasingColumnIterator* iterator = new PhasingColumnIterator(*read_set, &variant_info_table, false);
-    std::unique_ptr<std::vector<const Entry*> > column = iterator->get_next();
+    std::unique_ptr<std::vector<const Entry*> > column = iterator->get_next(true);
     PhasingColumnCostComputer* cost_computer = new PhasingColumnCostComputer(*column, variant_info_table.at(0));
     uint32_t cost;
     PhasingColumnCostComputer::phased_variant_t alleles;
@@ -584,7 +584,7 @@ void test_update_partition_with_gl() {
     read10->addVariant(100, std::vector<uint32_t>{10, 90}); // ALLELE1
 
     PhasingColumnIterator* iterator = new PhasingColumnIterator(*read_set, &variant_info_table, false);
-    std::unique_ptr<std::vector<const Entry*> > column = iterator->get_next();
+    std::unique_ptr<std::vector<const Entry*> > column = iterator->get_next(true);
     PhasingColumnCostComputer* cost_computer = new PhasingColumnCostComputer(*column, variant_info_table.at(0));
     uint32_t cost;
     PhasingColumnCostComputer::phased_variant_t alleles;
@@ -655,7 +655,7 @@ void test_equal_scores() {
     read5->addVariant(100, std::vector<uint32_t>{20, 10}); // ALLELE2
 
     PhasingColumnIterator* iterator = new PhasingColumnIterator(*read_set, &variant_info_table, false);
-    std::unique_ptr<std::vector<const Entry*> > column = iterator->get_next();
+    std::unique_ptr<std::vector<const Entry*> > column = iterator->get_next(true);
     PhasingColumnCostComputer* cost_computer = new PhasingColumnCostComputer(*column, variant_info_table.at(0));
     uint32_t cost;
     PhasingColumnCostComputer::phased_variant_t alleles;

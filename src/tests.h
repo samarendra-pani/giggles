@@ -19,12 +19,13 @@
 #include "tests/test_haplotypemapper.h"
 #include "tests/test_variantinfo.h"
 // #include "tests/test_read.h"
-// #include "tests/test_readset.h"
+#include "tests/test_readset.h"
 // #include "tests/test_transitionprobabilitycomputer.h"
 
 #include "phasing/readbipartitioning/tests/test_componentfinder.h"
 #include "phasing/readbipartitioning/tests/test_phasesetcomputer.h"
 #include "phasing/readbipartitioning/tests/test_haplotagcomputer.h"
+#include "phasing/readbipartitioning/tests/test_set_cluster_ids.h"
 
 #include "phasing/tests/test_phasingcolumniterator.h"
 #include "phasing/tests/test_phasingcolumncostcomputer.h"
