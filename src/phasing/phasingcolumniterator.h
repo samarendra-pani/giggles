@@ -26,7 +26,7 @@ public:
 	bool has_next();
 	/** Ownership of Entry objects remains with the PhasingColumnIterator. Pointers
 	 *  remain valid only until iterator is destructed. */
-	std::unique_ptr<std::vector<const Entry*> > get_next();
+	std::unique_ptr<std::vector<const Entry*> > get_next(bool testing = false);
 	/**
 	 * Get position of the i-th variant
 	 */
