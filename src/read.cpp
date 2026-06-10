@@ -43,11 +43,6 @@ string Read::toString() {
 	return oss.str();
 }
 
-void Read::unsetHaplotag() {
-	this->hp = false;
-	this->has_hp = false;
-}
-
 void Read::setHaplotag(bool hp) {
 	this->hp = hp;
 	this->has_hp = true;
@@ -83,11 +78,6 @@ uint32_t Read::getConstrainedClusterID() const {
 
 bool Read::hasConstrainedCluster() const {
 	return has_constrained_cluster;
-}
-
-void Read::unsetPhaseSet() {
-	this->ps = 0;
-	this->has_ps = false;
 }
 
 void Read::setPhaseSet(uint32_t ps) {
@@ -249,4 +239,15 @@ bool Read::isSelected() const {
 
 void Read::setSelected(bool selected) {
 	this->selected = selected;
+}
+
+void Read::resetTags() {
+	ps = 0;
+	has_ps = false;
+	hp = false;
+	has_hp = false;
+	is_clustered = false;
+	cluster_id = 0;
+	constrained_cluster_id = 0;
+	has_constrained_cluster = false;
 }

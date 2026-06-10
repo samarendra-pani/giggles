@@ -23,8 +23,6 @@ class Read {
 		// adding a variant whose allele has been pre-computed. used for the superread haplotypes.
 		void addVariant(uint32_t position, std::vector<uint32_t> scores, Entry::allele_t allele);
 		void setHaplotag(bool hp);
-		void unsetHaplotag();
-		void unsetPhaseSet();
 		void setPhaseSet(uint32_t ps);
 		void setClusterID(uint32_t cluster_id);
 		void setClusterStatus(bool is_clustered);
@@ -66,6 +64,8 @@ class Read {
 
 		bool isSelected() const; // is this read selected for phasing?
 		void setSelected(bool selected); // set whether this read is selected for phasing
+
+		void resetTags(); // reset all the cluster-based tags
 
 
 	private:
