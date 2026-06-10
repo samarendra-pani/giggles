@@ -41,9 +41,7 @@ public:
 	ReadSet* subset(const IndexSet* indices) const;
 	/** Marks reads as selected/unselected based on the given indices. */
 	void assign_selection_status(const IndexSet* indices);
-	/**
-	 * Resets all haplotags and phasesets in the reads to -1 (i.e., untagged).
-	 */
+	/** Resets all haplotags and cluster information */
 	void resetTags();
 	/* Sets the allele type for Entry objects at phasable positions */
 	void setEntryAlleles(uint32_t pos, std::vector<bool> active_alleles);
