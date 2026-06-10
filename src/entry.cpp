@@ -116,11 +116,8 @@ void Entry::set_emission_scores(const std::vector<long double>& scores) {
 
 
 std::ostream& operator<<(std::ostream& out, const Entry& e) {
-	out << "Entry(" << e.read_id ;
-	out << ","<< e.allele << ",(";
-	for (auto i : e.emission_scores) {
-		out << i << ",";
-	}
+	out << "Entry(Read ID: " << e.read_id ;
+	out << ", Allele: "<< (int)e.allele;
 	out << ")" << std::endl;
 	return out;
 }
