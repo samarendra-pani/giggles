@@ -68,13 +68,15 @@ test_sources = [
     "src/tests/test_genotypelikelihoods.cpp",
     "src/tests/test_graycodes.cpp",
     "src/tests/test_haplotypemapper.cpp",
+    "src/tests/test_readset.cpp",
     "src/tests/test_variantinfo.cpp",
     "src/phasing/tests/test_phasingcolumncostcomputer.cpp",
     "src/phasing/tests/test_phasingcolumniterator.cpp",
     "src/phasing/tests/test_phasingdptable.cpp",
     "src/phasing/readbipartitioning/tests/test_componentfinder.cpp",
     "src/phasing/readbipartitioning/tests/test_phasesetcomputer.cpp",
-    "src/phasing/readbipartitioning/tests/test_haplotagcomputer.cpp"
+    "src/phasing/readbipartitioning/tests/test_haplotagcomputer.cpp",
+    "src/phasing/readbipartitioning/tests/test_set_cluster_ids.cpp"
 ]
 
 extensions = [
