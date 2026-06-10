@@ -64,9 +64,7 @@ class ReadSetCreator:
                 assert keep_untagged
                 read.sort()
                 new_readset.add(read)
-
-        new_readset.sort()
-
+                
         return new_readset
 
 

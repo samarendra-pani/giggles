@@ -105,7 +105,6 @@ def genotype_chromosome(variant_table,
         for read in readset:
             if not read.is_sorted():
                 read.sort()
-        readset.sort()
 
     # Run genotyping algorithm
     with timers("genotyping-phasing"):

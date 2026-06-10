@@ -222,12 +222,6 @@ cdef class ReadSet:
 		for read in state:
 			self.add(read)
 
-	def sort(self):
-		"""Sort contained reads by the position of the first variant they contain. Note that
-		this is not necessarily the variant with the lowest position, unless sort() has been
-		called on all contained reads. Ties are resolved by comparing the read name."""
-		self.thisptr.sort()
-
 	def subset(self, reads_to_select):
 		# TODO: is there a way of avoiding to unecessarily creating/destroying a ReadSet object?
 		cdef cpp.IndexSet* index_set = new cpp.IndexSet()

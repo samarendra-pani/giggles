@@ -41,7 +41,6 @@ cdef extern from "../src/readset.h":
 		uint32_t size() except +
 		Read* get(uint32_t) except +
 		Read* getByName(string, int) except +
-		void sort() except +
 		ReadSet* subset(IndexSet*) except +
 		void assign_selection_status(IndexSet*) except +
 		# TODO: Check why adding "except +" here doesn't compile
