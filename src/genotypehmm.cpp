@@ -24,13 +24,17 @@ GenotypeHMM::GenotypeHMM(ReadSet* read_set, const uint32_t ploidy, const vector<
 	variant_info_table(variant_info_table)
 {
 	//compute forward and backward probabilities
+	std::cerr << "[Core::Genotyping] Initializing index structure for HMM." << std::endl;
 	compute_index();
+	std::cerr << "[Core::Genotyping] Computing backward probabilities." << std::endl;
 	compute_backward_prob();
+	std::cerr << "[Core::Genotyping] Computing forward probabilities and genotype likelihoods." << std::endl;
 	compute_forward_prob();
 }
 
 GenotypeHMM::~GenotypeHMM()
 {
+	std::cerr << "[Core::Genotyping] Deleting HMM." << std::endl;
 	init(backward_pass_table, 0);
 	init(hmm_columns, 0);
 	init(haplotype_mapper_table, 0);
@@ -660,8 +664,9 @@ void GenotypeHMM::compute_forward_column(size_t column_index)
 	uint32_t cannonical_genotype_index;
 	vector<uint32_t> sorted_alleles;
 	sorted_alleles.reserve(2);
+	variant_information_t variant_info = variant_info_table->at(column_index);
 	assert (current_forward_probabilities.size() == backward_probabilities->size());
-	variant_info_table->at(column_index).genotype_likelihoods.reset(); // reseting the likelihood vector since it still has values from last genotyping round.
+	variant_info.genotype_likelihoods.reset(); // reseting the likelihood vector since it still has values from last genotyping round.
 	for (bipartition_index = 0; bipartition_index < num_curr_bipartitions; bipartition_index++) {
 		for (r_index = 0; r_index < num_curr_ref_states; r_index++) {
 			state_index = get_node_index(bipartition_index, r_index, num_curr_ref_states);
@@ -683,7 +688,7 @@ void GenotypeHMM::compute_forward_column(size_t column_index)
 			forward_backward = current_forward_probabilities[state_index] * backward_probabilities->at(state_index);
 			normalization += forward_backward;
 
-			variant_info_table->at(column_index).genotype_likelihoods.increment_by_index(cannonical_genotype_index, forward_backward);
+			variant_info.genotype_likelihoods.increment_by_index(cannonical_genotype_index, forward_backward);
 		}
 	}
 	
@@ -696,12 +701,17 @@ void GenotypeHMM::compute_forward_column(size_t column_index)
 		std::transform(curr_alpha_helper_3[i].begin(), curr_alpha_helper_3[i].end(), curr_alpha_helper_3[i].begin(), [sum](long double val) { return val/sum; });
 	}
 	// normalize the likelihoods
-	variant_info_table->at(column_index).genotype_likelihoods.divide_likelihoods_by(normalization);
+	variant_info.genotype_likelihoods.divide_likelihoods_by(normalization);
 
 	// update the variant info tables active alleles based on the calculated likelihoods
-	std::vector<uint32_t> selected_genotype_indices = variant_info_table->at(column_index).genotype_likelihoods.select_genotypes();
-	variant_info_table->at(column_index).update_active_alleles(ploidy, selected_genotype_indices);
-	
+	bool was_phasable = variant_info.phasable;
+	std::vector<uint32_t> selected_genotype_indices = variant_info.genotype_likelihoods.select_genotypes();
+	variant_info.update_active_alleles(ploidy, selected_genotype_indices);
+	bool is_phasable = variant_info.phasable;
+	if (!was_phasable & is_phasable) {
+		read_set->setEntryAlleles(variant_info.position, variant_info.active_alleles);
+	}
+
 	/**
 	 * Replace the forward values from previous column to current column.
 	 * 
