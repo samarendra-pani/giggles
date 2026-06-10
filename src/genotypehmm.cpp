@@ -704,11 +704,9 @@ void GenotypeHMM::compute_forward_column(size_t column_index)
 	variant_info.genotype_likelihoods.divide_likelihoods_by(normalization);
 
 	// update the variant info tables active alleles based on the calculated likelihoods
-	bool was_phasable = variant_info.phasable;
 	std::vector<uint32_t> selected_genotype_indices = variant_info.genotype_likelihoods.select_genotypes();
 	variant_info.update_active_alleles(ploidy, selected_genotype_indices);
-	bool is_phasable = variant_info.phasable;
-	if (!was_phasable & is_phasable) {
+	if (variant_info.phasable) {
 		read_set->setEntryAlleles(variant_info.position, variant_info.active_alleles);
 	}
 
