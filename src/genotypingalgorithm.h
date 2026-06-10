@@ -35,7 +35,6 @@ class GenotypingAlgorithm {
 			return out;
 		}
 
-		uint32_t ploidy;
 		std::vector<variant_information_t> variant_info_table;
 		GenotypeHMM* genotype_hmm;
 		PhasingDPTable* phasing_dp_table;
