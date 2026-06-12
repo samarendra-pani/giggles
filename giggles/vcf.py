@@ -36,7 +36,7 @@ class VcfVariant:
 
     __slots__ = ("id", "position", "position_on_ref", "reference_allele", "alternative_allele", "allele_origin", "length_on_path", "state", "distance_matrix")
 
-    def __init__(self, id: str, position: int, reference_allele: str, alternative_allele: tuple, allele_origin: list, use_distance_matrix: bool = False):
+    def __init__(self, id: str, position: int, reference_allele: str, alternative_allele: tuple, allele_origin: list, max_distance: int, use_distance_matrix: bool = False):
         
         self.id = id
         # This is the position on the backbone reference (the position given in the VCF in the 0-base)
@@ -61,7 +61,7 @@ class VcfVariant:
         #   - 3: the read starts and ends within this variant.
         self.state = None
         if use_distance_matrix and self.is_sv():
-            self.distance_matrix = self.calculate_distance_matrix()
+            self.distance_matrix = self.calculate_distance_matrix(max_distance=max_distance)
         else:
             self.distance_matrix = None
 
@@ -131,7 +131,7 @@ class VcfVariant:
     
     # Calculate distance estimates between alleles. Max distance of 30 is considered.
     # storing the distance in a 1D array using canonical index
-    def calculate_distance_matrix(self):
+    def calculate_distance_matrix(self, max_distance):
         self.distance_matrix = []
         alleles = [self.reference_allele] + self.alternative_allele
         n = len(alleles)
@@ -141,14 +141,19 @@ class VcfVariant:
                 assert (len(self.distance_matrix) == k)     # checking for correctness of cannonical index.
                 allele1 = alleles[i]
                 allele2 = alleles[j]
-                if abs(len(allele1) - len(allele2)) >= 50:
-                    self.distance_matrix.push(50)
+                if abs(len(allele1) - len(allele2)) >= max_distance:
+                    self.distance_matrix.push(max_distance)
                     continue
-                self.distance_matrix.push(edit_distance(allele1, allele2, 50))
+                dist = edit_distance(allele1, allele2, max_distance)
+                if dist > max_distance:
+                    self.distance_matrix.push(max_distance)
+                else:
+                    self.distance_matrix.push(dist)
     
     # get the distance between allele i and allele j
     # converting i and j into canonical index
     def get_distance(self, i, j):
+        assert self.distance_matrix is not None, "Distance matrix has not been calculated. Either a non-SV position or did not use custom graph."
         if i == j:
             return 0
         assert i < j
@@ -228,8 +233,10 @@ class VcfReader:
     def __init__(
         self,
         path: Union[str, PathLike],
+        max_allele_distance: int,
         indels: bool = False,
         required_chr: List = None,
+        is_custom_graph: bool = False,
     ):
         """
         path -- Path to VCF file
@@ -245,6 +252,8 @@ class VcfReader:
         self._path = path
         self.vcf_samples = list(self._vcf_reader.header.samples)
         self.required_chr = required_chr
+        self._is_custom_graph = is_custom_graph
+        self.max_allele_distance = max_allele_distance
         
     def __enter__(self):
         return self
@@ -378,7 +387,7 @@ class VcfReader:
                 continue
             prev_position = pos
             
-            variant = VcfVariant(id = id, position=pos, reference_allele=ref, alternative_allele=alts, allele_origin=allele_origin)
+            variant = VcfVariant(id = id, position=pos, reference_allele=ref, alternative_allele=alts, allele_origin=allele_origin, max_distance=self.max_allele_distance, use_distance_matrix=self._is_custom_graph)
             if variant.has_anchor_base():
                 variant.remove_anchor_base()
             table.add_variant(variant)

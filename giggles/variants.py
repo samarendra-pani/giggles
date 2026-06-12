@@ -20,15 +20,9 @@ class Realigner:
     """
     Class to encapsulate different aligners
     """
-    def __init__(self, mode: str, bandwidth: int):
-        self.mode = mode
+    def __init__(self, bandwidth: int):
         self.bandwidth = bandwidth
-        if mode == "edit":
-            # params are not used.
-            self.realigner = edit_distance
-        else:
-            assert mode == "wfa"
-            self.realigner = WFAWrapper(bandwidth)
+        self.realigner = WFAWrapper(bandwidth)
 
 
     def get_distance(self, query: str, allele: str, state: int):
@@ -42,10 +36,8 @@ class Realigner:
         Returns
             int: the distance between the two string (always positive)
         """
-        if self.mode == "edit":
-            return self.realigner(query, allele, self.bandwidth)
-        elif self.mode == "wfa":
-            return self.realigner.align(query, allele, state=state)
+        dist = self.realigner.align(query, allele, state=state)
+        return min(dist, self.bandwidth)
             
 
     def close(self):
@@ -61,13 +53,12 @@ class AlignmentReader:
             self,
             path: List[str],
             mapq_threshold: int,
-            realign_mode: str,
             bandwidth:int,
             overhang: int):
 
         self._path = path
         self._mapq_threshold = mapq_threshold
-        self._aligner = Realigner(realign_mode, bandwidth)
+        self._aligner = Realigner(bandwidth)
         self._bandwidth = bandwidth
         self._overhang = overhang
         
@@ -150,230 +141,6 @@ class AlignmentReader:
         assert ref_pos < reference_bases
         return (ref_pos, query_pos)
 
-    @staticmethod
-    def realign(
-        aligner: Realigner,
-        variant: VcfVariant,
-        read: Read,
-        cigartuples: tuple,
-        i: int,
-        consumed: int,
-        query_pos: int,
-        reference: str,
-        overhang: int
-    ):
-        
-        """Realigns a read to the reference and alternative alleles of a variant.
-
-        Extracts the relevant query sequence and reference context (based on the 
-        alignment path) to construct potential allele sequences. It then scores 
-        each allele against the read using either simple edit distance (for 
-        external variants) or a dedicated aligner (for SVs).
-
-        Args:
-            aligner: The aligner object used for scoring SVs.
-            variant: The variant record to realign against.
-            read: The AlignedSegment object (pysam).
-            cigartuples: The cached `read.cigartuples` property (passed 
-                explicitly to avoid expensive re-access).
-            i: The index in `cigartuples` where the variant position occurs.
-            consumed: The number of reference bases consumed by the CIGAR 
-                operations up to index `i`.
-            query_pos: The 0-based index in the query (read) sequence 
-                corresponding to the variant's start position.
-            reference: The specific sequence of the alignment path (constructed 
-                from GAF nodes), NOT the entire chromosome sequence.
-            overhang: The number of context bases to include on the left 
-                and right of the variant for realignment.
-
-        Returns:
-            list[float]: A list of alignment scores, where the first element is 
-            the Reference score, followed by scores for each Alternative allele.
-            
-            Returns `None` if the variant contains symbolic alleles (e.g., <DEL>).
-        """
-        # Do not process symbolic alleles like <DEL>, <DUP>, etc.
-        if any([alt.startswith("<") for alt in variant.alternative_allele]):
-            return None
-
-        # There is a big difference between the previous implementation and what is needed.
-        # In the previous code, the CIGAR is against the reference always and hence we need to realign only for the alternate alleles.
-        # With GAF, the CIGAR is not always against the reference (sometimes it is not against ref or any of the alt and can be with a path that is not an allele traversal)
-        # So we need to generalize the process to realign using the variant record and the cigar tuples.
-        left_cigar, right_cigar = AlignmentReader.split_cigar(cigartuples, i, consumed)
-
-        if not variant.is_sv():
-            assert variant.state == 0
-            # this is an external variant
-            # overhang is set to 10
-            left_ref_bases, left_query_bases = AlignmentReader.cigar_prefix_length(cigar=left_cigar[::-1], reference_bases=10)
-            if variant.reference_allele == "*":
-                ref_allele = ""
-            else:
-                ref_allele = variant.reference_allele
-            # This should not be len(ref_allele)! This should be whatever path is followed in the node path!
-            right_ref_bases, right_query_bases = AlignmentReader.cigar_prefix_length(cigar=right_cigar, reference_bases=variant.length_on_path + 10)
-
-            assert variant.position - left_ref_bases >= 0
-            assert variant.position + right_ref_bases <= len(reference)
-
-            query = read.query_sequence[query_pos - left_query_bases : query_pos + right_query_bases]
-            
-            left_overhang = reference[variant.position - left_ref_bases : variant.position]
-            right_overhang = reference[variant.position + right_ref_bases - 10 : variant.position + right_ref_bases]
-
-            ref = left_overhang + ref_allele + right_overhang
-            
-            alts = []
-            for alt_allele in variant.alternative_allele:
-                if alt_allele != "*":
-                    alt = left_overhang + alt_allele + right_overhang
-                else:
-                    alt = left_overhang + right_overhang
-                alts.append(alt)
-
-            scores = []
-            for index, allele in enumerate([ref]+alts):
-                scores.append(edit_distance(query, allele, aligner.bandwidth))
-                
-            return scores
-
-        # This is a SV variant
-        left_ref_bases, left_query_bases = AlignmentReader.cigar_prefix_length(cigar=left_cigar[::-1], reference_bases=overhang)
-        
-        if variant.reference_allele == "*":
-            ref_allele = ""
-        else:
-            ref_allele = variant.reference_allele
-
-        # This should not be len(ref_allele)! This should be whatever path is followed in the node path!
-        right_ref_bases, right_query_bases = AlignmentReader.cigar_prefix_length(cigar=right_cigar, reference_bases=variant.length_on_path + overhang)
-
-        assert variant.position - left_ref_bases >= 0
-        assert variant.position + right_ref_bases <= len(reference)
-
-        query = read.query_sequence[query_pos - left_query_bases : query_pos + right_query_bases]
-        
-        left_overhang = reference[variant.position - left_ref_bases : variant.position]
-        right_overhang = reference[variant.position + right_ref_bases - overhang : variant.position + right_ref_bases]
-
-        closest_allele_idx = None   # this will store which allele is closest to the path the sequence aligned to.
-        path_sequence = reference[variant.position : variant.position + variant.length_on_path] # this is the sequence of the path the variant aligned to.
-        if path_sequence == ref_allele:
-            closest_allele_idx = 0
-        
-        ref = left_overhang + ref_allele + right_overhang
-        alts = []
-        for idx, alt_allele in enumerate(variant.alternative_allele):
-            if alt_allele != "*":
-                alt = left_overhang + alt_allele + right_overhang
-                if alt_allele == path_sequence:
-                    closest_allele_idx = idx + 1
-            else:
-                alt = left_overhang + right_overhang
-            alts.append(alt)
-        
-        if closest_allele_idx != None:
-            """
-            if the allele with the exact seqeunce was not found,
-            then it means that the path is a subsequence of the allele
-            which can only happen with partial alignments
-            """
-            assert variant.state != 0
-        
-        '''
-        New implementation:
-        I have already calculate allele distance matrix which is the distance between allele i and allele j at this variant position. (Using edit distance)
-
-        '''
-        
-        if variant.state == 0:
-            best_allele = ref if closest_allele_idx == 0 else alts[closest_allele_idx-1]
-            best_score = aligner.get_distance(query, best_allele, 0)
-            
-            scores = []
-            for idx, allele in enumerate([ref]+alts):
-                if idx == closest_allele_idx:
-                    scores.append(best_score)
-                    continue
-                idx1 = None
-                idx2 = None
-                if idx < closest_allele_idx:
-                    idx1 = idx
-                    idx2 = closest_allele_idx
-                else:
-                    idx1 = closest_allele_idx
-                    idx2 = idx
-                allele_to_allele_distance = variant.get_distance(idx1, idx2)
-                best_possible_score = max(allele_to_allele_distance - best_score, 0)
-                if best_possible_score > aligner.bandwidth:
-                    scores.append(aligner.bandwidth)
-                else:
-                    scores.append(aligner.get_distance(query, allele, 0))
-        else:
-            # if its a partial alignment, then cannot apply the above heuristics
-            for idx, allele in enumerate([ref]+alts):
-                scores.append(aligner.get_distance(query, allele, variant.state))
-
-        
-
-        # Old implementation. Doing realignment for each allele.
-        #for index, allele in enumerate([ref]+alts):
-        #    if (abs(len(query) - len(allele)) > 5000 ) and (len(query)/len(allele) > 1.5 or len(query)/len(allele) < 1/1.5):
-        #        # If the distance between the allele and query is too much, add a known high distance
-        #        scores.append(1e8)
-        #    else:
-        #        scores.append(aligner.get_distance(query, allele))        
-                
-        return scores
-
-    @staticmethod
-    def detect_alleles_by_alignment(
-        aligner: Realigner,
-        variants: List[VcfVariant],
-        j: int,
-        read: Read,
-        reference: str,
-        overhang: int = 10,
-    ):
-        
-        """Calculates the distance score between the read and the different alleles that are possible.
-
-        Args:
-            aligner: the aligner function - this can either be the edit_distance() function or a WaveFrontAligner object.
-            variants: the variants present on the chromosome
-            j: index of the first variant (in the variants list) to check
-            read: the Read object of the alignment
-            reference: the sequence of the refernce path (in the GAF file, it is the reference path) the read aligned to.
-            mode:
-
-        Returns:
-            ReadSet: the ReadSet object containing the information about the variants found in each
-                alignment and their distance scores from available alleles.
-        """
-        # Accessing read.cigartuples is expensive, do it only once
-        cigartuples = read.cigartuples
-
-        # For the same reason, the following check is here instad of
-        # in the _usable_alignments method
-        if not cigartuples:
-            return
-        for index, i, consumed, query_pos in _iterate_cigar(variants, j, read, cigartuples):
-            scores = AlignmentReader.realign(
-                aligner,
-                variants[index],
-                read,
-                cigartuples,
-                i,
-                consumed,
-                query_pos,
-                reference,
-                overhang
-            )
-
-            if scores is not None:
-                yield (index, scores)
-
 
 class GAFReader(AlignmentReader):
     """
@@ -386,17 +153,18 @@ class GAFReader(AlignmentReader):
         reference: rGFA,
         read_fasta_files: List[str],
         mapq_threshold: int = 20,
-        realign_mode: str = "edit",
+        is_custom_graph: bool = False,
         bandwidth: int = 30,
         overhang: int = 10
     ):
         super().__init__(
             alignment_files, 
             mapq_threshold, 
-            realign_mode, 
+            is_custom_graph, 
             bandwidth,
             overhang)
 
+        self._is_custom_graph = is_custom_graph
         self._reader = GafParser(alignment_files=alignment_files, reference=reference, read_fasta_files=read_fasta_files, mapq=self._mapq_threshold)
 
     def has_reference(self, chromosome):
@@ -1037,11 +805,264 @@ class GAFReader(AlignmentReader):
                 0,                              # Here this has been hardcoded to 0. In original code, this was the index of the first variant (index in the big list of variants) in the read. But now we have new list of variants just for this alignment.
                 processed_alignment,
                 reference,
-                self._overhang)
+                self._overhang,
+                self._is_custom_graph)
             for j, scores in detected:
                 read.add_variant(variants_in_alignment[j].position_on_ref, scores)
             if read:  # At least one variant covered and detected
                 yield read
+
+    @staticmethod
+    def realign(
+        aligner: Realigner,
+        variant: VcfVariant,
+        read: Read,
+        cigartuples: tuple,
+        i: int,
+        consumed: int,
+        query_pos: int,
+        reference: str,
+        overhang: int,
+        is_custom_graph: bool
+    ):
+        
+        """Realigns a read to the reference and alternative alleles of a variant.
+
+        Extracts the relevant query sequence and reference context (based on the 
+        alignment path) to construct potential allele sequences. It then scores 
+        each allele against the read using either simple edit distance (for 
+        external variants) or a dedicated aligner (for SVs).
+
+        Args:
+            aligner: The aligner object used for scoring SVs.
+            variant: The variant record to realign against.
+            read: The AlignedSegment object (pysam).
+            cigartuples: The cached `read.cigartuples` property (passed 
+                explicitly to avoid expensive re-access).
+            i: The index in `cigartuples` where the variant position occurs.
+            consumed: The number of reference bases consumed by the CIGAR 
+                operations up to index `i`.
+            query_pos: The 0-based index in the query (read) sequence 
+                corresponding to the variant's start position.
+            reference: The specific sequence of the alignment path (constructed 
+                from GAF nodes), NOT the entire chromosome sequence.
+            overhang: The number of context bases to include on the left 
+                and right of the variant for realignment.
+
+        Returns:
+            list[float]: A list of alignment scores, where the first element is 
+            the Reference score, followed by scores for each Alternative allele.
+            
+            Returns `None` if the variant contains symbolic alleles (e.g., <DEL>).
+        """
+        # Do not process symbolic alleles like <DEL>, <DUP>, etc.
+        if any([alt.startswith("<") for alt in variant.alternative_allele]):
+            return None
+
+        # There is a big difference between the previous implementation and what is needed.
+        # In the previous code, the CIGAR is against the reference always and hence we need to realign only for the alternate alleles.
+        # With GAF, the CIGAR is not always against the reference (sometimes it is not against ref or any of the alt and can be with a path that is not an allele traversal)
+        # So we need to generalize the process to realign using the variant record and the cigar tuples.
+        left_cigar, right_cigar = AlignmentReader.split_cigar(cigartuples, i, consumed)
+
+        if not variant.is_sv():
+            assert variant.state == 0
+            # this is an external variant
+            # overhang is set to 10
+            left_ref_bases, left_query_bases = AlignmentReader.cigar_prefix_length(cigar=left_cigar[::-1], reference_bases=10)
+            if variant.reference_allele == "*":
+                ref_allele = ""
+            else:
+                ref_allele = variant.reference_allele
+            # This should not be len(ref_allele)! This should be whatever path is followed in the node path!
+            right_ref_bases, right_query_bases = AlignmentReader.cigar_prefix_length(cigar=right_cigar, reference_bases=variant.length_on_path + 10)
+
+            assert variant.position - left_ref_bases >= 0
+            assert variant.position + right_ref_bases <= len(reference)
+
+            query = read.query_sequence[query_pos - left_query_bases : query_pos + right_query_bases]
+            
+            left_overhang = reference[variant.position - left_ref_bases : variant.position]
+            right_overhang = reference[variant.position + right_ref_bases - 10 : variant.position + right_ref_bases]
+
+            ref = left_overhang + ref_allele + right_overhang
+            
+            alts = []
+            for alt_allele in variant.alternative_allele:
+                if alt_allele != "*":
+                    alt = left_overhang + alt_allele + right_overhang
+                else:
+                    alt = left_overhang + right_overhang
+                alts.append(alt)
+
+            scores = []
+            for index, allele in enumerate([ref]+alts):
+                scores.append(edit_distance(query, allele, aligner.bandwidth))
+                
+            return scores
+
+        # This is a SV variant
+        left_ref_bases, left_query_bases = AlignmentReader.cigar_prefix_length(cigar=left_cigar[::-1], reference_bases=overhang)
+        
+        if variant.reference_allele == "*":
+            ref_allele = ""
+        else:
+            ref_allele = variant.reference_allele
+
+        # This should not be len(ref_allele)! This should be whatever path is followed in the node path!
+        right_ref_bases, right_query_bases = AlignmentReader.cigar_prefix_length(cigar=right_cigar, reference_bases=variant.length_on_path + overhang)
+
+        assert variant.position - left_ref_bases >= 0
+        assert variant.position + right_ref_bases <= len(reference)
+
+        query = read.query_sequence[query_pos - left_query_bases : query_pos + right_query_bases]
+        
+        left_overhang = reference[variant.position - left_ref_bases : variant.position]
+        right_overhang = reference[variant.position + right_ref_bases - overhang : variant.position + right_ref_bases]
+
+        scores = []
+        if is_custom_graph:
+            # this means I can use the heuristics with the allele distance matrix
+            
+            closest_allele_idx = None   # this will store which allele is closest to the path the sequence aligned to.
+            path_sequence = reference[variant.position : variant.position + variant.length_on_path] # this is the sequence of the path the variant aligned to.
+            if path_sequence == ref_allele:
+                closest_allele_idx = 0
+            
+            ref = left_overhang + ref_allele + right_overhang
+            alts = []
+            for idx, alt_allele in enumerate(variant.alternative_allele):
+                if alt_allele != "*":
+                    alt = left_overhang + alt_allele + right_overhang
+                    if alt_allele == path_sequence:
+                        closest_allele_idx = idx + 1
+                else:
+                    alt = left_overhang + right_overhang
+                alts.append(alt)
+            
+            if closest_allele_idx != None:
+                """
+                if the allele with the exact seqeunce was not found,
+                then it means that the path is a subsequence of the allele
+                which can only happen with partial alignments
+                """
+                # this should not happen if all the alleles are single nodes!
+                assert variant.state != 0
+            
+            '''
+            New implementation:
+            I have already calculate allele distance matrix which is the distance between allele i and allele j at this variant position. (Using edit distance)
+
+            Now we use triangle inequality heuristics.
+            d(A_i, R) <= |d(A_k, R) - d(A_k, A_i)| -> since d(A_k, R) <= b and d(A_k, A_i) <= 2b, this function is bounded by [0, 2b]
+
+            We only want to do a realignment if d(A_i, R) < b.
+            So we check if |d(A_k, R) - d(A_k, A_i)| < b and do realignment accordingly.
+            '''
+            if variant.state == 0:
+                best_allele = ref if closest_allele_idx == 0 else alts[closest_allele_idx-1]
+                best_score = aligner.get_distance(query, best_allele, 0)
+                
+                for idx, allele in enumerate([ref]+alts):
+                    # TODO: There is the idea that if best_score == bandwidth,
+                    # then that means that the best alignment is outside our alignment scope.
+                    # So we can just automatically set all scores to bandwidth.
+                    # PROBLEM: I don't trust aligners.
+                    if idx == closest_allele_idx:
+                        scores.append(best_score)
+                        continue
+                    idx1 = None
+                    idx2 = None
+                    if idx < closest_allele_idx:
+                        idx1 = idx
+                        idx2 = closest_allele_idx
+                    else:
+                        idx1 = closest_allele_idx
+                        idx2 = idx
+                    allele_to_allele_distance = variant.get_distance(idx1, idx2)
+                    best_possible_score = abs(allele_to_allele_distance - best_score)
+                    if best_possible_score >= aligner.bandwidth:
+                        scores.append(aligner.bandwidth)
+                    else:
+                        scores.append(aligner.get_distance(query, allele, 0))
+            else:
+                # if its a partial alignment, then cannot apply the above heuristics
+                for idx, allele in enumerate([ref]+alts):
+                    scores.append(aligner.get_distance(query, allele, variant.state))
+        else:
+            # not a custom graph. 
+            # so we will have multiple nodes for each alleles.
+            # also the alignment path might not correspond to alleles.
+
+            if variant.state == 0:
+                for idx, allele in enumerate([ref]+alts):
+                    if abs(len(query) - len(allele)) >= aligner.bandwidth:
+                        # quick check of length difference.
+                        scores.append(aligner.bandwidth)
+                        continue
+                    scores.append(aligner.get_distance(query, allele, variant.state))
+            else:
+                scores.append(aligner.get_distance(query, allele, variant.state))
+
+        # Old implementation. Doing realignment for each allele.
+        #for index, allele in enumerate([ref]+alts):
+        #    if (abs(len(query) - len(allele)) > 5000 ) and (len(query)/len(allele) > 1.5 or len(query)/len(allele) < 1/1.5):
+        #        # If the distance between the allele and query is too much, add a known high distance
+        #        scores.append(1e8)
+        #    else:
+        #        scores.append(aligner.get_distance(query, allele))        
+                
+        return scores
+
+    @staticmethod
+    def detect_alleles_by_alignment(
+        aligner: Realigner,
+        variants: List[VcfVariant],
+        j: int,
+        read: Read,
+        reference: str,
+        overhang: int = 10,
+        is_custom_graph: bool = False
+    ):
+        
+        """Calculates the distance score between the read and the different alleles that are possible.
+
+        Args:
+            aligner: the aligner function - this can either be the edit_distance() function or a WaveFrontAligner object.
+            variants: the variants present on the chromosome
+            j: index of the first variant (in the variants list) to check
+            read: the Read object of the alignment
+            reference: the sequence of the refernce path (in the GAF file, it is the reference path) the read aligned to.
+            mode:
+
+        Returns:
+            ReadSet: the ReadSet object containing the information about the variants found in each
+                alignment and their distance scores from available alleles.
+        """
+        # Accessing read.cigartuples is expensive, do it only once
+        cigartuples = read.cigartuples
+
+        # For the same reason, the following check is here instad of
+        # in the _usable_alignments method
+        if not cigartuples:
+            return
+        for index, i, consumed, query_pos in _iterate_cigar(variants, j, read, cigartuples):
+            scores = GAFReader.realign(
+                aligner,
+                variants[index],
+                read,
+                cigartuples,
+                i,
+                consumed,
+                query_pos,
+                reference,
+                overhang,
+                is_custom_graph
+            )
+
+            if scores is not None:
+                yield (index, scores)
+
 
     def __enter__(self):
         return self
@@ -1051,8 +1072,7 @@ class GAFReader(AlignmentReader):
         self.close()
 
     def close(self):
-        if type(self._aligner.realigner) is WFAWrapper:
-            logger.debug("Deallocating WavefrontAligner")
-            self._aligner.close()
+        logger.debug("Deallocating WavefrontAligner")
+        self._aligner.close()
         logger.debug("Closing GAFParser")
         self._reader.close()

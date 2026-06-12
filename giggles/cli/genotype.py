@@ -48,7 +48,6 @@ def genotype_chromosome(variant_table,
     chromosome = variant_table.chromosome
     # create a mapping of genome positions to indices
     var_pos_to_ind = dict()
-    var_is_ext = dict()
     n_allele_position = dict()
     allele_references = dict()
     is_sv_position = dict()
@@ -92,7 +91,6 @@ def genotype_chromosome(variant_table,
     recombination_costs = recombination_cost_computer.compute(accessible_positions)
     
     # Have to do the selection for the phasing algorithm
-    # TODO: instead of making a new ReadSet, we should mark reads as selected/unselected
     with timers("select"):
         #readset = readset.subset(
         #    [i for i, read in enumerate(readset) if len(read) >= 2]
@@ -101,10 +99,9 @@ def genotype_chromosome(variant_table,
         update_reads_with_selected(readset, max_coverage)
     
     # Sorting selected reads
-    with timers("alignment_sorting"):
-        for read in readset:
-            if not read.is_sorted():
-                read.sort()
+    for read in readset:
+        if not read.is_sorted():
+            read.sort()
 
     # Run genotyping algorithm
     with timers("genotyping-phasing"):
@@ -151,7 +148,7 @@ def run_genotype(
     mapping_quality=20,
     max_coverage=15,
     gt_qual_threshold=0,
-    realign_mode="edit",
+    is_custom_graph=False,
     bandwidth=30,
     overhang=10,
     recombrate=1.26,
@@ -173,7 +170,7 @@ def run_genotype(
             rgfa = rGFA(reference_path=rgfa)
         readset_creator_args = (alignment_files, rgfa, read_fasta_files)
         readset_creator_kwargs = {'mapq_threshold': mapping_quality,
-                'realign_mode': realign_mode,
+                'is_custom_graph': is_custom_graph,
                 'bandwidth': bandwidth,
                 'overhang': overhang}
         readset_creator_arguments=[readset_creator_args, readset_creator_kwargs]
@@ -189,7 +186,7 @@ def run_genotype(
         # The variant tables are then simply just updated after the HMM is run.
         vcf_reader = stack.enter_context(
             VcfReader(
-                path=variant_file, indels=True, required_chr=chromosomes
+                path=variant_file, indels=True, required_chr=chromosomes, is_custom_graph=is_custom_graph, max_allele_distance=2*bandwidth
             )
         )
         recombination_cost_computer = UniformRecombinationCostComputer(recombrate, eff_pop_size)
@@ -234,8 +231,7 @@ def run_genotype(
     logger.info(f"Time spent reading alignments:               {timers.elapsed('read_alignment'):9.2f} s")
     logger.info(f"Time spent parsing VCF:                      {timers.elapsed('parse_vcf'):9.2f} s")
     logger.info(f"Time spent selecting reads:                  {timers.elapsed('select'):9.2f} s")
-    logger.info(f"Time spent sorting selected reads:           {timers.elapsed('alignment_sorting'):9.2f} s")
-    logger.info(f"Time spent genotyping:                       {timers.elapsed('genotyping'):9.2f} s")
+    logger.info(f"Time spent genotyping:                       {timers.elapsed('genotyping-phasing'):9.2f} s")
     logger.info(f"Time spent writing VCF:                      {timers.elapsed('write_vcf'):9.2f} s")
     logger.info(f"Time spent on rest:                          {total_time - timers.sum():9.2f} s")
     logger.info(f"Total elapsed time (in seconds):             {total_time:9.2f} s")
@@ -254,6 +250,8 @@ def add_arguments(parser):
     arg('-o', '--output', default=sys.stdout,
         help='Output VCF file. Add .gz to the file name to get compressed output. '
         'If omitted, use standard output.')
+    # arg('--rounds', dest='rounds', metavar='ROUNDS', default=2, type=int,
+    #     help='Number of phasing-genotyping rounds. (default: %(default)s)')
     arg('--haplotag-tsv', metavar='HAPLOTAG', 
         help='Comma separated list of TSV file containing the haplotag and phaseset information. Please provide in the same order as GAF files.')
     arg('--sample', dest='sample', metavar='SAMPLE', default='sample',
@@ -280,8 +278,8 @@ def add_arguments(parser):
     
 
     arg = parser.add_argument_group('Realignment parameters').add_argument
-    arg('--realign-mode', metavar='MODE', default="edit",
-        help='Select method which will be used to calculate realignment scores. Available methods are: "wfa", and "edit". (refer to README for more details) (default: %(default)s).')
+    arg('--is-custom-graph', metavar='IS_CUSTOM_GRAPH', action='store_true',
+        help='The graph is a custom-made graph where the bubble paths are single nodes corresponding to alleles.')
     arg('--realignment-bandwidth', metavar='BANDWIDTH', default=30,
         help='Set a bandwidth to restrict the realignment process (default: %(default)s).')
     arg('--overhang', metavar='OVERHANG', default=10, type=int,
