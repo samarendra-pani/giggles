@@ -278,7 +278,7 @@ def add_arguments(parser):
     
 
     arg = parser.add_argument_group('Realignment parameters').add_argument
-    arg('--is-custom-graph', metavar='IS_CUSTOM_GRAPH', action='store_true',
+    arg('--is-custom-graph', action='store_true',
         help='The graph is a custom-made graph where the bubble paths are single nodes corresponding to alleles.')
     arg('--realignment-bandwidth', metavar='BANDWIDTH', default=30,
         help='Set a bandwidth to restrict the realignment process (default: %(default)s).')
