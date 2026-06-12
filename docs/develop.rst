@@ -16,8 +16,7 @@ Conda environment can be used using these commands::
     git clone git@github.com:samarendra-pani/giggles.git
     cd giggles
     conda create -n giggles-dev python=3.10
-    conda activate giggles-dev
-    pip install -e .[dev]
+    make dev-install
 
 This will install all dependencies related to testing, documentation building, and formatting.
 
