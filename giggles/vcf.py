@@ -233,7 +233,7 @@ class VcfReader:
     def __init__(
         self,
         path: Union[str, PathLike],
-        max_allele_distance: int,
+        max_allele_distance: int = 1000,
         indels: bool = False,
         required_chr: List = None,
         is_custom_graph: bool = False,

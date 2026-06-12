@@ -160,7 +160,6 @@ class GAFReader(AlignmentReader):
         super().__init__(
             alignment_files, 
             mapq_threshold, 
-            is_custom_graph, 
             bandwidth,
             overhang)
 
