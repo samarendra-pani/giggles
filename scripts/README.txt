@@ -9,3 +9,6 @@ generate_reads_from_vcf.py
 generate_vcf_sites.py
     - Generating a VCF file with dummy sites list from a FASTA file.
     - Adjustable parameters for denisty of variants.
+
+plot_emission_probabilities.py
+    - Plotting the trends in emission probabilities varying with temperature.
