@@ -149,14 +149,14 @@ unique_ptr<vector<const Entry*> > PhasingColumnIterator::get_next(bool testing) 
 			// the position has multiple possible alleles.
 			// cannot phase
 			//std::cout << "\t[Gathering Entries] Unphasable position. Adding BLANK for " << read->getName() << std::endl;
-			Entry* e = new Entry(read->getID(), std::vector<uint32_t>{});
+			Entry* e = new Entry(read->getID());
 			blank_entries.push_back(e);
 			result->push_back(e);
 			continue;
 		}
 		if (is_first_phasing_round && variant_info_table->at(n).is_sv) {
 			// in the first phasing round, we do not consider structural variants
-			Entry* e = new Entry(read->getID(), std::vector<uint32_t>{});
+			Entry* e = new Entry(read->getID());
 			blank_entries.push_back(e);
 			result->push_back(e);
 			continue;
@@ -179,7 +179,7 @@ unique_ptr<vector<const Entry*> > PhasingColumnIterator::get_next(bool testing) 
 		} else {
 			// if not, generate a blank entry
 			//std::cout << "\t[Gathering Entries] Found gap in read. Adding BLANK for " << read->getName() << std::endl;
-			Entry* e = new Entry(read->getID(), std::vector<uint32_t>{});
+			Entry* e = new Entry(read->getID());
 			blank_entries.push_back(e);
 			result->push_back(e);
 		}

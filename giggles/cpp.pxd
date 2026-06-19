@@ -20,12 +20,10 @@ cdef extern from "../src/read.h":
 		uint32_t getSourceID() except +
 		uint32_t getVariantCount() except +
 		uint32_t getPosition(uint32_t) except +
-		vector[long double] getEmissionScores(uint32_t) except +
 		void setPosition(uint32_t, uint32_t)  except +
-		void setScores(uint32_t, vector[uint32_t]) except +
-		void setEmissionScores(uint32_t, vector[long double]) except +
-		void addVariant(uint32_t, vector[uint32_t]) except +
-		void addVariant(uint32_t, vector[long double]) except +
+		void setScores(uint32_t, vector[uint8_t]) except +
+		void addVariant(uint32_t, vector[uint8_t]) except +
+		void addVariant(uint32_t, vector[float]) except +
 		void setHaplotag(bool) except +
 		void setPhaseSet(int) except +
 		void addMapq(uint32_t) except +

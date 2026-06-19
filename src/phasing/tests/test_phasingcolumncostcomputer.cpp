@@ -29,16 +29,16 @@ void test_unphasable_position() {
     Read* read9 = new Read("read9", 60, 0); read_set->add(read9); read9->setSelected(true);
     Read* read10 = new Read("read10", 60, 0); read_set->add(read10); read10->setSelected(true);
 
-    read1->addVariant(100, std::vector<uint32_t>{10, 90}); // ALLELE1
-    read2->addVariant(100, std::vector<uint32_t>{10, 90}); // ALLELE1
-    read3->addVariant(100, std::vector<uint32_t>{10, 10}); // EQUAL_SCORES
-    read4->addVariant(100, std::vector<uint32_t>{10, 10}); // EQUAL_SCORES
-    read5->addVariant(100, std::vector<uint32_t>{10, 90}); // ALLELE1
-    read6->addVariant(100, std::vector<uint32_t>{10, 90}); // ALLELE1
-    read7->addVariant(100, std::vector<uint32_t>{20, 10}); // ALLELE2
-    read8->addVariant(100, std::vector<uint32_t>{10, 20}); // ALLELE1
-    read9->addVariant(100, std::vector<uint32_t>{5, 10}); // ALLELE1
-    read10->addVariant(100, std::vector<uint32_t>{10, 90}); // ALLELE1
+    read1->addVariant(100, std::vector<uint8_t>{90, 10}); // ALLELE1
+    read2->addVariant(100, std::vector<uint8_t>{90, 10}); // ALLELE1
+    read3->addVariant(100, std::vector<uint8_t>{90, 90}); // EQUAL_SCORES
+    read4->addVariant(100, std::vector<uint8_t>{90, 90}); // EQUAL_SCORES
+    read5->addVariant(100, std::vector<uint8_t>{90, 10}); // ALLELE1
+    read6->addVariant(100, std::vector<uint8_t>{90, 10}); // ALLELE1
+    read7->addVariant(100, std::vector<uint8_t>{80, 90}); // ALLELE2
+    read8->addVariant(100, std::vector<uint8_t>{90, 80}); // ALLELE1
+    read9->addVariant(100, std::vector<uint8_t>{95, 90}); // ALLELE1
+    read10->addVariant(100, std::vector<uint8_t>{90, 10}); // ALLELE1
 
     PhasingColumnIterator* iterator = new PhasingColumnIterator(*read_set, &variant_info_table, false);
     std::unique_ptr<std::vector<const Entry*> > column = iterator->get_next(true);
@@ -104,11 +104,11 @@ void test_homozygous_position() {
     Read* read4 = new Read("read4", 60, 0); read_set->add(read4); read4->setSelected(true);
     Read* read5 = new Read("read5", 60, 0); read_set->add(read5); read5->setSelected(true);
 
-    read1->addVariant(100, std::vector<uint32_t>{10, 90, 50, 20});
-    read2->addVariant(100, std::vector<uint32_t>{20, 40, 20, 10});
-    read3->addVariant(100, std::vector<uint32_t>{10, 10, 30, 20});
-    read4->addVariant(100, std::vector<uint32_t>{10, 30, 30, 10});
-    read5->addVariant(100, std::vector<uint32_t>{20, 20, 30, 10});
+    read1->addVariant(100, std::vector<uint8_t>{90, 10, 50, 80});
+    read2->addVariant(100, std::vector<uint8_t>{80, 60, 80, 90});
+    read3->addVariant(100, std::vector<uint8_t>{90, 90, 70, 80});
+    read4->addVariant(100, std::vector<uint8_t>{90, 70, 70, 90});
+    read5->addVariant(100, std::vector<uint8_t>{80, 80, 70, 90});
 
     PhasingColumnIterator* iterator = new PhasingColumnIterator(*read_set, &variant_info_table, false);
     std::unique_ptr<std::vector<const Entry*> > column = iterator->get_next(true);
@@ -155,11 +155,11 @@ void test_homozygous_position() {
     read5 = new Read("read5", 60, 0); read_set->add(read5); read5->setSelected(true);
 
     /** All reads point to ALLELE2 */
-    read1->addVariant(100, std::vector<uint32_t>{10, 5});
-    read2->addVariant(100, std::vector<uint32_t>{20, 2});
-    read3->addVariant(100, std::vector<uint32_t>{10, 1});
-    read4->addVariant(100, std::vector<uint32_t>{10, 5});
-    read5->addVariant(100, std::vector<uint32_t>{20, 5});
+    read1->addVariant(100, std::vector<uint8_t>{90, 95});
+    read2->addVariant(100, std::vector<uint8_t>{80, 98});
+    read3->addVariant(100, std::vector<uint8_t>{90, 99});
+    read4->addVariant(100, std::vector<uint8_t>{90, 95});
+    read5->addVariant(100, std::vector<uint8_t>{80, 95});
 
     iterator = new PhasingColumnIterator(*read_set, &variant_info_table, false);
     column = iterator->get_next(true);
@@ -215,16 +215,16 @@ void test_setting_partition_no_gl() {
     Read* read9 = new Read("read9", 60, 0); read_set->add(read9); read9->setSelected(true);
     Read* read10 = new Read("read10", 60, 0); read_set->add(read10); read10->setSelected(true);
 
-    read1->addVariant(100, std::vector<uint32_t>{10, 90}); // ALLELE1
-    read2->addVariant(100, std::vector<uint32_t>{10, 90}); // ALLELE1
-    read3->addVariant(100, std::vector<uint32_t>{10, 10}); // EQUAL_SCORES
-    read4->addVariant(100, std::vector<uint32_t>{10, 10}); // EQUAL_SCORES
-    read5->addVariant(100, std::vector<uint32_t>{10, 90}); // ALLELE1
-    read6->addVariant(100, std::vector<uint32_t>{10, 90}); // ALLELE1
-    read7->addVariant(100, std::vector<uint32_t>{20, 10}); // ALLELE2
-    read8->addVariant(100, std::vector<uint32_t>{10, 20}); // ALLELE1
-    read9->addVariant(100, std::vector<uint32_t>{5, 10}); // ALLELE1
-    read10->addVariant(100, std::vector<uint32_t>{10, 90}); // ALLELE1
+    read1->addVariant(100, std::vector<uint8_t>{90, 10}); // ALLELE1
+    read2->addVariant(100, std::vector<uint8_t>{90, 10}); // ALLELE1
+    read3->addVariant(100, std::vector<uint8_t>{90, 90}); // EQUAL_SCORES
+    read4->addVariant(100, std::vector<uint8_t>{90, 90}); // EQUAL_SCORES
+    read5->addVariant(100, std::vector<uint8_t>{90, 10}); // ALLELE1
+    read6->addVariant(100, std::vector<uint8_t>{90, 10}); // ALLELE1
+    read7->addVariant(100, std::vector<uint8_t>{80, 90}); // ALLELE2
+    read8->addVariant(100, std::vector<uint8_t>{90, 80}); // ALLELE1
+    read9->addVariant(100, std::vector<uint8_t>{95, 90}); // ALLELE1
+    read10->addVariant(100, std::vector<uint8_t>{90, 10}); // ALLELE1
 
     PhasingColumnIterator* iterator = new PhasingColumnIterator(*read_set, &variant_info_table, false);
     std::unique_ptr<std::vector<const Entry*> > column = iterator->get_next(true);
@@ -340,16 +340,16 @@ void test_setting_partition_with_gl() {
     Read* read9 = new Read("read9", 60, 0); read_set->add(read9); read9->setSelected(true);
     Read* read10 = new Read("read10", 60, 0); read_set->add(read10); read10->setSelected(true);
 
-    read1->addVariant(100, std::vector<uint32_t>{10, 90}); // ALLELE1
-    read2->addVariant(100, std::vector<uint32_t>{10, 90}); // ALLELE1
-    read3->addVariant(100, std::vector<uint32_t>{10, 10}); // EQUAL_SCORES
-    read4->addVariant(100, std::vector<uint32_t>{10, 10}); // EQUAL_SCORES
-    read5->addVariant(100, std::vector<uint32_t>{10, 90}); // ALLELE1
-    read6->addVariant(100, std::vector<uint32_t>{10, 90}); // ALLELE1
-    read7->addVariant(100, std::vector<uint32_t>{20, 10}); // ALLELE2
-    read8->addVariant(100, std::vector<uint32_t>{10, 20}); // ALLELE1
-    read9->addVariant(100, std::vector<uint32_t>{5, 10}); // ALLELE1
-    read10->addVariant(100, std::vector<uint32_t>{10, 90}); // ALLELE1
+    read1->addVariant(100, std::vector<uint8_t>{90, 10}); // ALLELE1
+    read2->addVariant(100, std::vector<uint8_t>{90, 10}); // ALLELE1
+    read3->addVariant(100, std::vector<uint8_t>{90, 90}); // EQUAL_SCORES
+    read4->addVariant(100, std::vector<uint8_t>{90, 90}); // EQUAL_SCORES
+    read5->addVariant(100, std::vector<uint8_t>{90, 10}); // ALLELE1
+    read6->addVariant(100, std::vector<uint8_t>{90, 10}); // ALLELE1
+    read7->addVariant(100, std::vector<uint8_t>{80, 90}); // ALLELE2
+    read8->addVariant(100, std::vector<uint8_t>{90, 80}); // ALLELE1
+    read9->addVariant(100, std::vector<uint8_t>{95, 90}); // ALLELE1
+    read10->addVariant(100, std::vector<uint8_t>{90, 10}); // ALLELE1
 
     PhasingColumnIterator* iterator = new PhasingColumnIterator(*read_set, &variant_info_table, false);
     std::unique_ptr<std::vector<const Entry*> > column = iterator->get_next(true);
@@ -457,16 +457,16 @@ void test_update_partition_no_gl() {
     Read* read9 = new Read("read9", 60, 0); read_set->add(read9); read9->setSelected(true);
     Read* read10 = new Read("read10", 60, 0); read_set->add(read10); read10->setSelected(true);
 
-    read1->addVariant(100, std::vector<uint32_t>{10, 90}); // ALLELE1
-    read2->addVariant(100, std::vector<uint32_t>{10, 90}); // ALLELE1
-    read3->addVariant(100, std::vector<uint32_t>{10, 10}); // EQUAL_SCORES
-    read4->addVariant(100, std::vector<uint32_t>{10, 10}); // EQUAL_SCORES
-    read5->addVariant(100, std::vector<uint32_t>{10, 90}); // ALLELE1
-    read6->addVariant(100, std::vector<uint32_t>{10, 90}); // ALLELE1
-    read7->addVariant(100, std::vector<uint32_t>{20, 10}); // ALLELE2
-    read8->addVariant(100, std::vector<uint32_t>{10, 20}); // ALLELE1
-    read9->addVariant(100, std::vector<uint32_t>{5, 10}); // ALLELE1
-    read10->addVariant(100, std::vector<uint32_t>{10, 90}); // ALLELE1
+    read1->addVariant(100, std::vector<uint8_t>{90, 10}); // ALLELE1
+    read2->addVariant(100, std::vector<uint8_t>{90, 10}); // ALLELE1
+    read3->addVariant(100, std::vector<uint8_t>{90, 90}); // EQUAL_SCORES
+    read4->addVariant(100, std::vector<uint8_t>{90, 90}); // EQUAL_SCORES
+    read5->addVariant(100, std::vector<uint8_t>{90, 10}); // ALLELE1
+    read6->addVariant(100, std::vector<uint8_t>{90, 10}); // ALLELE1
+    read7->addVariant(100, std::vector<uint8_t>{80, 90}); // ALLELE2
+    read8->addVariant(100, std::vector<uint8_t>{90, 80}); // ALLELE1
+    read9->addVariant(100, std::vector<uint8_t>{95, 90}); // ALLELE1
+    read10->addVariant(100, std::vector<uint8_t>{90, 10}); // ALLELE1
 
     PhasingColumnIterator* iterator = new PhasingColumnIterator(*read_set, &variant_info_table, false);
     std::unique_ptr<std::vector<const Entry*> > column = iterator->get_next(true);
@@ -572,16 +572,16 @@ void test_update_partition_with_gl() {
     Read* read9 = new Read("read9", 60, 0); read_set->add(read9); read9->setSelected(true);
     Read* read10 = new Read("read10", 60, 0); read_set->add(read10); read10->setSelected(true);
 
-    read1->addVariant(100, std::vector<uint32_t>{10, 90}); // ALLELE1
-    read2->addVariant(100, std::vector<uint32_t>{10, 90}); // ALLELE1
-    read3->addVariant(100, std::vector<uint32_t>{10, 10}); // EQUAL_SCORES
-    read4->addVariant(100, std::vector<uint32_t>{10, 10}); // EQUAL_SCORES
-    read5->addVariant(100, std::vector<uint32_t>{10, 90}); // ALLELE1
-    read6->addVariant(100, std::vector<uint32_t>{10, 90}); // ALLELE1
-    read7->addVariant(100, std::vector<uint32_t>{20, 10}); // ALLELE2
-    read8->addVariant(100, std::vector<uint32_t>{10, 20}); // ALLELE1
-    read9->addVariant(100, std::vector<uint32_t>{5, 10}); // ALLELE1
-    read10->addVariant(100, std::vector<uint32_t>{10, 90}); // ALLELE1
+    read1->addVariant(100, std::vector<uint8_t>{90, 10}); // ALLELE1
+    read2->addVariant(100, std::vector<uint8_t>{90, 10}); // ALLELE1
+    read3->addVariant(100, std::vector<uint8_t>{90, 90}); // EQUAL_SCORES
+    read4->addVariant(100, std::vector<uint8_t>{90, 90}); // EQUAL_SCORES
+    read5->addVariant(100, std::vector<uint8_t>{90, 10}); // ALLELE1
+    read6->addVariant(100, std::vector<uint8_t>{90, 10}); // ALLELE1
+    read7->addVariant(100, std::vector<uint8_t>{80, 90}); // ALLELE2
+    read8->addVariant(100, std::vector<uint8_t>{90, 80}); // ALLELE1
+    read9->addVariant(100, std::vector<uint8_t>{95, 90}); // ALLELE1
+    read10->addVariant(100, std::vector<uint8_t>{90, 10}); // ALLELE1
 
     PhasingColumnIterator* iterator = new PhasingColumnIterator(*read_set, &variant_info_table, false);
     std::unique_ptr<std::vector<const Entry*> > column = iterator->get_next(true);
@@ -648,11 +648,11 @@ void test_equal_scores() {
     Read* read4 = new Read("read4", 60, 0); read_set->add(read4); read4->setSelected(true);
     Read* read5 = new Read("read5", 60, 0); read_set->add(read5); read5->setSelected(true);
 
-    read1->addVariant(100, std::vector<uint32_t>{10, 90}); // ALLELE1
-    read2->addVariant(100, std::vector<uint32_t>{20, 10}); // ALLELE2
-    read3->addVariant(100, std::vector<uint32_t>{10, 10}); // EQUAL_SCORES
-    read4->addVariant(100, std::vector<uint32_t>{10, 10}); // EQUAL_SCORES
-    read5->addVariant(100, std::vector<uint32_t>{20, 10}); // ALLELE2
+    read1->addVariant(100, std::vector<uint8_t>{90, 10}); // ALLELE1
+    read2->addVariant(100, std::vector<uint8_t>{80, 90}); // ALLELE2
+    read3->addVariant(100, std::vector<uint8_t>{90, 90}); // EQUAL_SCORES
+    read4->addVariant(100, std::vector<uint8_t>{90, 90}); // EQUAL_SCORES
+    read5->addVariant(100, std::vector<uint8_t>{80, 90}); // ALLELE2
 
     PhasingColumnIterator* iterator = new PhasingColumnIterator(*read_set, &variant_info_table, false);
     std::unique_ptr<std::vector<const Entry*> > column = iterator->get_next(true);

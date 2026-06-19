@@ -2,7 +2,7 @@
 #include <iostream>
 #include <stdexcept>
 
-WFAWrapper::WFAWrapper(int32_t bandwidth): bandwidth(bandwidth) {
+WFAWrapper::WFAWrapper() {
     aligner = new WFAlignerEdit(WFAligner::AlignmentScope::Score, WFAligner::MemoryModel::MemoryHigh);
 }
 
@@ -14,19 +14,13 @@ int WFAWrapper::align(const std::string& text, const std::string& pattern, uint8
     WFAligner::AlignmentStatus status;
     int score;
     int text_length;
-    std::string raw_cigar;
     switch (type) {
         case 0:
             /**
              * full pattern is aligned with full text
              */
-            if (abs((int)text.size() - (int)pattern.size()) > bandwidth) {
-                throw std::runtime_error("Error: Difference in text and pattern length is greater than bandwidth.");
-            }
-            aligner->setHeuristicBandedStatic(-bandwidth, bandwidth);
             status = aligner->alignEnd2End(pattern, text);
             score = aligner->getAlignmentScore();
-            aligner->setHeuristicNone();
             break;
 
         case 1:
@@ -34,10 +28,8 @@ int WFAWrapper::align(const std::string& text, const std::string& pattern, uint8
              * full pattern is aligned to beginning part of the text
              */
             text_length = (int)text.size();
-            aligner->setHeuristicBandedStatic(-bandwidth, bandwidth);
             status = aligner->alignEndsFree(pattern, 0, 0, text, 0, text_length);
             score = aligner->getAlignmentScore();
-            aligner->setHeuristicNone();
             break;
             
         case 2:
@@ -48,10 +40,8 @@ int WFAWrapper::align(const std::string& text, const std::string& pattern, uint8
              * the band needs to be shifted so that it can end at the end of the text.
              */
             text_length = (int)text.size();
-            aligner->setHeuristicBandedStatic(text_length-(int)pattern.size()-bandwidth, text_length-(int)pattern.size()+bandwidth);
             status = aligner->alignEndsFree(pattern, 0, 0, text, text_length, 0);
             score = aligner->getAlignmentScore();
-            aligner->setHeuristicNone();
             break;
             
         case 3:
@@ -59,7 +49,6 @@ int WFAWrapper::align(const std::string& text, const std::string& pattern, uint8
              * full pattern is aligned to part of the text
              */
             text_length = (int)text.size();
-            aligner->setHeuristicNone();
             status = aligner->alignEndsFree(pattern, 0, 0, text, text_length, text_length);
             score = aligner->getAlignmentScore();
             break;

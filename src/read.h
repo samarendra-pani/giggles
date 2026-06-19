@@ -18,10 +18,10 @@ class Read {
 		std::string toString();
 
 		// adding a variant
-		void addVariant(uint32_t position, std::vector<uint32_t> scores);
-		void addVariant(uint32_t position, std::vector<long double> scores);
+		void addVariant(uint32_t position, std::vector<uint8_t> scores);
+		void addVariant(uint32_t position, std::vector<float> scores);
 		// adding a variant whose allele has been pre-computed. used for the superread haplotypes.
-		void addVariant(uint32_t position, std::vector<uint32_t> scores, Entry::allele_t allele);
+		void addVariant(uint32_t position, std::vector<uint8_t> scores, Entry::allele_t allele);
 		void setHaplotag(bool hp);
 		void setPhaseSet(uint32_t ps);
 		void setClusterID(uint32_t cluster_id);
@@ -36,7 +36,6 @@ class Read {
 		uint32_t getID() const;
 		Entry* getEntry(size_t variant_idx);
 		uint32_t getPosition(size_t variant_idx) const;
-		std::vector<long double> getEmissionScores(size_t variant_idx) const;
 		bool getHaplotag() const;
 		uint32_t getPhaseSet() const;
 		uint32_t getClusterID() const;
@@ -50,9 +49,7 @@ class Read {
 
 		void setID(uint32_t id);
 		void setPosition(size_t variant_idx, uint32_t position);
-		void setScores(size_t variant_idx, std::vector<uint32_t> scores);
-		void setEmissionScores(size_t variant_idx, std::vector<long double> scores);
-
+		void setScores(size_t variant_idx, std::vector<uint8_t> scores);
 
 		bool hasHaplotag() const;
 		bool hasPhaseSet() const;
@@ -73,12 +70,12 @@ class Read {
 			uint32_t position; // position on the reference
 			uint32_t index; // zero-based index for multi-allelic variants
 			Entry entry; // the record entry
-			enriched_entry_t(uint32_t position, std::vector<uint32_t> scores) :
+			enriched_entry_t(uint32_t position, std::vector<uint8_t> scores) :
+				entry(0, {}), position(position) { entry.set_scores(scores); }
+			enriched_entry_t(uint32_t position, std::vector<float> scores) :
 				entry(0, scores), position(position) {}
-			enriched_entry_t(uint32_t position, std::vector<long double> scores) :
-				entry(0, {}), position(position) { entry.set_emission_scores(scores); }
-			enriched_entry_t(uint32_t position, std::vector<uint32_t> scores, Entry::allele_t allele) :
-				entry(0, scores), position(position) { entry.set_allele_type(allele); }
+			enriched_entry_t(uint32_t position, std::vector<uint8_t> scores, Entry::allele_t allele) :
+				entry(0, {}), position(position) { entry.set_allele_type(allele); entry.set_scores(scores); }
 		} enriched_entry_t;
 
 		typedef struct entry_comparator_t {

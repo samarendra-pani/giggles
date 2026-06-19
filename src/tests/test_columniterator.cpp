@@ -72,7 +72,7 @@ void test_iterator_empty_columns() {
     Read* read1 = new Read("read1", 60, 0); read_set->add(read1);
     Read* read2 = new Read("read2", 60, 0); read_set->add(read2);
     Read* read3 = new Read("read3", 60, 0); read_set->add(read3);
-    std::vector<uint32_t> scores_1 = std::vector<uint32_t>{10, 90};
+    std::vector<uint8_t> scores_1 = std::vector<uint8_t>{90, 10};
     read1->addVariant(100, scores_1);
     read2->addVariant(300, scores_1);
     read3->addVariant(500, scores_1);
@@ -116,7 +116,7 @@ void test_iterator_gapped_reads() {
     Read* read1 = new Read("read1", 60, 0); read_set->add(read1);
     Read* read2 = new Read("read2", 60, 0); read_set->add(read2);
     Read* read3 = new Read("read3", 60, 0); read_set->add(read3);
-    std::vector<uint32_t> scores_1 = std::vector<uint32_t>{10, 90};
+    std::vector<uint8_t> scores_1 = std::vector<uint8_t>{90, 10};
     read1->addVariant(100, scores_1); read1->addVariant(300, scores_1);
     read2->addVariant(300, scores_1);
     read3->addVariant(500, scores_1);
@@ -226,7 +226,7 @@ void test_backwarditerator_empty_columns() {
     Read* read1 = new Read("read1", 60, 0); read_set->add(read1);
     Read* read2 = new Read("read2", 60, 0); read_set->add(read2);
     Read* read3 = new Read("read3", 60, 0); read_set->add(read3);
-    std::vector<uint32_t> scores_1 = std::vector<uint32_t>{10, 90};
+    std::vector<uint8_t> scores_1 = std::vector<uint8_t>{90, 10};
     read1->addVariant(100, scores_1);
     read2->addVariant(300, scores_1);
     read3->addVariant(500, scores_1);
@@ -270,7 +270,7 @@ void test_backwarditerator_gapped_reads() {
     Read* read1 = new Read("read1", 60, 0); read_set->add(read1);
     Read* read2 = new Read("read2", 60, 0); read_set->add(read2);
     Read* read3 = new Read("read3", 60, 0); read_set->add(read3);
-    std::vector<uint32_t> scores_1 = std::vector<uint32_t>{10, 90};
+    std::vector<uint8_t> scores_1 = std::vector<uint8_t>{90, 10};
     read1->addVariant(100, scores_1); read1->addVariant(300, scores_1);
     read2->addVariant(300, scores_1);
     read3->addVariant(500, scores_1);

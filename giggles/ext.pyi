@@ -1,7 +1,6 @@
 class WFAWrapper:
     def __init__(
         self, 
-        bandwidth: int = ...
         ): ...
     def align(
         self, 

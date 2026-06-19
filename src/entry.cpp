@@ -7,19 +7,33 @@ using namespace std;
 
 #include "entry.h"
 
-Entry::Entry(uint32_t r, const std::vector<uint32_t>& s) : 
-	read_id(r), allele(BLANK) {
-		convert_scores_to_probability(s);
-	}
+std::vector<long double> Entry::probability_cache;
+std::vector<long double> Entry::reciprocal_probability_cache;
 
-Entry::Entry() : read_id(0), emission_scores({}), allele(BLANK) {}
+Entry::Entry(uint32_t r, const std::vector<float>& s) : read_id(r), allele(BLANK) {
+	set_scores(s);
+}
+
+Entry::Entry(uint32_t r) : read_id(r), scores({}), allele(BLANK) {}
+
+Entry::Entry() : read_id(0), scores({}), allele(BLANK) {}
 
 void Entry::set_read_id(uint32_t r) {
 	read_id = r;
 }
 
-void Entry::set_scores(const std::vector<uint32_t>& s) {
-	convert_scores_to_probability(s);
+void Entry::set_scores(const std::vector<float>& s) {
+	scores.resize(s.size());
+	for (uint32_t i = 0; i < s.size(); i++) {
+		float score = s[i];
+		uint8_t discretized_score;
+		discretized_score = (int)(score*100 + 0.5);
+		scores[i] = discretized_score;
+	}
+}
+
+void Entry::set_scores(const std::vector<uint8_t>& s) {
+	scores = s;
 }
 
 void Entry::set_allele_type(const std::vector<bool>& active_alleles) {
@@ -27,11 +41,11 @@ void Entry::set_allele_type(const std::vector<bool>& active_alleles) {
 	if (active_alleles.size() > get_max_genotype_alleles()) {
 		throw std::runtime_error("Number of alleles greater than max alleles supported.");
 	}
-	assert(active_alleles.size() == emission_scores.size());
-	std::vector<long double> active_scores;
+	assert(active_alleles.size() == scores.size());
+	std::vector<uint8_t> active_scores;
 	for (size_t i = 0; i < active_alleles.size(); i++) {
 		if (active_alleles[i]) {
-			active_scores.push_back(this->emission_scores[i]);
+			active_scores.push_back(this->scores[i]);
 		}
 	}
 	if (active_scores.size() == 1) { allele = ALLELE1; return; }
@@ -62,58 +76,37 @@ bool Entry::has_allele_type() const {
 	return (allele != BLANK);
 }
 
-/*
-* conversion of distance scores to emission probabilities using error probability 0.0001
-* emission probability = 10^(-max(score*log10(0.0001), 1e-10))
-* modelling the probability of observing a read given the true allele and error rate
-*/
-void Entry::convert_scores_to_probability(const std::vector<uint32_t>& scores) {
-	if (scores.size() > 0) {
-		long double sum_scores = 0.0L;
-		emission_scores.resize(scores.size());
-		for (size_t i = 0; i < scores.size(); i++) {
-			long double logprob = (long double)std::min(scores[i]*2, (uint32_t)60);
-			emission_scores[i] = pow(10.0L, -logprob);
-			sum_scores += emission_scores[i];
-		}
-		// normalizing the emission scores
-		for (size_t i = 0; i < scores.size(); i++) {
-			emission_scores[i] /= sum_scores;
-		}
+void Entry::initialize_probability_cache(float temperature) {
+    if (temperature <= 0.0f) temperature = 1.0f; 
+    if (!probability_cache.empty()) return;
+
+    probability_cache.resize(101);
+    probability_cache[0] = 1e-30L;		// prob(g = 0) = 10^-10
+	reciprocal_probability_cache.resize(101);
+    reciprocal_probability_cache[0] = 1e30L;
+
+	long double alpha = (std::exp(temperature)*1e-30 - 1)/(std::exp(temperature) - 1);
+	long double beta = (1 - 1e-30)/(std::exp(temperature) - 1);
+
+	for (uint32_t i = 0; i < 100; i++) {
+		long double g = 0.01 * i;
+		probability_cache[i] = (long double)(alpha + (beta * std::exp(g*temperature)));
+		reciprocal_probability_cache[i] = 1/probability_cache[i];
 	}
+
+	probability_cache[100] = 1;	// prob(g = 1) = 1
+	reciprocal_probability_cache[100] = 1;
 }
 
-/*
-* conversion of distance scores to emission probabilities using softmin-like function
-* given temperature parameter T, emission probability = exp(-score / T) / sum_over_all_alleles(exp(-score / T))
-*/
-
-/*
-void Entry::convert_scores_to_softmin_probability(uint32_t temperature) {
-	assert(scores.size() > 0);
-	long double min_score = *std::min_element(scores.begin(), scores.end());
-	long double sum_scores = 0.0L;
-	emission_scores.resize(scores.size());
-	for (size_t i = 0; i < scores.size(); i++) {
-		emission_scores[i] = exp(-((long double)scores[i] - min_score) / (long double)temperature);
-		sum_scores += emission_scores[i];
-	}
-	// normalizing the emission scores
-	for (size_t i = 0; i < scores.size(); i++) {
-		emission_scores[i] /= sum_scores;
-	}
-}
-*/
-
-
-std::vector<long double> Entry::get_emission_scores() const {
-	return emission_scores;
+long double Entry::get_emission_score(uint32_t i) const {
+	uint8_t score = scores[i];
+	return probability_cache[score];
 }
 
-void Entry::set_emission_scores(const std::vector<long double>& scores) {
-	emission_scores = scores;
+long double Entry::get_reciprocal_emission_score(uint32_t i) const {
+	uint8_t score = scores[i];
+	return reciprocal_probability_cache[score];
 }
-
 
 std::ostream& operator<<(std::ostream& out, const Entry& e) {
 	out << "Entry(Read ID: " << e.read_id ;

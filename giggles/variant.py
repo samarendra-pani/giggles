@@ -7,5 +7,5 @@ class Variant:
     """A single variant on a read"""
 
     position: int
-    emission_scores: Iterable[float]
+    scores: Iterable[int]
     

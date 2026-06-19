@@ -12,18 +12,18 @@ void test_pos_to_entry_map() {
     Read* read6 = new Read("read6", 60, 0); read_set->add(read6); read6->setSelected(false);
 
     {   
-        read1->addVariant(100, std::vector<uint32_t>{10, 20});
+        read1->addVariant(100, std::vector<uint8_t>{90, 80});
 
-        read2->addVariant(200, std::vector<uint32_t>{20, 5, 10});
+        read2->addVariant(200, std::vector<uint8_t>{80, 95, 90});
         
-        read3->addVariant(200, std::vector<uint32_t>{15, 8, 10});
+        read3->addVariant(200, std::vector<uint8_t>{85, 92, 90});
         
-        read4->addVariant(400, std::vector<uint32_t>{20, 5, 2, 1});
+        read4->addVariant(400, std::vector<uint8_t>{80, 95, 98, 99});
 
-        read5->addVariant(400, std::vector<uint32_t>{10, 15, 1, 2});
-        read5->addVariant(500, std::vector<uint32_t>{20, 5});
+        read5->addVariant(400, std::vector<uint8_t>{90, 85, 99, 98});
+        read5->addVariant(500, std::vector<uint8_t>{80, 95});
 
-        read6->addVariant(500, std::vector<uint32_t>{15, 8});
+        read6->addVariant(500, std::vector<uint8_t>{85, 92});
     }
     read_set->initialize();
 
@@ -53,16 +53,16 @@ void test_readset_sorting() {
     Read* read6 = new Read("read6", 60, 0); read_set->add(read6); read6->setSelected(false);
 
     {   
-        read1->addVariant(100, std::vector<uint32_t>{10, 20});
+        read1->addVariant(100, std::vector<uint8_t>{90, 80});
 
-        read3->addVariant(200, std::vector<uint32_t>{15, 8, 10});
+        read3->addVariant(200, std::vector<uint8_t>{85, 92, 90});
         
-        read4->addVariant(400, std::vector<uint32_t>{20, 5, 2, 1});
+        read4->addVariant(400, std::vector<uint8_t>{80, 95, 98, 99});
 
-        read5->addVariant(300, std::vector<uint32_t>{10, 15, 1, 2});
-        read5->addVariant(500, std::vector<uint32_t>{20, 5});
+        read5->addVariant(300, std::vector<uint8_t>{90, 85, 99, 98});
+        read5->addVariant(500, std::vector<uint8_t>{80, 95});
 
-        read6->addVariant(200, std::vector<uint32_t>{15, 8});
+        read6->addVariant(200, std::vector<uint8_t>{85, 92});
     }
     read_set->initialize();
     assert(read2->getID() == 0);

@@ -13,7 +13,7 @@ Wrappers for core C++ classes.
 from libcpp cimport bool
 from libcpp.string cimport string
 from libcpp.vector cimport vector
-from libc.stdint cimport uint32_t
+from libc.stdint cimport uint32_t, uint8_t
 from . cimport cpp
 
 from .variant import Variant
@@ -83,7 +83,7 @@ cdef class Read:
 			key = n + key
 		return Variant(
 			position=self.thisptr.getPosition(key),
-			emission_scores=self.thisptr.getEmissionScores(key),
+			scores=self.thisptr.getScores(key),
 		)
 
 	def __setitem__(self, index, variant):
@@ -96,7 +96,7 @@ cdef class Read:
 		if not isinstance(variant, Variant):
 			raise ValueError('Expected instance of Variant, but found {}'.format(type(variant)))
 		self.thisptr.setPosition(index, variant.position)
-		self.thisptr.setEmissionScores(index, variant.scores)
+		self.thisptr.setScores(index, variant.scores)
 
 	def __contains__(self, position):
 		"""Return whether this read contains a variant at the given position.
@@ -111,7 +111,7 @@ cdef class Read:
 	
 	def __getstate__(self):
 		mapqs = [mapq for mapq in self.mapqs]
-		variants = [(var.position, var.emission_scores) for var in self]
+		variants = [(var.position, var.scores) for var in self]
 		return (mapqs, self.name, self.source_id, variants)
 
 	def __setstate__(self, state):
@@ -130,18 +130,19 @@ cdef class Read:
 
 		for mapq in mapqs[1:]:
 			self.add_mapq(mapq)
-		for (pos, emission_scores) in variants:
-			self.add_variant(pos, emission_scores)
+		for (pos, scores) in variants:
+			self.add_variant(pos, scores)
 
 	def add_variant(self, int position, scores):
 		assert self.thisptr != NULL
 		
-		cdef vector[uint32_t] int_scores
-		cdef vector[long double] float_scores
+		cdef vector[uint8_t] int_scores
+		cdef vector[float] float_scores
 		if len(scores) == 0:
 			return
 		# Check the type of the first element to decide which C++ overload to call
-		# if scores are float, then we directly set the emission probabilities
+		# if scores are float, we are entering the values from the realign() function.
+		# if scores are int, then we are re-adding scores from Entry objects.
 		if isinstance(scores[0], float):
 			float_scores = scores 
 			self.thisptr.addVariant(position, float_scores)

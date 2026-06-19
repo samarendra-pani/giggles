@@ -149,7 +149,6 @@ def run_genotype(
     max_coverage=15,
     gt_qual_threshold=0,
     is_custom_graph=False,
-    bandwidth=30,
     overhang=10,
     recombrate=1.26,
     eff_pop_size=10
@@ -171,7 +170,6 @@ def run_genotype(
         readset_creator_args = (alignment_files, rgfa, read_fasta_files)
         readset_creator_kwargs = {'mapq_threshold': mapping_quality,
                 'is_custom_graph': is_custom_graph,
-                'bandwidth': bandwidth,
                 'overhang': overhang}
         readset_creator_arguments=[readset_creator_args, readset_creator_kwargs]
         readset_creator = stack.enter_context(ReadSetCreator(*readset_creator_arguments[0], **readset_creator_arguments[1]))
@@ -186,7 +184,7 @@ def run_genotype(
         # The variant tables are then simply just updated after the HMM is run.
         vcf_reader = stack.enter_context(
             VcfReader(
-                path=variant_file, indels=True, required_chr=chromosomes, is_custom_graph=is_custom_graph, max_allele_distance=2*bandwidth
+                path=variant_file, indels=True, required_chr=chromosomes, is_custom_graph=is_custom_graph
             )
         )
         recombination_cost_computer = UniformRecombinationCostComputer(recombrate, eff_pop_size)
@@ -280,8 +278,8 @@ def add_arguments(parser):
     arg = parser.add_argument_group('Realignment parameters').add_argument
     arg('--is-custom-graph', action='store_true',
         help='The graph is a custom-made graph where the bubble paths are single nodes corresponding to alleles.')
-    arg('--realignment-bandwidth', metavar='BANDWIDTH', default=30,
-        help='Set a bandwidth to restrict the realignment process (default: %(default)s).')
+    #arg('--realignment-bandwidth', metavar='BANDWIDTH', default=30,
+    #    help='Set a bandwidth to restrict the realignment process (default: %(default)s).')
     arg('--overhang', metavar='OVERHANG', default=10, type=int,
         help='Extend alignment by this many bases to left and right when realigning (default: %(default)s).')
     

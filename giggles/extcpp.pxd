@@ -10,5 +10,5 @@ from libc.stdint cimport uint32_t, uint8_t
 
 cdef extern from "../external/wrappers/wfawrapper.h":
 	cdef cppclass WFAWrapper:
-		WFAWrapper(int) except +
+		WFAWrapper() except +
 		uint32_t align(string, string, uint8_t) except +

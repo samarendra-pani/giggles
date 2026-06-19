@@ -30,20 +30,23 @@ void EmissionProbabilityComputer::update_emission_probability(const int cluster_
 				 */
 				continue;
 			}
-			const std::vector<long double>& scores = entries.at(entry_index)->get_emission_scores();
 			for (uint32_t i = 0; i < n_alleles; i++) {
 				for (uint32_t j = 0; j < n_alleles; j++) {
 					if (newBit) {
 						/**
 						 * The new bit is 1. So the entry was at bipartion 0 (corresponding to allele i) and is now at bipartition 1 (corresponding to allele j).
 						 */
-						ratio = scores[j]/scores[i];
+						long double numerator = entries.at(entry_index)->get_emission_score(j);
+						long double reciprocal_denominator = entries.at(entry_index)->get_reciprocal_emission_score(i);
+						ratio = numerator*reciprocal_denominator;
 					} 
 					else {
 						/**
 						 * The new bit is 0. So the entry was at bipartion 1 (corresponding to allele j) and is now at bipartition 0 (corresponding to allele i).
 						 */
-						ratio = scores[i]/scores[j];
+						long double numerator = entries.at(entry_index)->get_emission_score(i);
+						long double reciprocal_denominator = entries.at(entry_index)->get_reciprocal_emission_score(j);
+						ratio = numerator*reciprocal_denominator;
 					}
 					emission_probability_table.set(i, j, emission_probability_table.at(i, j) * ratio);
 				}
@@ -86,11 +89,11 @@ void EmissionProbabilityComputer::update_emission_probability(const int cluster_
 						}
 						if (bit) {
 							// If read at r_idx is in biparition 1 then value gets multiplied with emission from allele j
-							value = value * (entries[r_idx]->get_emission_scores()[j]);
+							value = value * (entries[r_idx]->get_emission_score(j));
 						}
 						else {
 							// If read at r_idx is in biparition 0 then value gets multiplied with emission from allele i
-							value = value * (entries[r_idx]->get_emission_scores()[i]);
+							value = value * (entries[r_idx]->get_emission_score(i));
 						}
 					}
 					// Move to the next cluster

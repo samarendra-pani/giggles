@@ -25,16 +25,16 @@ void test_singleposition_blankentries() {
     }
     
 
-    read1->addVariant(500, std::vector<uint32_t>{});
-    read2->addVariant(500, std::vector<uint32_t>{});
-    read3->addVariant(500, std::vector<uint32_t>{});
-    read4->addVariant(500, std::vector<uint32_t>{});
-    read5->addVariant(500, std::vector<uint32_t>{});
-    read6->addVariant(500, std::vector<uint32_t>{});
-    read7->addVariant(500, std::vector<uint32_t>{});
-    read8->addVariant(500, std::vector<uint32_t>{});
-    read9->addVariant(500, std::vector<uint32_t>{});
-    read10->addVariant(500, std::vector<uint32_t>{});
+    read1->addVariant(500, std::vector<uint8_t>{});
+    read2->addVariant(500, std::vector<uint8_t>{});
+    read3->addVariant(500, std::vector<uint8_t>{});
+    read4->addVariant(500, std::vector<uint8_t>{});
+    read5->addVariant(500, std::vector<uint8_t>{});
+    read6->addVariant(500, std::vector<uint8_t>{});
+    read7->addVariant(500, std::vector<uint8_t>{});
+    read8->addVariant(500, std::vector<uint8_t>{});
+    read9->addVariant(500, std::vector<uint8_t>{});
+    read10->addVariant(500, std::vector<uint8_t>{});
 
     read1->setID(0);
     read2->setID(1);
@@ -98,23 +98,23 @@ void test_multiposition_entries() {
     {
         /* Selected Reads */
         /* PS: 100, HP: 0 */
-        read1->addVariant(100, std::vector<uint32_t>{}, Entry::ALLELE1);
-        read1->addVariant(200, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
-        read1->addVariant(400, std::vector<uint32_t>{}, Entry::ALLELE2);
+        read1->addVariant(100, std::vector<uint8_t>{}, Entry::ALLELE1);
+        read1->addVariant(200, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
+        read1->addVariant(400, std::vector<uint8_t>{}, Entry::ALLELE2);
         /* PS: 600, HP: 1 */
-        read7->addVariant(600, std::vector<uint32_t>{}, Entry::ALLELE2); 
-        read7->addVariant(700, std::vector<uint32_t>{}, Entry::ALLELE2);
-        read7->addVariant(800, std::vector<uint32_t>{}, Entry::ALLELE1);
-        read7->addVariant(900, std::vector<uint32_t>{}, Entry::ALLELE1);
+        read7->addVariant(600, std::vector<uint8_t>{}, Entry::ALLELE2); 
+        read7->addVariant(700, std::vector<uint8_t>{}, Entry::ALLELE2);
+        read7->addVariant(800, std::vector<uint8_t>{}, Entry::ALLELE1);
+        read7->addVariant(900, std::vector<uint8_t>{}, Entry::ALLELE1);
         /* PS: 1100, HP: 0 */
-        read10->addVariant(1000, std::vector<uint32_t>{}, Entry::BLANK);
-        read10->addVariant(1100, std::vector<uint32_t>{}, Entry::ALLELE2);
-        read10->addVariant(1200, std::vector<uint32_t>{}, Entry::ALLELE1);
-        read10->addVariant(1300, std::vector<uint32_t>{}, Entry::ALLELE1);
+        read10->addVariant(1000, std::vector<uint8_t>{}, Entry::BLANK);
+        read10->addVariant(1100, std::vector<uint8_t>{}, Entry::ALLELE2);
+        read10->addVariant(1200, std::vector<uint8_t>{}, Entry::ALLELE1);
+        read10->addVariant(1300, std::vector<uint8_t>{}, Entry::ALLELE1);
         /* PS: 1500, HP: 0 */
-        read13->addVariant(1300, std::vector<uint32_t>{}, Entry::ALLELE1);
-        read13->addVariant(1400, std::vector<uint32_t>{}, Entry::ALLELE2);
-        read13->addVariant(1500, std::vector<uint32_t>{}, Entry::ALLELE2);
+        read13->addVariant(1300, std::vector<uint8_t>{}, Entry::ALLELE1);
+        read13->addVariant(1400, std::vector<uint8_t>{}, Entry::ALLELE2);
+        read13->addVariant(1500, std::vector<uint8_t>{}, Entry::ALLELE2);
 
         /**
          * Resulting phasesets are
@@ -128,37 +128,37 @@ void test_multiposition_entries() {
     {
         /* Unselected Reads */
         /* PS: 100, HP: 0 */
-        read2->addVariant(100, std::vector<uint32_t>{}, Entry::ALLELE1);
-        read2->addVariant(200, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
-        read2->addVariant(300, std::vector<uint32_t>{}, Entry::ALLELE1);
+        read2->addVariant(100, std::vector<uint8_t>{}, Entry::ALLELE1);
+        read2->addVariant(200, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
+        read2->addVariant(300, std::vector<uint8_t>{}, Entry::ALLELE1);
         /* PS: 100, HP: 1 */
-        read3->addVariant(200, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
-        read3->addVariant(300, std::vector<uint32_t>{}, Entry::ALLELE1);
-        read3->addVariant(400, std::vector<uint32_t>{}, Entry::ALLELE1);
+        read3->addVariant(200, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
+        read3->addVariant(300, std::vector<uint8_t>{}, Entry::ALLELE1);
+        read3->addVariant(400, std::vector<uint8_t>{}, Entry::ALLELE1);
         /* PS: ??, HP: ?? */
-        read4->addVariant(300, std::vector<uint32_t>{}, Entry::ALLELE1);
+        read4->addVariant(300, std::vector<uint8_t>{}, Entry::ALLELE1);
         /* PS: ??, HP: ?? */
-        read5->addVariant(400, std::vector<uint32_t>{}, Entry::ALLELE1);
-        read5->addVariant(500, std::vector<uint32_t>{}, Entry::BLANK);
-        read5->addVariant(600, std::vector<uint32_t>{}, Entry::ALLELE2);
+        read5->addVariant(400, std::vector<uint8_t>{}, Entry::ALLELE1);
+        read5->addVariant(500, std::vector<uint8_t>{}, Entry::BLANK);
+        read5->addVariant(600, std::vector<uint8_t>{}, Entry::ALLELE2);
         /* PS: 600, HP: 0 */
-        read6->addVariant(500, std::vector<uint32_t>{}, Entry::BLANK);
-        read6->addVariant(600, std::vector<uint32_t>{}, Entry::ALLELE1);
-        read6->addVariant(700, std::vector<uint32_t>{}, Entry::ALLELE1);
-        read6->addVariant(800, std::vector<uint32_t>{}, Entry::ALLELE2);
+        read6->addVariant(500, std::vector<uint8_t>{}, Entry::BLANK);
+        read6->addVariant(600, std::vector<uint8_t>{}, Entry::ALLELE1);
+        read6->addVariant(700, std::vector<uint8_t>{}, Entry::ALLELE1);
+        read6->addVariant(800, std::vector<uint8_t>{}, Entry::ALLELE2);
         /* PS: 600, HP: 1 */
-        read8->addVariant(600, std::vector<uint32_t>{}, Entry::ALLELE2);
-        read8->addVariant(700, std::vector<uint32_t>{}, Entry::ALLELE2);
-        read8->addVariant(800, std::vector<uint32_t>{}, Entry::ALLELE1);
+        read8->addVariant(600, std::vector<uint8_t>{}, Entry::ALLELE2);
+        read8->addVariant(700, std::vector<uint8_t>{}, Entry::ALLELE2);
+        read8->addVariant(800, std::vector<uint8_t>{}, Entry::ALLELE1);
         /* PS: 600, HP: 1 */
-        read9->addVariant(800, std::vector<uint32_t>{}, Entry::ALLELE1);
-        read9->addVariant(900, std::vector<uint32_t>{}, Entry::ALLELE2);
-        read9->addVariant(1000, std::vector<uint32_t>{}, Entry::BLANK);
+        read9->addVariant(800, std::vector<uint8_t>{}, Entry::ALLELE1);
+        read9->addVariant(900, std::vector<uint8_t>{}, Entry::ALLELE2);
+        read9->addVariant(1000, std::vector<uint8_t>{}, Entry::BLANK);
         /* PS: 1100. HP: ?? */
-        read11->addVariant(1000, std::vector<uint32_t>{}, Entry::BLANK);
-        read11->addVariant(1100, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
+        read11->addVariant(1000, std::vector<uint8_t>{}, Entry::BLANK);
+        read11->addVariant(1100, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
         /* PS: 1100. HP: ?? */
-        read12->addVariant(1100, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
+        read12->addVariant(1100, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
     }
     
     std::vector<bool>* partitioning = new std::vector<bool>(read_set->size(), false);

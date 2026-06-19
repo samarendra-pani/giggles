@@ -80,7 +80,7 @@ ReadSet* mock_readset_1() {
      * Adding variants to the reads
      */
     {
-        std::vector<uint32_t> scores = std::vector<uint32_t>{10, 90};
+        std::vector<float> scores = std::vector<float>{0.9f, 0.1f};
         read1->addVariant(1, scores);
         read2->addVariant(1, scores);
         read3->addVariant(1, scores);
@@ -255,11 +255,11 @@ ReadSet* mock_readset_2() {
     /**
      * Adding variants to the reads
      */
-    std::vector<uint32_t> scores_1 = std::vector<uint32_t>{10, 90};
-    std::vector<uint32_t> scores_2 = std::vector<uint32_t>{20, 30, 50};
-    std::vector<uint32_t> scores_3 = std::vector<uint32_t>{85, 15};
-    std::vector<uint32_t> scores_4 = std::vector<uint32_t>{5, 25, 35, 35};
-    std::vector<uint32_t> scores_5 = std::vector<uint32_t>{40, 60};
+    std::vector<uint8_t> scores_1 = std::vector<uint8_t>{90, 10};
+    std::vector<uint8_t> scores_2 = std::vector<uint8_t>{80, 70, 50};
+    std::vector<uint8_t> scores_3 = std::vector<uint8_t>{15, 85};
+    std::vector<uint8_t> scores_4 = std::vector<uint8_t>{95, 75, 65, 65};
+    std::vector<uint8_t> scores_5 = std::vector<uint8_t>{50, 50};
     
     read1->addVariant(100, scores_1); read1->addVariant(200, scores_2); read1->addVariant(300, scores_3); read1->addVariant(400, scores_4);
     read2->addVariant(100, scores_1); read2->addVariant(200, scores_2); read2->addVariant(300, scores_3); read2->addVariant(400, scores_4); read2->addVariant(500, scores_5);
@@ -296,50 +296,50 @@ ReadSet* mock_superreads() {
     superreads->add(superread0);
     superreads->add(superread1);
 
-    superread0->addVariant(100, std::vector<uint32_t>{}, Entry::ALLELE1);
-    superread1->addVariant(100, std::vector<uint32_t>{}, Entry::ALLELE2);
+    superread0->addVariant(100, std::vector<uint8_t>{}, Entry::ALLELE1);
+    superread1->addVariant(100, std::vector<uint8_t>{}, Entry::ALLELE2);
     
-    superread0->addVariant(200, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
-    superread1->addVariant(200, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
+    superread0->addVariant(200, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
+    superread1->addVariant(200, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
     
-    superread0->addVariant(300, std::vector<uint32_t>{}, Entry::ALLELE1);
-    superread1->addVariant(300, std::vector<uint32_t>{}, Entry::ALLELE1);
+    superread0->addVariant(300, std::vector<uint8_t>{}, Entry::ALLELE1);
+    superread1->addVariant(300, std::vector<uint8_t>{}, Entry::ALLELE1);
     
-    superread0->addVariant(400, std::vector<uint32_t>{}, Entry::ALLELE2);
-    superread1->addVariant(400, std::vector<uint32_t>{}, Entry::ALLELE1);
+    superread0->addVariant(400, std::vector<uint8_t>{}, Entry::ALLELE2);
+    superread1->addVariant(400, std::vector<uint8_t>{}, Entry::ALLELE1);
     
-    superread0->addVariant(500, std::vector<uint32_t>{}, Entry::BLANK);
-    superread1->addVariant(500, std::vector<uint32_t>{}, Entry::BLANK);
+    superread0->addVariant(500, std::vector<uint8_t>{}, Entry::BLANK);
+    superread1->addVariant(500, std::vector<uint8_t>{}, Entry::BLANK);
     
-    superread0->addVariant(600, std::vector<uint32_t>{}, Entry::ALLELE1);
-    superread1->addVariant(600, std::vector<uint32_t>{}, Entry::ALLELE2);
+    superread0->addVariant(600, std::vector<uint8_t>{}, Entry::ALLELE1);
+    superread1->addVariant(600, std::vector<uint8_t>{}, Entry::ALLELE2);
 
-    superread0->addVariant(700, std::vector<uint32_t>{}, Entry::ALLELE2);
-    superread1->addVariant(700, std::vector<uint32_t>{}, Entry::ALLELE2);
+    superread0->addVariant(700, std::vector<uint8_t>{}, Entry::ALLELE2);
+    superread1->addVariant(700, std::vector<uint8_t>{}, Entry::ALLELE2);
 
-    superread0->addVariant(800, std::vector<uint32_t>{}, Entry::ALLELE2);
-    superread1->addVariant(800, std::vector<uint32_t>{}, Entry::ALLELE1);
+    superread0->addVariant(800, std::vector<uint8_t>{}, Entry::ALLELE2);
+    superread1->addVariant(800, std::vector<uint8_t>{}, Entry::ALLELE1);
     
-    superread0->addVariant(900, std::vector<uint32_t>{}, Entry::ALLELE1);
-    superread1->addVariant(900, std::vector<uint32_t>{}, Entry::ALLELE2);
+    superread0->addVariant(900, std::vector<uint8_t>{}, Entry::ALLELE1);
+    superread1->addVariant(900, std::vector<uint8_t>{}, Entry::ALLELE2);
 
-    superread0->addVariant(1000, std::vector<uint32_t>{}, Entry::BLANK);
-    superread1->addVariant(1000, std::vector<uint32_t>{}, Entry::BLANK);
+    superread0->addVariant(1000, std::vector<uint8_t>{}, Entry::BLANK);
+    superread1->addVariant(1000, std::vector<uint8_t>{}, Entry::BLANK);
     
-    superread0->addVariant(1100, std::vector<uint32_t>{}, Entry::ALLELE2);
-    superread1->addVariant(1100, std::vector<uint32_t>{}, Entry::ALLELE1);
+    superread0->addVariant(1100, std::vector<uint8_t>{}, Entry::ALLELE2);
+    superread1->addVariant(1100, std::vector<uint8_t>{}, Entry::ALLELE1);
 
-    superread0->addVariant(1200, std::vector<uint32_t>{}, Entry::ALLELE1);
-    superread1->addVariant(1200, std::vector<uint32_t>{}, Entry::ALLELE1);
+    superread0->addVariant(1200, std::vector<uint8_t>{}, Entry::ALLELE1);
+    superread1->addVariant(1200, std::vector<uint8_t>{}, Entry::ALLELE1);
 
-    superread0->addVariant(1300, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
-    superread1->addVariant(1300, std::vector<uint32_t>{}, Entry::ALLELE1);
+    superread0->addVariant(1300, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
+    superread1->addVariant(1300, std::vector<uint8_t>{}, Entry::ALLELE1);
     
-    superread0->addVariant(1400, std::vector<uint32_t>{}, Entry::ALLELE2);
-    superread1->addVariant(1400, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
+    superread0->addVariant(1400, std::vector<uint8_t>{}, Entry::ALLELE2);
+    superread1->addVariant(1400, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
     
-    superread0->addVariant(1500, std::vector<uint32_t>{}, Entry::ALLELE2);
-    superread1->addVariant(1500, std::vector<uint32_t>{}, Entry::ALLELE1);
+    superread0->addVariant(1500, std::vector<uint8_t>{}, Entry::ALLELE2);
+    superread1->addVariant(1500, std::vector<uint8_t>{}, Entry::ALLELE1);
 
     /**
      * Summary of Superreads

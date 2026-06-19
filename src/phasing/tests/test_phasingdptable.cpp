@@ -21,16 +21,16 @@ void test_singleposition_allreadsselected() {
     Read* read9 = new Read("read9", 60, 0); read_set->add(read9); read9->setSelected(true);
     Read* read10 = new Read("read10", 60, 0); read_set->add(read10); read10->setSelected(true);
 
-    read1->addVariant(100, std::vector<uint32_t>{10, 90}); // ALLELE1
-    read2->addVariant(100, std::vector<uint32_t>{10, 5}); // ALLELE2
-    read3->addVariant(100, std::vector<uint32_t>{10, 10}); // EQUAL_SCORES
-    read4->addVariant(100, std::vector<uint32_t>{10, 10}); // EQUAL_SCORES
-    read5->addVariant(100, std::vector<uint32_t>{10, 5}); // ALLELE2
-    read6->addVariant(100, std::vector<uint32_t>{10, 90}); // ALLELE1
-    read7->addVariant(100, std::vector<uint32_t>{20, 10}); // ALLELE2
-    read8->addVariant(100, std::vector<uint32_t>{10, 20}); // ALLELE1
-    read9->addVariant(100, std::vector<uint32_t>{5, 10}); // ALLELE1
-    read10->addVariant(100, std::vector<uint32_t>{10, 90}); // ALLELE1
+    read1->addVariant(100, std::vector<uint8_t>{90, 10}); // ALLELE1
+    read2->addVariant(100, std::vector<uint8_t>{90, 95}); // ALLELE2
+    read3->addVariant(100, std::vector<uint8_t>{90, 90}); // EQUAL_SCORES
+    read4->addVariant(100, std::vector<uint8_t>{90, 90}); // EQUAL_SCORES
+    read5->addVariant(100, std::vector<uint8_t>{90, 95}); // ALLELE2
+    read6->addVariant(100, std::vector<uint8_t>{90, 10}); // ALLELE1
+    read7->addVariant(100, std::vector<uint8_t>{80, 90}); // ALLELE2
+    read8->addVariant(100, std::vector<uint8_t>{90, 80}); // ALLELE1
+    read9->addVariant(100, std::vector<uint8_t>{95, 90}); // ALLELE1
+    read10->addVariant(100, std::vector<uint8_t>{90, 10}); // ALLELE1
 
     read1->setID(0);
     read2->setID(1);
@@ -84,16 +84,16 @@ void test_singleposition_somereadsselected() {
     Read* read9 = new Read("read9", 60, 0); read_set->add(read9); read9->setSelected(false);
     Read* read10 = new Read("read10", 60, 0); read_set->add(read10); read10->setSelected(true);
 
-    read1->addVariant(100, std::vector<uint32_t>{10, 90}); // ALLELE1
-    read2->addVariant(100, std::vector<uint32_t>{10, 5}); // ALLELE2
-    read3->addVariant(100, std::vector<uint32_t>{10, 10}); // EQUAL_SCORES
-    read4->addVariant(100, std::vector<uint32_t>{10, 10}); // EQUAL_SCORES
-    read5->addVariant(100, std::vector<uint32_t>{10, 5}); // ALLELE2
-    read6->addVariant(100, std::vector<uint32_t>{10, 90}); // ALLELE1
-    read7->addVariant(100, std::vector<uint32_t>{20, 10}); // ALLELE2
-    read8->addVariant(100, std::vector<uint32_t>{10, 20}); // ALLELE1
-    read9->addVariant(100, std::vector<uint32_t>{5, 10}); // ALLELE1
-    read10->addVariant(100, std::vector<uint32_t>{10, 90}); // ALLELE1
+    read1->addVariant(100, std::vector<uint8_t>{90, 10}); // ALLELE1
+    read2->addVariant(100, std::vector<uint8_t>{90, 95}); // ALLELE2
+    read3->addVariant(100, std::vector<uint8_t>{90, 90}); // EQUAL_SCORES
+    read4->addVariant(100, std::vector<uint8_t>{90, 90}); // EQUAL_SCORES
+    read5->addVariant(100, std::vector<uint8_t>{90, 95}); // ALLELE2
+    read6->addVariant(100, std::vector<uint8_t>{90, 10}); // ALLELE1
+    read7->addVariant(100, std::vector<uint8_t>{80, 90}); // ALLELE2
+    read8->addVariant(100, std::vector<uint8_t>{90, 80}); // ALLELE1
+    read9->addVariant(100, std::vector<uint8_t>{95, 90}); // ALLELE1
+    read10->addVariant(100, std::vector<uint8_t>{90, 10}); // ALLELE1
 
     read1->setID(0);
     read2->setID(1);
@@ -148,16 +148,16 @@ void test_singleposition_sv() {
     Read* read10 = new Read("read10", 60, 0); read_set->add(read10); read10->setSelected(true);
 
     /** In the end, 0 and 1 will be the active position. */
-    read1->addVariant(100, std::vector<uint32_t>{10, 90, 50}); // ALLELE1
-    read2->addVariant(100, std::vector<uint32_t>{10, 5, 50}); // ALLELE2
-    read3->addVariant(100, std::vector<uint32_t>{10, 10, 50}); // EQUAL_SCORES
-    read4->addVariant(100, std::vector<uint32_t>{10, 10, 50}); // EQUAL_SCORES
-    read5->addVariant(100, std::vector<uint32_t>{10, 5, 50}); // ALLELE2
-    read6->addVariant(100, std::vector<uint32_t>{10, 90, 50}); // ALLELE1
-    read7->addVariant(100, std::vector<uint32_t>{20, 10, 50}); // ALLELE2
-    read8->addVariant(100, std::vector<uint32_t>{10, 20, 50}); // ALLELE1
-    read9->addVariant(100, std::vector<uint32_t>{5, 10, 50}); // ALLELE1
-    read10->addVariant(100, std::vector<uint32_t>{10, 90, 50}); // ALLELE1
+    read1->addVariant(100, std::vector<uint8_t>{90, 10, 50}); // ALLELE1
+    read2->addVariant(100, std::vector<uint8_t>{90, 95, 50}); // ALLELE2
+    read3->addVariant(100, std::vector<uint8_t>{90, 90, 50}); // EQUAL_SCORES
+    read4->addVariant(100, std::vector<uint8_t>{90, 90, 50}); // EQUAL_SCORES
+    read5->addVariant(100, std::vector<uint8_t>{90, 95, 50}); // ALLELE2
+    read6->addVariant(100, std::vector<uint8_t>{90, 10, 50}); // ALLELE1
+    read7->addVariant(100, std::vector<uint8_t>{80, 90, 50}); // ALLELE2
+    read8->addVariant(100, std::vector<uint8_t>{90, 80, 50}); // ALLELE1
+    read9->addVariant(100, std::vector<uint8_t>{95, 90, 50}); // ALLELE1
+    read10->addVariant(100, std::vector<uint8_t>{90, 10, 50}); // ALLELE1
 
     read1->setID(0);
     read2->setID(1);
@@ -250,37 +250,37 @@ void test_multiposition() {
 
     /* Selected Reads */
     {
-        read2->addVariant(100, std::vector<uint32_t>{10, 20});      // ALLELE1
-        read2->addVariant(200, std::vector<uint32_t>{20, 5, 10});   // ALLELE1 -> allele at index 0 dropped
+        read2->addVariant(100, std::vector<uint8_t>{90, 80});      // ALLELE1
+        read2->addVariant(200, std::vector<uint8_t>{80, 95, 90});   // ALLELE1 -> allele at index 0 dropped
         
-        read3->addVariant(100, std::vector<uint32_t>{10, 20});      // ALLELE1
-        read3->addVariant(200, std::vector<uint32_t>{15, 8, 10});   // ALLELE1 -> allele at index 0 dropped
+        read3->addVariant(100, std::vector<uint8_t>{90, 80});      // ALLELE1
+        read3->addVariant(200, std::vector<uint8_t>{85, 92, 90});   // ALLELE1 -> allele at index 0 dropped
 
-        read4->addVariant(100, std::vector<uint32_t>{10, 15});       // ALLELE1
-        read4->addVariant(200, std::vector<uint32_t>{20, 5, 2});    // ALLELE2 -> allele at index 0 dropped
+        read4->addVariant(100, std::vector<uint8_t>{90, 85});       // ALLELE1
+        read4->addVariant(200, std::vector<uint8_t>{80, 95, 98});    // ALLELE2 -> allele at index 0 dropped
 
-        read5->addVariant(100, std::vector<uint32_t>{10, 15});      // ALLELE1
-        read5->addVariant(200, std::vector<uint32_t>{20, 5, 2});    // ALLELE2 -> allele at index 0 dropped
+        read5->addVariant(100, std::vector<uint8_t>{90, 85});      // ALLELE1
+        read5->addVariant(200, std::vector<uint8_t>{80, 95, 98});    // ALLELE2 -> allele at index 0 dropped
 
-        read7->addVariant(200, std::vector<uint32_t>{15, 8, 2});    // ALLELE2 -> allele at index 0 dropped
-        read7->addVariant(300, std::vector<uint32_t>{2, 5});        // ALLELE1
+        read7->addVariant(200, std::vector<uint8_t>{85, 92, 98});    // ALLELE2 -> allele at index 0 dropped
+        read7->addVariant(300, std::vector<uint8_t>{98, 95});        // ALLELE1
         
-        read8->addVariant(200, std::vector<uint32_t>{15, 5, 8});    // ALLELE1 -> allele at index 0 dropped
-        read8->addVariant(300, std::vector<uint32_t>{8, 5});        // ALLELE2
-        read8->addVariant(400, std::vector<uint32_t>{5, 2, 90, 15});   // ALLELE2 -> allele at index 2, 3 dropped
+        read8->addVariant(200, std::vector<uint8_t>{85, 95, 92});    // ALLELE1 -> allele at index 0 dropped
+        read8->addVariant(300, std::vector<uint8_t>{92, 95});        // ALLELE2
+        read8->addVariant(400, std::vector<uint8_t>{95, 98, 10, 85});   // ALLELE2 -> allele at index 2, 3 dropped
 
-        read9->addVariant(200, std::vector<uint32_t>{15, 8, 2});    // ALLELE2 -> allele at index 0 dropped
-        read9->addVariant(300, std::vector<uint32_t>{2, 5});        // ALLELE1
-        read9->addVariant(400, std::vector<uint32_t>{5, 2, 90, 15});    // ALLELE2 -> allele at index 2, 3 dropped
+        read9->addVariant(200, std::vector<uint8_t>{85, 92, 98});    // ALLELE2 -> allele at index 0 dropped
+        read9->addVariant(300, std::vector<uint8_t>{98, 95});        // ALLELE1
+        read9->addVariant(400, std::vector<uint8_t>{95, 98, 10, 85});    // ALLELE2 -> allele at index 2, 3 dropped
         
-        read11->addVariant(400, std::vector<uint32_t>{5, 2, 90, 15});    // ALLELE2 -> allele at index 2, 3 dropped
-        read11->addVariant(500, std::vector<uint32_t>{2, 5});        // ALLELE 1
+        read11->addVariant(400, std::vector<uint8_t>{95, 98, 10, 85});    // ALLELE2 -> allele at index 2, 3 dropped
+        read11->addVariant(500, std::vector<uint8_t>{98, 95});        // ALLELE 1
 
-        read12->addVariant(400, std::vector<uint32_t>{5, 2, 90, 15});    // ALLELE2 -> allele at index 2, 3 dropped
-        read12->addVariant(500, std::vector<uint32_t>{5, 3});        // ALLELE 2
+        read12->addVariant(400, std::vector<uint8_t>{95, 98, 10, 85});    // ALLELE2 -> allele at index 2, 3 dropped
+        read12->addVariant(500, std::vector<uint8_t>{95, 97});        // ALLELE 2
 
-        read13->addVariant(400, std::vector<uint32_t>{5, 2, 90, 15});    // ALLELE2 -> allele at index 2, 3 dropped
-        read13->addVariant(500, std::vector<uint32_t>{5, 3});        // ALLELE 2
+        read13->addVariant(400, std::vector<uint8_t>{95, 98, 10, 85});    // ALLELE2 -> allele at index 2, 3 dropped
+        read13->addVariant(500, std::vector<uint8_t>{95, 97});        // ALLELE 2
         /**
          * Final superreads:
          * SR0 -> A1 - A1 - A2 - A2 - A2
@@ -290,12 +290,12 @@ void test_multiposition() {
     }
     /* Unselected Reads */
     {
-        read1->addVariant(100, std::vector<uint32_t>{10, 20});      // ALLELE1
+        read1->addVariant(100, std::vector<uint8_t>{90, 80});      // ALLELE1
 
-        read6->addVariant(200, std::vector<uint32_t>{15, 8, 10});   // ALLELE1
+        read6->addVariant(200, std::vector<uint8_t>{85, 92, 90});   // ALLELE1
 
-        read10->addVariant(300, std::vector<uint32_t>{15, 8});      // ALLELE2
-        read10->addVariant(400, std::vector<uint32_t>{5, 2, 90, 15});   // ALLELE2 -> allele at index 2, 3 dropped
+        read10->addVariant(300, std::vector<uint8_t>{85, 92});      // ALLELE2
+        read10->addVariant(400, std::vector<uint8_t>{95, 98, 10, 85});   // ALLELE2 -> allele at index 2, 3 dropped
     }
     
     read_set->initialize();

@@ -17,11 +17,13 @@ class Entry {
 	public:
 		typedef enum: uint8_t { ALLELE1 = 0, ALLELE2 = 1, BLANK = 2, EQUAL_SCORES = 3 } allele_t;
 		
-		Entry(uint32_t r, const std::vector<uint32_t>& s);
+		Entry(uint32_t r, const std::vector<float>& s);
+		Entry(uint32_t r);
 		Entry();
 		
 		void set_read_id(uint32_t r);
-		void set_scores(const std::vector<uint32_t>& s);
+		void set_scores(const std::vector<float>& s);
+		void set_scores(const std::vector<uint8_t>& s);
 		/* 
 		* set allele type based on the active alleles at that position.
 		*   if the allele at the lower index value has lower distance score, then assigned ALLELE1.
@@ -45,19 +47,25 @@ class Entry {
 		 * Returns false if allele_type is BLANK
 		 */
 		bool has_allele_type() const;
-		
-		void convert_scores_to_probability(const std::vector<uint32_t>& scores);
-		//void convert_scores_to_softmin_probability(uint32_t temperature);
 
-		std::vector<long double> get_emission_scores() const;
-		void set_emission_scores(const std::vector<long double>& scores);
+		long double get_emission_score(uint32_t i) const;
+		long double get_reciprocal_emission_score(uint32_t j) const;
+
+		void initialize_probability_cache(float temperature);
 
 		friend std::ostream& operator<<(std::ostream& out, const Entry& e);
 
 	private:
+   		static std::vector<long double> probability_cache;	// cache of probabilities defined by the distance
+		static std::vector<long double> reciprocal_probability_cache;	// cache of reciprocal probabilities defined by the distance
 		uint32_t read_id;	// zero-based read identifier
 		allele_t allele;	// allele type
-		std::vector<long double> emission_scores; // emission probabilities for all alleles used for genotyping
+		/**
+		 * scores contains the values from realign() from variants.py
+		 * now the values have been renormalized from [0, 1] bound to a [0, 100] bound
+		 * and also discretised.
+		 */
+		std::vector<uint8_t> scores;
 };
 
 #endif

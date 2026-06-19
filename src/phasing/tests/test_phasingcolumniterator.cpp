@@ -236,11 +236,11 @@ void test_phasingcolumniterator_gapped_reads() {
     /**
      * Adding variants to the reads
      */
-    std::vector<uint32_t> scores_1 = std::vector<uint32_t>{10, 90};
-    std::vector<uint32_t> scores_2 = std::vector<uint32_t>{20, 30, 50};
-    std::vector<uint32_t> scores_3 = std::vector<uint32_t>{85, 15};
-    std::vector<uint32_t> scores_4 = std::vector<uint32_t>{5, 25, 35, 35};
-    std::vector<uint32_t> scores_5 = std::vector<uint32_t>{40, 60};
+    std::vector<uint8_t> scores_1 = std::vector<uint8_t>{90, 10};
+    std::vector<uint8_t> scores_2 = std::vector<uint8_t>{80, 70, 50};
+    std::vector<uint8_t> scores_3 = std::vector<uint8_t>{15, 85};
+    std::vector<uint8_t> scores_4 = std::vector<uint8_t>{95, 75, 65, 65};
+    std::vector<uint8_t> scores_5 = std::vector<uint8_t>{50, 50};
     
     read1->addVariant(100, scores_1); read1->addVariant(200, scores_2); read1->addVariant(400, scores_4);
     read2->addVariant(100, scores_1); read2->addVariant(200, scores_2); read2->addVariant(500, scores_5);
@@ -356,37 +356,37 @@ void test_jumping_columns() {
 
     /* Selected Reads */
     {
-        read2->addVariant(100, std::vector<uint32_t>{10, 20});      // ALLELE1
-        read2->addVariant(200, std::vector<uint32_t>{20, 5, 10});   // ALLELE1 -> allele at index 0 dropped
+        read2->addVariant(100, std::vector<uint8_t>{90, 80});      // ALLELE1
+        read2->addVariant(200, std::vector<uint8_t>{80, 95, 90});   // ALLELE1 -> allele at index 0 dropped
         
-        read3->addVariant(100, std::vector<uint32_t>{10, 20});      // ALLELE1
-        read3->addVariant(200, std::vector<uint32_t>{15, 8, 10});   // ALLELE1 -> allele at index 0 dropped
+        read3->addVariant(100, std::vector<uint8_t>{90, 80});      // ALLELE1
+        read3->addVariant(200, std::vector<uint8_t>{85, 92, 90});   // ALLELE1 -> allele at index 0 dropped
 
-        read4->addVariant(100, std::vector<uint32_t>{10, 15});       // ALLELE1
-        read4->addVariant(200, std::vector<uint32_t>{20, 5, 2});    // ALLELE2 -> allele at index 0 dropped
+        read4->addVariant(100, std::vector<uint8_t>{90, 85});       // ALLELE1
+        read4->addVariant(200, std::vector<uint8_t>{80, 95, 98});    // ALLELE2 -> allele at index 0 dropped
 
-        read5->addVariant(100, std::vector<uint32_t>{10, 15});      // ALLELE1
-        read5->addVariant(200, std::vector<uint32_t>{20, 5, 2});    // ALLELE2 -> allele at index 0 dropped
+        read5->addVariant(100, std::vector<uint8_t>{90, 85});      // ALLELE1
+        read5->addVariant(200, std::vector<uint8_t>{80, 95, 98});    // ALLELE2 -> allele at index 0 dropped
 
-        read7->addVariant(200, std::vector<uint32_t>{15, 8, 2});    // ALLELE2 -> allele at index 0 dropped
-        read7->addVariant(300, std::vector<uint32_t>{2, 5});        // ALLELE1
+        read7->addVariant(200, std::vector<uint8_t>{85, 92, 98});    // ALLELE2 -> allele at index 0 dropped
+        read7->addVariant(300, std::vector<uint8_t>{98, 95});        // ALLELE1
         
-        read8->addVariant(200, std::vector<uint32_t>{15, 5, 8});    // ALLELE1 -> allele at index 0 dropped
-        read8->addVariant(300, std::vector<uint32_t>{8, 5});        // ALLELE2
-        read8->addVariant(400, std::vector<uint32_t>{5, 2, 90, 15});   // ALLELE2 -> allele at index 2, 3 dropped
+        read8->addVariant(200, std::vector<uint8_t>{85, 95, 92});    // ALLELE1 -> allele at index 0 dropped
+        read8->addVariant(300, std::vector<uint8_t>{92, 95});        // ALLELE2
+        read8->addVariant(400, std::vector<uint8_t>{95, 98, 10, 85});   // ALLELE2 -> allele at index 2, 3 dropped
 
-        read9->addVariant(200, std::vector<uint32_t>{15, 8, 2});    // ALLELE2 -> allele at index 0 dropped
-        read9->addVariant(300, std::vector<uint32_t>{2, 5});        // ALLELE1
-        read9->addVariant(400, std::vector<uint32_t>{5, 2, 90, 15});    // ALLELE2 -> allele at index 2, 3 dropped
+        read9->addVariant(200, std::vector<uint8_t>{85, 92, 98});    // ALLELE2 -> allele at index 0 dropped
+        read9->addVariant(300, std::vector<uint8_t>{98, 95});        // ALLELE1
+        read9->addVariant(400, std::vector<uint8_t>{95, 98, 10, 85});    // ALLELE2 -> allele at index 2, 3 dropped
         
-        read11->addVariant(400, std::vector<uint32_t>{5, 2, 90, 15});    // ALLELE2 -> allele at index 2, 3 dropped
-        read11->addVariant(500, std::vector<uint32_t>{2, 5});        // ALLELE 1
+        read11->addVariant(400, std::vector<uint8_t>{95, 98, 10, 85});    // ALLELE2 -> allele at index 2, 3 dropped
+        read11->addVariant(500, std::vector<uint8_t>{98, 95});        // ALLELE 1
 
-        read12->addVariant(400, std::vector<uint32_t>{5, 2, 90, 15});    // ALLELE2 -> allele at index 2, 3 dropped
-        read12->addVariant(500, std::vector<uint32_t>{5, 3});        // ALLELE 2
+        read12->addVariant(400, std::vector<uint8_t>{95, 98, 10, 85});    // ALLELE2 -> allele at index 2, 3 dropped
+        read12->addVariant(500, std::vector<uint8_t>{95, 97});        // ALLELE 2
 
-        read13->addVariant(400, std::vector<uint32_t>{5, 2, 90, 15});    // ALLELE2 -> allele at index 2, 3 dropped
-        read13->addVariant(500, std::vector<uint32_t>{5, 3});        // ALLELE 2
+        read13->addVariant(400, std::vector<uint8_t>{95, 98, 10, 85});    // ALLELE2 -> allele at index 2, 3 dropped
+        read13->addVariant(500, std::vector<uint8_t>{95, 97});        // ALLELE 2
         /**
          * Final superreads:
          * SR0 -> A1 - A1 - A2 - A2 - A2
@@ -396,12 +396,12 @@ void test_jumping_columns() {
     }
     /* Unselected Reads */
     {
-        read1->addVariant(100, std::vector<uint32_t>{10, 20});      // ALLELE1
+        read1->addVariant(100, std::vector<uint8_t>{90, 80});      // ALLELE1
 
-        read6->addVariant(200, std::vector<uint32_t>{15, 8, 10});   // ALLELE1
+        read6->addVariant(200, std::vector<uint8_t>{85, 92, 90});   // ALLELE1
 
-        read10->addVariant(300, std::vector<uint32_t>{15, 8});      // ALLELE2
-        read10->addVariant(400, std::vector<uint32_t>{5, 2, 90, 15});   // ALLELE2 -> allele at index 2, 3 dropped
+        read10->addVariant(300, std::vector<uint8_t>{85, 92});      // ALLELE2
+        read10->addVariant(400, std::vector<uint8_t>{95, 98, 10, 85});   // ALLELE2 -> allele at index 2, 3 dropped
     }
 
     read_set->initialize();

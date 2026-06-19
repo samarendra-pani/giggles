@@ -107,15 +107,15 @@ bool Read::hasPhaseSet() const {
 	return has_ps;
 }
 
-void Read::addVariant(uint32_t position, vector<uint32_t> scores) {
+void Read::addVariant(uint32_t position, vector<uint8_t> scores) {
 	variants.push_back(enriched_entry_t(position, scores));
 }
 
-void Read::addVariant(uint32_t position, vector<long double> scores) {
+void Read::addVariant(uint32_t position, vector<float> scores) {
 	variants.push_back(enriched_entry_t(position, scores));
 }
 
-void Read::addVariant(uint32_t position, vector<uint32_t> scores, Entry::allele_t allele) {
+void Read::addVariant(uint32_t position, vector<uint8_t> scores, Entry::allele_t allele) {
 	variants.push_back(enriched_entry_t(position, scores, allele));
 }
 
@@ -177,20 +177,9 @@ void Read::setPosition(size_t variant_idx, uint32_t position) {
 }
 
 
-std::vector<long double> Read::getEmissionScores(size_t variant_idx) const {
-	assert(variant_idx < variants.size());
-	return variants[variant_idx].entry.get_emission_scores();
-}
-
-
-void Read::setScores(size_t variant_idx, std::vector<uint32_t> scores) {
+void Read::setScores(size_t variant_idx, std::vector<uint8_t> scores) {
 	assert(variant_idx < variants.size());
 	variants[variant_idx].entry.set_scores(scores);
-}
-
-void Read::setEmissionScores(size_t variant_idx, std::vector<long double> scores) {
-	assert(variant_idx < variants.size());
-	variants[variant_idx].entry.set_emission_scores(scores);
 }
 
 

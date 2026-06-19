@@ -52,14 +52,14 @@ void test_non_overlapping_reads() {
     Read* read2 = new Read("read2", 60, 0); read_set->add(read2); read2->setSelected(true);
     
     {
-        read1->addVariant(100, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
-        read1->addVariant(200, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
-        read1->addVariant(300, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
+        read1->addVariant(100, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
+        read1->addVariant(200, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
+        read1->addVariant(300, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
         
-        read2->addVariant(300, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
-        read2->addVariant(400, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
-        read2->addVariant(500, std::vector<uint32_t>{}, Entry::BLANK);
-        read2->addVariant(600, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
+        read2->addVariant(300, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
+        read2->addVariant(400, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
+        read2->addVariant(500, std::vector<uint8_t>{}, Entry::BLANK);
+        read2->addVariant(600, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
     }
 
     compute_phasesets(&accessible_positions, read_set, superreads);
@@ -83,15 +83,15 @@ void test_overlapping_reads() {
     Read* read2 = new Read("read2", 60, 0); read_set->add(read2); read2->setSelected(true);
     
     {
-        read1->addVariant(100, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
-        read1->addVariant(200, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
-        read1->addVariant(300, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
-        read1->addVariant(400, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
+        read1->addVariant(100, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
+        read1->addVariant(200, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
+        read1->addVariant(300, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
+        read1->addVariant(400, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
 
-        read2->addVariant(300, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
-        read2->addVariant(400, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
-        read2->addVariant(500, std::vector<uint32_t>{}, Entry::BLANK);
-        read2->addVariant(600, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
+        read2->addVariant(300, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
+        read2->addVariant(400, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
+        read2->addVariant(500, std::vector<uint8_t>{}, Entry::BLANK);
+        read2->addVariant(600, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
     }
 
     compute_phasesets(&accessible_positions, read_set, superreads);
@@ -115,10 +115,10 @@ void test_read_not_covering_het() {
     Read* read2 = new Read("read2", 60, 0); read_set->add(read2); read2->setSelected(true);
     
     {
-        read1->addVariant(200, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
-        read1->addVariant(300, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
+        read1->addVariant(200, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
+        read1->addVariant(300, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
         
-        read2->addVariant(500, std::vector<uint32_t>{}, Entry::BLANK);
+        read2->addVariant(500, std::vector<uint8_t>{}, Entry::BLANK);
     }
 
     compute_phasesets(&accessible_positions, read_set, superreads);
@@ -140,19 +140,19 @@ void test_unselected_read() {
     Read* read3 = new Read("read3", 60, 0); read_set->add(read3); read3->setSelected(false);
     
     {
-        read1->addVariant(100, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
-        read1->addVariant(200, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
-        read1->addVariant(300, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
+        read1->addVariant(100, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
+        read1->addVariant(200, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
+        read1->addVariant(300, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
         
-        read2->addVariant(300, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
-        read2->addVariant(400, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
-        read2->addVariant(500, std::vector<uint32_t>{}, Entry::BLANK);
-        read2->addVariant(600, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
+        read2->addVariant(300, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
+        read2->addVariant(400, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
+        read2->addVariant(500, std::vector<uint8_t>{}, Entry::BLANK);
+        read2->addVariant(600, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
 
-        read3->addVariant(100, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
-        read3->addVariant(200, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
-        read3->addVariant(300, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
-        read3->addVariant(400, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
+        read3->addVariant(100, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
+        read3->addVariant(200, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
+        read3->addVariant(300, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
+        read3->addVariant(400, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
     }
 
     compute_phasesets(&accessible_positions, read_set, superreads);
@@ -166,20 +166,20 @@ void test_unselected_read() {
     read3 = new Read("read3", 60, 0); read_set->add(read3); read3->setSelected(false);
 
     {
-        read1->addVariant(100, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
-        read1->addVariant(200, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
-        read1->addVariant(300, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
-        read1->addVariant(400, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
+        read1->addVariant(100, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
+        read1->addVariant(200, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
+        read1->addVariant(300, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
+        read1->addVariant(400, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
         
-        read2->addVariant(300, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
-        read2->addVariant(400, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
-        read2->addVariant(500, std::vector<uint32_t>{}, Entry::BLANK);
-        read2->addVariant(600, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
+        read2->addVariant(300, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
+        read2->addVariant(400, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
+        read2->addVariant(500, std::vector<uint8_t>{}, Entry::BLANK);
+        read2->addVariant(600, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
 
-        read3->addVariant(100, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
-        read3->addVariant(200, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
-        read3->addVariant(300, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
-        read3->addVariant(400, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
+        read3->addVariant(100, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
+        read3->addVariant(200, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
+        read3->addVariant(300, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
+        read3->addVariant(400, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
     }
     compute_phasesets(&accessible_positions, read_set, superreads);
     assert(read3->hasPhaseSet());
@@ -192,17 +192,17 @@ void test_unselected_read() {
     read3 = new Read("read3", 60, 0); read_set->add(read3); read3->setSelected(false);
 
     {
-        read1->addVariant(100, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
-        read1->addVariant(200, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
-        read1->addVariant(300, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
+        read1->addVariant(100, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
+        read1->addVariant(200, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
+        read1->addVariant(300, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
         
-        read2->addVariant(300, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
-        read2->addVariant(400, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
-        read2->addVariant(500, std::vector<uint32_t>{}, Entry::BLANK);
-        read2->addVariant(600, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
+        read2->addVariant(300, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
+        read2->addVariant(400, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
+        read2->addVariant(500, std::vector<uint8_t>{}, Entry::BLANK);
+        read2->addVariant(600, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
 
-        read3->addVariant(300, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
-        read3->addVariant(400, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
+        read3->addVariant(300, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
+        read3->addVariant(400, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
     }
     compute_phasesets(&accessible_positions, read_set, superreads);
     assert(read3->hasPhaseSet());
@@ -215,16 +215,16 @@ void test_unselected_read() {
     read3 = new Read("read3", 60, 0); read_set->add(read3); read3->setSelected(false);
 
     {
-        read1->addVariant(100, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
-        read1->addVariant(200, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
-        read1->addVariant(300, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
+        read1->addVariant(100, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
+        read1->addVariant(200, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
+        read1->addVariant(300, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
         
-        read2->addVariant(300, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
-        read2->addVariant(400, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
-        read2->addVariant(500, std::vector<uint32_t>{}, Entry::BLANK);
-        read2->addVariant(600, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
+        read2->addVariant(300, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
+        read2->addVariant(400, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
+        read2->addVariant(500, std::vector<uint8_t>{}, Entry::BLANK);
+        read2->addVariant(600, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
 
-        read3->addVariant(300, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
+        read3->addVariant(300, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
     }
     compute_phasesets(&accessible_positions, read_set, superreads);
     assert(!read3->hasPhaseSet());
@@ -237,19 +237,19 @@ void test_unselected_read() {
     read3 = new Read("read3", 60, 0); read_set->add(read3); read3->setSelected(false);
 
     {
-        read1->addVariant(100, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
-        read1->addVariant(200, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
-        read1->addVariant(300, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
+        read1->addVariant(100, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
+        read1->addVariant(200, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
+        read1->addVariant(300, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
         
-        read2->addVariant(300, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
-        read2->addVariant(400, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
-        read2->addVariant(500, std::vector<uint32_t>{}, Entry::BLANK);
-        read2->addVariant(600, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
+        read2->addVariant(300, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
+        read2->addVariant(400, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
+        read2->addVariant(500, std::vector<uint8_t>{}, Entry::BLANK);
+        read2->addVariant(600, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
 
-        read3->addVariant(200, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
-        read3->addVariant(300, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
-        read3->addVariant(500, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
-        read3->addVariant(700, std::vector<uint32_t>{}, Entry::EQUAL_SCORES);
+        read3->addVariant(200, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
+        read3->addVariant(300, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
+        read3->addVariant(500, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
+        read3->addVariant(700, std::vector<uint8_t>{}, Entry::EQUAL_SCORES);
     }
     compute_phasesets(&accessible_positions, read_set, superreads);
     assert(!read3->hasPhaseSet());

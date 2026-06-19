@@ -20,9 +20,8 @@ class Realigner:
     """
     Class to encapsulate different aligners
     """
-    def __init__(self, bandwidth: int):
-        self.bandwidth = bandwidth
-        self.realigner = WFAWrapper(bandwidth)
+    def __init__(self):
+        self.realigner = WFAWrapper()
 
 
     def get_distance(self, query: str, allele: str, state: int):
@@ -37,7 +36,7 @@ class Realigner:
             int: the distance between the two string (always positive)
         """
         dist = self.realigner.align(query, allele, state=state)
-        return min(dist, self.bandwidth)
+        return dist
             
 
     def close(self):
@@ -53,13 +52,11 @@ class AlignmentReader:
             self,
             path: List[str],
             mapq_threshold: int,
-            bandwidth:int,
             overhang: int):
 
         self._path = path
         self._mapq_threshold = mapq_threshold
-        self._aligner = Realigner(bandwidth)
-        self._bandwidth = bandwidth
+        self._aligner = Realigner()
         self._overhang = overhang
         
     @property
@@ -154,13 +151,11 @@ class GAFReader(AlignmentReader):
         read_fasta_files: List[str],
         mapq_threshold: int = 20,
         is_custom_graph: bool = False,
-        bandwidth: int = 30,
         overhang: int = 10
     ):
         super().__init__(
             alignment_files, 
             mapq_threshold, 
-            bandwidth,
             overhang)
 
         self._is_custom_graph = is_custom_graph
@@ -895,8 +890,8 @@ class GAFReader(AlignmentReader):
                 alts.append(alt)
 
             scores = []
-            for index, allele in enumerate([ref]+alts):
-                scores.append(edit_distance(query, allele, aligner.bandwidth))
+            for _, allele in enumerate([ref]+alts):
+                scores.append(edit_distance(query, allele))
                 
             return scores
 
@@ -918,38 +913,25 @@ class GAFReader(AlignmentReader):
         
         left_overhang = reference[variant.position - left_ref_bases : variant.position]
         right_overhang = reference[variant.position + right_ref_bases - overhang : variant.position + right_ref_bases]
-
-        scores = []
-        if is_custom_graph:
-            # this means I can use the heuristics with the allele distance matrix
+        ref = left_overhang + ref_allele + right_overhang
+        alts = []
+        closest_allele_idx = None   # this will store which allele is closest to the path the sequence aligned to.
+        path_sequence = reference[variant.position : variant.position + variant.length_on_path] # this is the sequence of the path the variant aligned to.
+        if path_sequence == ref_allele:
+            closest_allele_idx = 0
+        for idx, alt_allele in enumerate(variant.alternative_allele):
+            if alt_allele != "*":
+                alt = left_overhang + alt_allele + right_overhang
+                if alt_allele == path_sequence:
+                    closest_allele_idx = idx + 1
+            else:
+                alt = left_overhang + right_overhang
+                if variant.length_on_path == 0:
+                    closest_allele_idx = idx + 1
+            alts.append(alt)
             
-            closest_allele_idx = None   # this will store which allele is closest to the path the sequence aligned to.
-            path_sequence = reference[variant.position : variant.position + variant.length_on_path] # this is the sequence of the path the variant aligned to.
-            if path_sequence == ref_allele:
-                closest_allele_idx = 0
-            
-            ref = left_overhang + ref_allele + right_overhang
-            alts = []
-            for idx, alt_allele in enumerate(variant.alternative_allele):
-                if alt_allele != "*":
-                    alt = left_overhang + alt_allele + right_overhang
-                    if alt_allele == path_sequence:
-                        closest_allele_idx = idx + 1
-                else:
-                    alt = left_overhang + right_overhang
-                alts.append(alt)
-            
-            if closest_allele_idx != None:
-                """
-                if the allele with the exact seqeunce was not found,
-                then it means that the path is a subsequence of the allele
-                which can only happen with partial alignments
-                """
-                # this should not happen if all the alleles are single nodes!
-                assert variant.state != 0
-            
-            '''
-            New implementation:
+        '''
+            [Now Old] New implementation:
             I have already calculate allele distance matrix which is the distance between allele i and allele j at this variant position. (Using edit distance)
 
             Now we use triangle inequality heuristics.
@@ -958,17 +940,70 @@ class GAFReader(AlignmentReader):
             We only want to do a realignment if d(A_i, R) < b.
             So we check if |d(A_k, R) - d(A_k, A_i)| < b and do realignment accordingly.
             '''
+
+        '''
+            New metric and implementation:
+            - We want to normalize based on the alignment length.
+            - We do this to not overtly penalize a score of 2 with 8 matches and a score of 2 with 998 matches.
+
+            f(A, R) = score(A, R)/k*{max(|A|, |R|) - score(A, R)}
+
+            Here k is the maximum #mismatches/#matches you want to allow. For now I am setting k at 0.2
+
+            g(A, R) = 1 - min{1, f(A, R)}
+
+            prob(g) = a + be^{Tg} where a and b are boundary parameters and T is the temperature.
+            
+            a and b are set such that prob(0) = 10e-30 and prob(1) = 1
+
+
+            Heuristics
+            ----------
+
+            Heuristic 1:
+
+                Since we are setting an upper bound for f(A, R), we need to figure out when that bound is met.
+                Answer: |A| >= (1+k)*|R| or |A| <= |R|/(1+k)
+
+                So if the condition is met g(A, R) = 0
+            
+            Heuristic 2: (using the allele distance matrix we get from custom graph)
+
+                I know s(A_i, A_j) and s(A_i, R). Can I say when f(A_j, R) >= 1
+
+                Answer: Yes.
+
+                If |s(A_i, R) - s(A_i, A_j)| / k*{ max(A_j, R) - |s(A_i, R) - s(A_i, A_j)| } >= 1   (from triangle inequality)
+
+                No need to calculate s(A_j, R). Just set g(A_j, R) to 0.
+            '''
+        scores = []
+        if is_custom_graph:
+            # this means I can use the heuristics with the allele distance matrix
+            
+            if closest_allele_idx == None:
+                """
+                if the allele with the exact seqeunce was not found,
+                then it means that the path is a subsequence of the allele
+                which can only happen with partial alignments
+                """
+                # this should not happen if all the alleles are single nodes!
+                assert variant.state != 0
+            
             if variant.state == 0:
                 best_allele = ref if closest_allele_idx == 0 else alts[closest_allele_idx-1]
                 best_score = aligner.get_distance(query, best_allele, 0)
+                q_len = len(query)
+                best_f = best_score/(max(q_len, len(best_allele)) - best_score)
                 
                 for idx, allele in enumerate([ref]+alts):
-                    # TODO: There is the idea that if best_score == bandwidth,
-                    # then that means that the best alignment is outside our alignment scope.
-                    # So we can just automatically set all scores to bandwidth.
-                    # PROBLEM: I don't trust aligners.
                     if idx == closest_allele_idx:
-                        scores.append(best_score)
+                        scores.append(1 - min(1, best_f))
+                        continue
+                    # checking for heuristic 1
+                    a_len = len(allele)
+                    if a_len >= 1.2*q_len or a_len <= q_len/1.2:
+                        scores.append(0)
                         continue
                     idx1 = None
                     idx2 = None
@@ -979,29 +1014,44 @@ class GAFReader(AlignmentReader):
                         idx1 = closest_allele_idx
                         idx2 = idx
                     allele_to_allele_distance = variant.get_distance(idx1, idx2)
-                    best_possible_score = abs(allele_to_allele_distance - best_score)
-                    if best_possible_score >= aligner.bandwidth:
-                        scores.append(aligner.bandwidth)
-                    else:
-                        scores.append(aligner.get_distance(query, allele, 0))
+                    # checking for heuristic 2
+                    # If |s(A_i, R) - s(A_i, A_j)| / k*{ max(A_j, R) - |s(A_i, R) - s(A_i, A_j)| } >= 1   (from triangle inequality)
+                    # No need to calculate s(A_j, R). Just set g(A_j, R) to 0.
+                    if (5*abs(best_score-allele_to_allele_distance)) / ( max(a_len, q_len) -  abs(best_score-allele_to_allele_distance)) >= 1:
+                        scores.append(0)
+                        continue
+                    score = aligner.get_distance(query, allele, 0)
+                    f_score = score/(max(q_len, a_len) - score)
+                    scores.append(1 - min(1, f_score))
             else:
                 # if its a partial alignment, then cannot apply the above heuristics
+                q_len = len(query)
                 for idx, allele in enumerate([ref]+alts):
-                    scores.append(aligner.get_distance(query, allele, variant.state))
+                    score = aligner.get_distance(query, allele, variant.state)
+                    f_score = score/(q_len - score)
+                    scores.append(1 - min(1, f_score))
         else:
             # not a custom graph. 
             # so we will have multiple nodes for each alleles.
             # also the alignment path might not correspond to alleles.
 
             if variant.state == 0:
+                q_len = len(query)
                 for idx, allele in enumerate([ref]+alts):
-                    if abs(len(query) - len(allele)) >= aligner.bandwidth:
-                        # quick check of length difference.
-                        scores.append(aligner.bandwidth)
+                    a_len = len(allele)
+                    # checking for heuristic 1
+                    if a_len >= 1.2*q_len or a_len <= q_len/1.2:
+                        scores.append(0)
                         continue
-                    scores.append(aligner.get_distance(query, allele, variant.state))
+                    score = aligner.get_distance(query, allele, 0)
+                    f_score = score/(max(q_len, a_len) - score)
+                    scores.append(1 - min(1, f_score))
             else:
-                scores.append(aligner.get_distance(query, allele, variant.state))
+                q_len = len(query)
+                for idx, allele in enumerate([ref]+alts):
+                    score = aligner.get_distance(query, allele, variant.state)
+                    f_score = score/(q_len - score)
+                    scores.append(1 - min(1, f_score))
 
         # Old implementation. Doing realignment for each allele.
         #for index, allele in enumerate([ref]+alts):

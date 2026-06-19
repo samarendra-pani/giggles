@@ -111,7 +111,7 @@ unique_ptr<vector<const Entry*>> ColumnIterator::get_next() {
 		} 
 		else {
 			// if not, generate a blank entry
-			Entry* e = new Entry(read->getID(), std::vector<uint32_t>{});
+			Entry* e = new Entry(read->getID());
 			current_blank_entries.push_back(e);
 			result->push_back(e);
 		}
@@ -145,7 +145,7 @@ unique_ptr<vector<const Entry*>> ColumnIterator::get_prev() {
 		} 
 		else {
 			// if not, generate a blank entry
-			Entry* e = new Entry(read->getID(), std::vector<uint32_t>{});
+			Entry* e = new Entry(read->getID());
 			current_blank_entries.push_back(e);
 			result->push_back(e);
 		}
