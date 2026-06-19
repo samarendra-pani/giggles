@@ -58,7 +58,7 @@ class Entry {
 	private:
    		static std::vector<long double> probability_cache;	// cache of probabilities defined by the distance
 		static std::vector<long double> reciprocal_probability_cache;	// cache of reciprocal probabilities defined by the distance
-		static uint32_t k;	// number of discrete values
+		static uint8_t k;	// number of discrete values -> keep it less than 256
 		uint32_t read_id;	// zero-based read identifier
 		allele_t allele;	// allele type
 		/**

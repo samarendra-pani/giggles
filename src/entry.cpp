@@ -9,7 +9,7 @@ using namespace std;
 
 std::vector<long double> Entry::probability_cache;
 std::vector<long double> Entry::reciprocal_probability_cache;
-uint32_t Entry::k = 100;
+uint8_t Entry::k = 100; // less than 256
 
 Entry::Entry(uint32_t r, const std::vector<float>& s) : read_id(r), allele(BLANK) {
 	set_scores(s);
