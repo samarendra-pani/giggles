@@ -42,7 +42,8 @@ def genotype_chromosome(variant_table,
         gt_prob, 
         recombination_cost_computer, 
         n_haplotypes,
-        ploidy
+        ploidy,
+        temperature
     ):
 
     chromosome = variant_table.chromosome
@@ -109,6 +110,7 @@ def genotype_chromosome(variant_table,
             recombination_costs,
             n_haplotypes,
             ploidy,
+            temperature,
             accessible_positions,
             accessible_positions_n_allele,
             accessible_positions_allele_references,
@@ -150,6 +152,7 @@ def run_genotype(
     gt_qual_threshold=0,
     is_custom_graph=False,
     overhang=10,
+    temperature=10.0,
     recombrate=1.26,
     eff_pop_size=10
 ):
@@ -209,7 +212,8 @@ def run_genotype(
             gt_prob=gt_prob, 
             recombination_cost_computer=recombination_cost_computer, 
             n_haplotypes=n_haplotypes,
-            ploidy=ploidy)
+            ploidy=ploidy,
+            temperature=temperature)
         
         # No parallel processing
         for variant_table in timers.iterate("parse_vcf", vcf_reader):
@@ -282,6 +286,9 @@ def add_arguments(parser):
     #    help='Set a bandwidth to restrict the realignment process (default: %(default)s).')
     arg('--overhang', metavar='OVERHANG', default=10, type=int,
         help='Extend alignment by this many bases to left and right when realigning (default: %(default)s).')
+    arg('--temperature', metavar='TEMPERATURE', default=10.0, type=float,
+        help='Parameter to adjust the exponential decay with higher sequence divergence in realignment. High temperature causes '
+        'more divergent sequences to decay faster in terms of probability (default: %(default)s).')
     
 
     arg = parser.add_argument_group('HMM parameters').add_argument
@@ -297,6 +304,8 @@ def validate(args, parser):
     args.alignment_files = args.alignment_files.split(",")
     args.read_fasta_files = args.read_fasta_files.split(",")
     args.haplotag_tsv = args.haplotag_tsv.split(",") if args.haplotag_tsv else None
+    if args.temperature <= 0:
+        parser.error("The temperature parameter as to be positive.")
     if args.haplotag_tsv is not None and len(args.haplotag_tsv) != len(args.alignment_files):
         parser.error("The number of haplotag TSV files must match the number of GAF files.")
     if not all(f.endswith(".gaf") or f.endswith(".gaf.gz") for f in args.alignment_files):

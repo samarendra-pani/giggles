@@ -5,10 +5,12 @@
 #include "phasing/phasingdptable.h"
 
 
-GenotypingAlgorithm::GenotypingAlgorithm(ReadSet* read_set, const std::vector<float>& recombcost, const uint32_t& num_haplotypes, const uint32_t& ploidy, const std::vector<uint32_t>* positions, const std::vector<uint32_t>* n_allele_positions, const std::vector<std::vector<int> >* allele_references, const std::vector<bool>* is_sv_position) {
+GenotypingAlgorithm::GenotypingAlgorithm(ReadSet* read_set, const std::vector<float>& recombcost, const uint32_t& num_haplotypes, const uint32_t& ploidy, const float& temperature, const std::vector<uint32_t>* positions, const std::vector<uint32_t>* n_allele_positions, const std::vector<std::vector<int> >* allele_references, const std::vector<bool>* is_sv_position) {
 	
 	std::cerr << "[Core::Initialization] Sorting of ReadSet object and setting Read IDs." << std::endl;
 	read_set->initialize();
+	std::cerr << "[Core::Initialization] Initializing the probability cache for emission probabilities." << std::endl;
+	Entry::initialize_probability_cache(temperature);
 	std::cerr << "[Core::Initialization] Creating Variant Information Table." << std::endl;
 	// storing information about each variant position
 	variant_info_table = std::vector<variant_information_t>(positions->size());

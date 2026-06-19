@@ -51,13 +51,14 @@ class Entry {
 		long double get_emission_score(uint32_t i) const;
 		long double get_reciprocal_emission_score(uint32_t j) const;
 
-		void initialize_probability_cache(float temperature);
+		static void initialize_probability_cache(float temperature);
 
 		friend std::ostream& operator<<(std::ostream& out, const Entry& e);
 
 	private:
    		static std::vector<long double> probability_cache;	// cache of probabilities defined by the distance
 		static std::vector<long double> reciprocal_probability_cache;	// cache of reciprocal probabilities defined by the distance
+		static uint32_t k;	// number of discrete values
 		uint32_t read_id;	// zero-based read identifier
 		allele_t allele;	// allele type
 		/**

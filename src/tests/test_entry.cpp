@@ -41,7 +41,7 @@ void test_entry_allele_type() {
 void test_entry_scores() {
 
     Entry* entry;
-    entry->initialize_probability_cache(10.0f);
+    Entry::initialize_probability_cache(30.0f);
     entry = new Entry(1, std::vector<float>{0.9, 0.1});
     assert_msg(entry->get_emission_score(0) > entry->get_emission_score(1), "Entry", "Relative emission scores.");
     delete entry;

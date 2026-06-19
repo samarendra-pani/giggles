@@ -66,6 +66,7 @@ class GenotypingAlgorithm:
         recombcost: Iterable[float],
         n_haplotypes: int,
         ploidy: int,
+        temperature: float,
         positions: Iterable[int] = ...,
         n_allele_positions: Iterable[int] = ...,
         allele_references: Iterable[Iterable[int]] = ...,

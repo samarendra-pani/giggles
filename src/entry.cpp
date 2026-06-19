@@ -9,6 +9,7 @@ using namespace std;
 
 std::vector<long double> Entry::probability_cache;
 std::vector<long double> Entry::reciprocal_probability_cache;
+uint32_t Entry::k = 100;
 
 Entry::Entry(uint32_t r, const std::vector<float>& s) : read_id(r), allele(BLANK) {
 	set_scores(s);
@@ -27,7 +28,7 @@ void Entry::set_scores(const std::vector<float>& s) {
 	for (uint32_t i = 0; i < s.size(); i++) {
 		float score = s[i];
 		uint8_t discretized_score;
-		discretized_score = (int)(score*100 + 0.5);
+		discretized_score = (int)(score*k + 0.5);
 		scores[i] = discretized_score;
 	}
 }
@@ -77,25 +78,28 @@ bool Entry::has_allele_type() const {
 }
 
 void Entry::initialize_probability_cache(float temperature) {
-    if (temperature <= 0.0f) temperature = 1.0f; 
+    assert (temperature > 0.0f);
     if (!probability_cache.empty()) return;
+	
+    probability_cache.resize(k+1);
+	long double lower_bound = 1e-30L;	// prob(g = 0) = 10^-10
+    probability_cache[0] = lower_bound;
+	reciprocal_probability_cache.resize(k+1);
+    reciprocal_probability_cache[0] = 1.0L/lower_bound;
 
-    probability_cache.resize(101);
-    probability_cache[0] = 1e-30L;		// prob(g = 0) = 10^-10
-	reciprocal_probability_cache.resize(101);
-    reciprocal_probability_cache[0] = 1e30L;
+	long double alpha = ((long double)std::exp(temperature)*lower_bound - 1.0L)/((long double)std::exp(temperature) - 1.0L);
+	long double beta = (1.0L - lower_bound)/(std::exp(temperature) - 1.0L);
 
-	long double alpha = (std::exp(temperature)*1e-30 - 1)/(std::exp(temperature) - 1);
-	long double beta = (1 - 1e-30)/(std::exp(temperature) - 1);
-
-	for (uint32_t i = 0; i < 100; i++) {
-		long double g = 0.01 * i;
+	for (uint32_t i = 1; i < k; i++) {
+		long double g = (1.0L/k) * i;
 		probability_cache[i] = (long double)(alpha + (beta * std::exp(g*temperature)));
-		reciprocal_probability_cache[i] = 1/probability_cache[i];
+		reciprocal_probability_cache[i] = 1.0L/probability_cache[i];
 	}
-
-	probability_cache[100] = 1;	// prob(g = 1) = 1
-	reciprocal_probability_cache[100] = 1;
+	probability_cache[k] = 1.0L;	// prob(g = 1) = 1
+	reciprocal_probability_cache[k] = 1.0L;
+	for (uint32_t i = 0; i <= k; i++) {
+		std::cout << i << "\t" << probability_cache[i] << std::endl;
+	}
 }
 
 long double Entry::get_emission_score(uint32_t i) const {
