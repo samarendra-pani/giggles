@@ -13,8 +13,8 @@ def CppExtension(name, sources):
             "external/wfa2/bindings/cpp/",
             "external/wrappers/"
         ]
-    library_dirs=["external/wfa2/build/"]
-    libraries=["wfa2cpp"]
+    library_dirs=["external/wfa2/lib/"]
+    libraries=["wfacpp"]
     
     return Extension(
         name,

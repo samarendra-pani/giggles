@@ -20,8 +20,7 @@ wfa2:
 		git submodule update --init --recursive external/wfa2; \
 	fi
 	@echo "\nBuilding C++ wfa2 submodule..."
-	cmake -S external/wfa2 -B external/wfa2/build -DCMAKE_BUILD_TYPE=Release
-	cmake --build external/wfa2/build
+	$(MAKE) -C external/wfa2 clean all
 
 # installation rules
 # ------------------
