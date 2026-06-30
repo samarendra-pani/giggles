@@ -16,91 +16,86 @@ void EmissionProbabilityComputer::update_emission_probability(const int cluster_
 		/**
 		 * A cluster has been flipped since the last call to this function.
 		 */
+		
+		/**
+		 * i_multiplier represents the 0-th partition and j_multiplier represents the 1-st partition.
+		 * If new bit is 1, then that means the partition changed from 0 to 1.
+		 * 		So j_multiplier gets the emissions and i_multiplier gets the reciprocal emissions.
+		 * If new bit is 0, then that means the partition changed from 1 to 0.
+		 * 		So i_multiplier gets the emissions and j_multiplier gets the reciprocal emissions.
+		 */
+		std::vector<long double> i_multiplier(n_alleles, 1.0L);
+		std::vector<long double> j_multiplier(n_alleles, 1.0L);
+
+		/* Determine numerator and denominator multipliers across ALL changed reads */
 		changed_reads.clear();
 		iterator.get_changed_reads(cluster_bit_changed, changed_reads);
-		long double ratio;
-		const Entry* entry;
 		for (auto const& [entry_index, newBit]: changed_reads) {
-			// Need to check if the entry being changed actually corresponds to the correct read id.
-			entry = entries[entry_index];
-			assert(entry->get_read_id() == iterator.get_parent_column()->get_read_ids()->at(entry_index));
-			if (entry->get_allele_type() == Entry::BLANK) {
-				/**
-				 * The flipped entry has no effect on emission. It is blank.
-				 */
-				continue;
-			}
-			for (uint32_t i = 0; i < n_alleles; i++) {
-				for (uint32_t j = 0; j < n_alleles; j++) {
-					if (newBit) {
-						/**
-						 * The new bit is 1. So the entry was at bipartion 0 (corresponding to allele i) and is now at bipartition 1 (corresponding to allele j).
-						 */
-						long double numerator = entries.at(entry_index)->get_emission_score(j);
-						long double reciprocal_denominator = entries.at(entry_index)->get_reciprocal_emission_score(i);
-						ratio = numerator*reciprocal_denominator;
-					} 
-					else {
-						/**
-						 * The new bit is 0. So the entry was at bipartion 1 (corresponding to allele j) and is now at bipartition 0 (corresponding to allele i).
-						 */
-						long double numerator = entries.at(entry_index)->get_emission_score(i);
-						long double reciprocal_denominator = entries.at(entry_index)->get_reciprocal_emission_score(j);
-						ratio = numerator*reciprocal_denominator;
-					}
-					emission_probability_table.set(i, j, emission_probability_table.at(i, j) * ratio);
+			const Entry* entry = entries[entry_index];
+			if (entry->get_allele_type() == Entry::BLANK) continue;
+			for (uint32_t allele = 0; allele < n_alleles; allele++) {
+				if (newBit) {
+					i_multiplier[allele] *= entry->get_reciprocal_emission_score(allele);
+					j_multiplier[allele] *= entry->get_emission_score(allele);
+				} else {
+					i_multiplier[allele] *= entry->get_emission_score(allele);
+					j_multiplier[allele] *= entry->get_reciprocal_emission_score(allele);
 				}
 			}
-		}	
+		}
+
+		/* Update emissions using the multipliers. */
+		for (uint32_t i = 0; i < n_alleles; i++) {
+			long double i_mult = i_multiplier[i];
+			for (uint32_t j = 0; j < n_alleles; j++) {
+				long double total_ratio = i_mult * j_multiplier[j];
+				long double current_prob = emission_probability_table.at(i, j);
+				emission_probability_table.set(i, j, current_prob * total_ratio);
+			}
+		}
 	}
 	else {
 		/**
 		 * Initialization case.
 		 * The  is at the first bipartition.
 		 */
-		uint32_t read_cluster_bit_representation = iterator.get_read_cluster_bit_representation(); // this is value showing the bipartition of every read cluster.
-		/**
-		 * Iterating through all allele pairs
-		 */
-		uint32_t cluster_count;
-		long double value;
-		const std::vector<uint32_t>* cluster_ids;
-		bool bit;
+		
+		/* Separate the reads into bipartition 0 and 1 */
+		std::vector<uint32_t> bipar_0_reads;
+		std::vector<uint32_t> bipar_1_reads;
+
+		uint32_t cluster_count = 0;
+		uint32_t read_cluster_bit_representation = iterator.get_read_cluster_bit_representation();
+		const std::vector<uint32_t>* cluster_ids = iterator.get_parent_column()->get_read_cluster_ids();
+
+		for (uint32_t const c_id: *cluster_ids) {
+			bool bit = (read_cluster_bit_representation & (1 << cluster_count)) != 0;
+			const std::vector<uint32_t>& read_indices = iterator.get_read_index_from_cluster_id(c_id);
+			for (uint32_t const r_idx: read_indices) {
+				if (entries[r_idx]->get_allele_type() != Entry::BLANK) {
+					if (bit) bipar_1_reads.push_back(r_idx);
+					else     bipar_0_reads.push_back(r_idx);
+				}
+			}
+			cluster_count++;
+		}
+
+		/* Compute independent products for bipartition 0 and 1 */
+		std::vector<long double> prod_0(n_alleles, 1.0L);
+		std::vector<long double> prod_1(n_alleles, 1.0L);
+		for (uint32_t i = 0; i < n_alleles; i++) {
+			for (uint32_t r_idx : bipar_0_reads) {
+				prod_0[i] *= entries[r_idx]->get_emission_score(i);
+			}
+			for (uint32_t r_idx : bipar_1_reads) {
+				prod_1[i] *= entries[r_idx]->get_emission_score(i);
+			}
+		}
+
+		/* Calculate emission probabilities */
 		for (uint32_t i = 0; i < n_alleles; i++) {
 			for (uint32_t j = 0; j < n_alleles; j++) {
-				cluster_count = 0;
-				value = 1.0L;
-				/**
-				 * Finding the cluster ids in the current column.
-				 * The bits of read_cluster_bit_representation correspond to these cluster ids.
-				 */
-				cluster_ids = iterator.get_parent_column()->get_read_cluster_ids();
-				for (uint32_t const c_id: *cluster_ids) {
-					/**
-					 * For each cluster, get the read indices corresponding to that cluster.
-					 * These read indices correspond to the indices of their respective entries.
-					 */
-					const std::vector<uint32_t>& read_indices = iterator.get_read_index_from_cluster_id(c_id);
-					// Determine whether the current cluster is in bipartition 0 or 1
-					bit = (read_cluster_bit_representation & (1 << cluster_count)) != 0;
-					for (uint32_t const r_idx: read_indices) {
-						if (entries[r_idx]->get_allele_type() == Entry::BLANK) {
-							continue;
-						}
-						if (bit) {
-							// If read at r_idx is in biparition 1 then value gets multiplied with emission from allele j
-							value = value * (entries[r_idx]->get_emission_score(j));
-						}
-						else {
-							// If read at r_idx is in biparition 0 then value gets multiplied with emission from allele i
-							value = value * (entries[r_idx]->get_emission_score(i));
-						}
-					}
-					// Move to the next cluster
-					cluster_count++;
-				}
-				// Setting the computed emission probability value
-				emission_probability_table.set(i, j, value);
+				emission_probability_table.set(i, j, prod_0[i] * prod_1[j]);
 			}
 		}
 	}
