@@ -1,3 +1,3 @@
 [submodule "external/wfa2"]
 	path = external/wfa2
-	url = git@github.com:samarendra-pani/WFA2-lib.git
+	url = https://github.com/samarendra-pani/WFA2-lib.git
