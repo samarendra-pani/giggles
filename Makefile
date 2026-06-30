@@ -28,7 +28,7 @@ wfa2:
 
 install:
 	@echo "\nCompiling Cython and installing giggles via pip..."
-	$(PIP) install
+	$(PIP) install .
 
 # assumes that user is already in the giggles-dev environment
 dev-install: submodules
