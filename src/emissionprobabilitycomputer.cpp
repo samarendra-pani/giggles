@@ -2,7 +2,7 @@
 
 #include "emissionprobabilitycomputer.h"
 
-EmissionProbabilityComputer::EmissionProbabilityComputer(uint32_t n_alleles) {
+EmissionProbabilityComputer::EmissionProbabilityComputer(uint32_t n_alleles): i_multiplier(n_alleles, 1.0L), j_multiplier(n_alleles, 1.0L) {
     emission_probability_table = Vector2D<long double>(n_alleles, n_alleles, 1.0L);
 }
 
@@ -12,6 +12,7 @@ long double EmissionProbabilityComputer::at(uint32_t i, uint32_t j) const {
 
 void EmissionProbabilityComputer::update_emission_probability(const int cluster_bit_changed, const BipartitionIterator& iterator, std::vector<const Entry *>& entries) {
     uint32_t n_alleles = emission_probability_table.get_size0();
+	long double* table_data = emission_probability_table.data();
 	if (cluster_bit_changed >= 0) {
 		/**
 		 * A cluster has been flipped since the last call to this function.
@@ -24,8 +25,8 @@ void EmissionProbabilityComputer::update_emission_probability(const int cluster_
 		 * If new bit is 0, then that means the partition changed from 1 to 0.
 		 * 		So i_multiplier gets the emissions and j_multiplier gets the reciprocal emissions.
 		 */
-		std::vector<long double> i_multiplier(n_alleles, 1.0L);
-		std::vector<long double> j_multiplier(n_alleles, 1.0L);
+		std::fill(i_multiplier.begin(), i_multiplier.begin() + n_alleles, 1.0L);
+    	std::fill(j_multiplier.begin(), j_multiplier.begin() + n_alleles, 1.0L);
 
 		/* Determine numerator and denominator multipliers across ALL changed reads */
 		changed_reads.clear();
@@ -33,11 +34,14 @@ void EmissionProbabilityComputer::update_emission_probability(const int cluster_
 		for (auto const& [entry_index, newBit]: changed_reads) {
 			const Entry* entry = entries[entry_index];
 			if (entry->get_allele_type() == Entry::BLANK) continue;
-			for (uint32_t allele = 0; allele < n_alleles; allele++) {
-				if (newBit) {
+			if (newBit) {
+				for (uint32_t allele = 0; allele < n_alleles; allele++) {
 					i_multiplier[allele] *= entry->get_reciprocal_emission_score(allele);
 					j_multiplier[allele] *= entry->get_emission_score(allele);
-				} else {
+				}
+			}
+			else {
+				for (uint32_t allele = 0; allele < n_alleles; allele++) {
 					i_multiplier[allele] *= entry->get_emission_score(allele);
 					j_multiplier[allele] *= entry->get_reciprocal_emission_score(allele);
 				}
@@ -49,8 +53,8 @@ void EmissionProbabilityComputer::update_emission_probability(const int cluster_
 			long double i_mult = i_multiplier[i];
 			for (uint32_t j = 0; j < n_alleles; j++) {
 				long double total_ratio = i_mult * j_multiplier[j];
-				long double current_prob = emission_probability_table.at(i, j);
-				emission_probability_table.set(i, j, current_prob * total_ratio);
+				uint32_t flat_index = i*n_alleles + j;
+				table_data[flat_index] = table_data[flat_index] * total_ratio;
 			}
 		}
 	}
@@ -95,7 +99,9 @@ void EmissionProbabilityComputer::update_emission_probability(const int cluster_
 		/* Calculate emission probabilities */
 		for (uint32_t i = 0; i < n_alleles; i++) {
 			for (uint32_t j = 0; j < n_alleles; j++) {
-				emission_probability_table.set(i, j, prod_0[i] * prod_1[j]);
+				// emission_probability_table.set(i, j, prod_0[i] * prod_1[j]);
+				uint32_t flat_index = i*n_alleles + j;
+				table_data[flat_index] = prod_0[i]*prod_1[j];
 			}
 		}
 	}

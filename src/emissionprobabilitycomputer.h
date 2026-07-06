@@ -57,6 +57,12 @@ class EmissionProbabilityComputer {
          */
         std::unordered_map<uint32_t, bool> changed_reads;
 
+        /**
+         * Helper variables to speed up emission update.
+         */
+        std::vector<long double> i_multiplier;
+        std::vector<long double> j_multiplier;
+
 };
 
 
