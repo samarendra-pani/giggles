@@ -314,6 +314,7 @@ class GafParser:
                 self._files.append(open(path, "r"))
             self._indexes.append(self.process_index_file(path))
         for path in read_fasta_files:
+            logger.info(f"Processing read fasta file {path}.")
             self._fastas.append(pysam.FastaFile(path))
         logger.info("Completed initializing GAF files, along with their indexes and read FASTA files.")
  
@@ -456,7 +457,7 @@ class rGFA:
         for node in nodes:
             node = self._nodes[node]
             if node.start != pos:
-                raise Exception('The reference nodes either have overlap or have empty space. Cannot reconstruct reference sequence for chromosome %s'%(contig))
+                raise Exception(f'The reference nodes either have overlap or have empty space. Cannot reconstruct reference sequence for chromosome {contig}.')
             sequence += node.sequence
             pos += len(node.sequence)
         
