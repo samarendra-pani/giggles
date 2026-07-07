@@ -49,18 +49,36 @@ def genotype_chromosome(variant_table,
     chromosome = variant_table.chromosome
     # create a mapping of genome positions to indices
     var_pos_to_ind = dict()
-    n_allele_position = dict()
-    allele_references = dict()
-    is_sv_position = dict()
+    positions_list = []
+    n_allele_list = []
+    allele_references_list = []
+    is_sv_list = []
+    variant_count = 0
+    logger.info("Collating variant information to pass into C++ core.")
     for i in range(len(variant_table.variants)):
         v = variant_table.variants[i]
-        n_allele_position[v.position_on_ref] = len(v.alternative_allele)+1      ##Contains the number of alleles at every variant position
-        allele_references[v.position_on_ref] = v.allele_origin
-        is_sv_position[v.position_on_ref] = v.is_sv()
+        if v.position_on_ref in var_pos_to_ind:
+            raise RuntimeError(f'Position {v.position_on_ref} has multiple variant lines.')
+        var_pos_to_ind[v.position_on_ref] = i
+        positions_list.append(i)
+        n_allele_list.append(len(v.alternative_allele)+1)
+        is_sv_list.append(v.is_sv())
+        allele_reference_to_list = []
+        for ref_sample in v.allele_origin:
+            for hap in ref_sample:
+                try:
+                    allele_reference_to_list.append(int(hap))
+                except TypeError:
+                    allele_reference_to_list.append(-1)
+        allele_references_list.append(allele_reference_to_list)
+        variant_count += 1
+    
+    logger.info("Computing recombination costs.")
+    recombination_costs = recombination_cost_computer.compute(positions_list)
 
     #Prior genotyping with equal probabilities
     variant_table.query_set_genotype_likelihoods_of(
-        [None for _ in list(var_pos_to_ind.keys())]
+        [None]*variant_count
     )
     
     # Get the reads
@@ -73,33 +91,17 @@ def genotype_chromosome(variant_table,
         logger.info(f"Skipping chromosome {chromosome} because no reads were found.")
         return
     
-    # Determine which variants can (in principle) be phased
-    accessible_positions = list(var_pos_to_ind.keys())
-    accessible_positions_n_allele = []
-    accessible_positions_allele_references = []
-    accessible_positions_is_sv = []
-    for index, position in enumerate(accessible_positions):
-        accessible_positions_n_allele.append(n_allele_position[position])
-        accessible_positions_is_sv.append(is_sv_position[position])
-        allele_reference_to_list = []
-        for ref_sample in allele_references[position]:
-            for hap in ref_sample:
-                try:
-                    allele_reference_to_list.append(int(hap))
-                except TypeError:
-                    allele_reference_to_list.append(-1)
-        accessible_positions_allele_references.append(allele_reference_to_list)
-    recombination_costs = recombination_cost_computer.compute(accessible_positions)
-    
     # Have to do the selection for the phasing algorithm
     with timers("select"):
         #readset = readset.subset(
         #    [i for i, read in enumerate(readset) if len(read) >= 2]
         #)
         #logger.info(f"Kept {len(readset)} reads that cover at least two variants each in {chromosome}")
+        logger.info(f"Selecting reads for phasing using maximum coverage of {max_coverage}.")
         update_reads_with_selected(readset, max_coverage)
     
     # Sorting selected reads
+    logger.info(f"Sorting the reads")
     for read in readset:
         if not read.is_sorted():
             read.sort()
@@ -111,23 +113,25 @@ def genotype_chromosome(variant_table,
             n_haplotypes,
             ploidy,
             temperature,
-            accessible_positions,
-            accessible_positions_n_allele,
-            accessible_positions_allele_references,
-            accessible_positions_is_sv
+            positions_list,
+            n_allele_list,
+            allele_references_list,
+            is_sv_list
         )
     
         # store results
         likelihood_list = variant_table.query_genotype_likelihoods_of()
         genotypes_list = variant_table.query_genotypes_of()
+        assert len(likelihood_list) == len(positions_list)
+        assert len(genotypes_list) == len(positions_list)
 
-        for pos in range(len(accessible_positions)):
-            likelihoods = result.get_genotype_likelihoods(pos, accessible_positions_n_allele[pos])
+        for index, _ in enumerate(positions_list):
+            likelihoods = result.get_genotype_likelihoods(index, n_allele_list[index])
             # compute genotypes from likelihoods and store information
-            geno = determine_genotype(likelihoods, gt_prob, accessible_positions_n_allele[pos], ploidy)
+            geno = determine_genotype(likelihoods, gt_prob, n_allele_list[index], ploidy)
             assert isinstance(geno, Genotype)
-            genotypes_list[var_pos_to_ind[accessible_positions[pos]]] = geno
-            likelihood_list[var_pos_to_ind[accessible_positions[pos]]] = likelihoods
+            genotypes_list[index] = geno
+            likelihood_list[index] = likelihoods
 
         variant_table.query_set_genotypes_of(genotypes_list)
         variant_table.query_set_genotype_likelihoods_of(likelihood_list)
@@ -156,7 +160,7 @@ def run_genotype(
     recombrate=1.26,
     eff_pop_size=10
 ):
-    logger.info(f"This is Giggles (genotyping) {__version__} running under Python {platform.python_version()}\n")
+    logger.info(f"This is Giggles (genotyping) {__version__} running under Python {platform.python_version()}.\n")
     logger.info('== Working Files ==')
     logger.info(f"Alignment files: {','.join(alignment_files)}")
     logger.info(f"Read FASTA files: {','.join(read_fasta_files)}")
