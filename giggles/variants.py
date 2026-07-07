@@ -40,7 +40,7 @@ class Realigner:
             
 
     def close(self):
-        self.realigner.__dealloc__()
+        self.realigner = None
 
 
 

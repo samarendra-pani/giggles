@@ -1,10 +1,7 @@
 class WFAWrapper:
     def __init__(
         self, 
-        ): ...
-    def __dealloc__(
-        self,
-        ): ...
+        ) -> None: ...
     def align(
         self, 
         text: str = ..., 
