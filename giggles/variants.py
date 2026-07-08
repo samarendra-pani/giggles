@@ -893,9 +893,13 @@ class GAFReader(AlignmentReader):
                 alts.append(alt)
 
             scores = []
+            q_len = len(query)
             for _, allele in enumerate([ref]+alts):
+                a_len = len(allele)
                 score = edit_distance(query, allele)
-                f_score = score/(max(len(query), len(allele)) - score)
+                f_score = 1.0
+                if (max(q_len, a_len) - score) != 0:
+                    f_score = score/(max(q_len, a_len) - score)
                 scores.append(1.0 - min(1.0, f_score))
                 
             return scores
@@ -999,7 +1003,9 @@ class GAFReader(AlignmentReader):
                 best_allele = ref if closest_allele_idx == 0 else alts[closest_allele_idx-1]
                 best_score = aligner.get_distance(query, best_allele, 0)
                 q_len = len(query)
-                best_f = best_score/(max(q_len, len(best_allele)) - best_score)
+                best_f = 1.0
+                if (max(q_len, len(best_allele)) - best_score) != 0:
+                    best_f = best_score/(max(q_len, len(best_allele)) - best_score)
                 
                 for idx, allele in enumerate([ref]+alts):
                     if idx == closest_allele_idx:
@@ -1026,15 +1032,19 @@ class GAFReader(AlignmentReader):
                         scores.append(0.0)
                         continue
                     score = aligner.get_distance(query, allele, 0)
-                    f_score = score/(max(q_len, a_len) - score)
+                    f_score = 1.0
+                    if (max(q_len, a_len) - score) != 0:
+                        f_score = score/(max(q_len, a_len) - score)
                     scores.append(1.0 - min(1.0, f_score))
             else:
                 # if its a partial alignment, then cannot apply the above heuristics
                 q_len = len(query)
                 for idx, allele in enumerate([ref]+alts):
                     score = aligner.get_distance(query, allele, variant.state)
-                    f_score = score/(q_len - score)
-                    scores.append(1 - min(1, f_score))
+                    f_score = 1.0
+                    if (q_len - score) != 0:
+                        f_score = score/(q_len - score)
+                    scores.append(1.0 - min(1.0, f_score))
         else:
             # not a custom graph. 
             # so we will have multiple nodes for each alleles.
@@ -1049,13 +1059,17 @@ class GAFReader(AlignmentReader):
                         scores.append(0.0)
                         continue
                     score = aligner.get_distance(query, allele, 0)
-                    f_score = score/(max(q_len, a_len) - score)
+                    f_score = 1.0
+                    if (max(q_len, a_len) - score) != 0:
+                        f_score = score/(max(q_len, a_len) - score)
                     scores.append(1.0 - min(1.0, f_score))
             else:
                 q_len = len(query)
                 for idx, allele in enumerate([ref]+alts):
                     score = aligner.get_distance(query, allele, variant.state)
-                    f_score = score/(q_len - score)
+                    f_score = 1.0
+                    if (q_len - score) != 0:
+                        f_score = score/(q_len - score)
                     scores.append(1.0 - min(1.0, f_score))
 
         # Old implementation. Doing realignment for each allele.
