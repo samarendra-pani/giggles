@@ -214,6 +214,7 @@ class GAFReader(AlignmentReader):
         for read in reads:
             if read is None:
                 yield None
+                continue
             if groups[(read.source_id, read.name)] == []:
                 groups[(read.source_id, read.name)] = [read]       # Keeping this as a list so that I dont need to change _make_readset_from_grouped_reads()
             else:
@@ -766,12 +767,14 @@ class GAFReader(AlignmentReader):
             # if no alignment was found 
             if result is None:
                 yield None
+                continue
 
             variants_in_alignment, alignment, reference = result
 
             # if no variants found in the alignment
             if variants_in_alignment is None:
                 yield None
+                continue
 
             # Extract the aligned segement from the complete read sequence and create a new object.
             # Need cigartuples, and reference_start (where it starts in the reference. So the path start in this case.)
