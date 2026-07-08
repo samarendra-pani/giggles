@@ -894,7 +894,9 @@ class GAFReader(AlignmentReader):
 
             scores = []
             for _, allele in enumerate([ref]+alts):
-                scores.append(edit_distance(query, allele))
+                score = edit_distance(query, allele)
+                f_score = score/(max(len(query), len(allele)) - score)
+                scores.append(1.0 - min(1.0, f_score))
                 
             return scores
 
@@ -1001,12 +1003,12 @@ class GAFReader(AlignmentReader):
                 
                 for idx, allele in enumerate([ref]+alts):
                     if idx == closest_allele_idx:
-                        scores.append(1 - min(1, best_f))
+                        scores.append(1.0 - min(1.0, best_f))
                         continue
                     # checking for heuristic 1
                     a_len = len(allele)
                     if a_len >= 1.2*q_len or a_len <= q_len/1.2:
-                        scores.append(0)
+                        scores.append(0.0)
                         continue
                     idx1 = None
                     idx2 = None
@@ -1021,11 +1023,11 @@ class GAFReader(AlignmentReader):
                     # If |s(A_i, R) - s(A_i, A_j)| / k*{ max(A_j, R) - |s(A_i, R) - s(A_i, A_j)| } >= 1   (from triangle inequality)
                     # No need to calculate s(A_j, R). Just set g(A_j, R) to 0.
                     if (5*abs(best_score-allele_to_allele_distance)) / ( max(a_len, q_len) -  abs(best_score-allele_to_allele_distance)) >= 1:
-                        scores.append(0)
+                        scores.append(0.0)
                         continue
                     score = aligner.get_distance(query, allele, 0)
                     f_score = score/(max(q_len, a_len) - score)
-                    scores.append(1 - min(1, f_score))
+                    scores.append(1.0 - min(1.0, f_score))
             else:
                 # if its a partial alignment, then cannot apply the above heuristics
                 q_len = len(query)
@@ -1044,17 +1046,17 @@ class GAFReader(AlignmentReader):
                     a_len = len(allele)
                     # checking for heuristic 1
                     if a_len >= 1.2*q_len or a_len <= q_len/1.2:
-                        scores.append(0)
+                        scores.append(0.0)
                         continue
                     score = aligner.get_distance(query, allele, 0)
                     f_score = score/(max(q_len, a_len) - score)
-                    scores.append(1 - min(1, f_score))
+                    scores.append(1.0 - min(1.0, f_score))
             else:
                 q_len = len(query)
                 for idx, allele in enumerate([ref]+alts):
                     score = aligner.get_distance(query, allele, variant.state)
                     f_score = score/(q_len - score)
-                    scores.append(1 - min(1, f_score))
+                    scores.append(1.0 - min(1.0, f_score))
 
         # Old implementation. Doing realignment for each allele.
         #for index, allele in enumerate([ref]+alts):
