@@ -3,7 +3,7 @@
 #include <stdexcept>
 
 WFAWrapper::WFAWrapper() {
-    aligner = new WFAlignerEdit(WFAligner::AlignmentScope::Score, WFAligner::MemoryModel::MemoryLow);
+    aligner = new WFAlignerEdit(WFAligner::AlignmentScope::Score, WFAligner::MemoryModel::MemoryHigh);
 }
 
 /**
@@ -19,7 +19,7 @@ int WFAWrapper::align(const char* text, int text_len, const char* pattern, int p
             std::cerr << "[Core::WFAWrapper] Warning: Max steps reached. Resetting allocator and retrying..." << std::endl;
             // Recreate the aligner inside the wrapper
             delete aligner;
-            aligner = new WFAlignerEdit(WFAligner::AlignmentScope::Score, WFAligner::MemoryModel::MemoryLow);
+            aligner = new WFAlignerEdit(WFAligner::AlignmentScope::Score, WFAligner::MemoryModel::MemoryHigh);
             
             // Re-run the exact same alignment logic
             score = attempt_alignment(text, text_len, pattern, pattern_len, type); 
@@ -50,6 +50,7 @@ int WFAWrapper::attempt_alignment(const char* text, int text_len, const char* pa
             /**
              * full pattern is aligned to beginning part of the text
              */
+            
             status = aligner->alignEndsFree(pattern, pattern_len, 0, 0, text, text_len, 0, text_len);
             score = aligner->getAlignmentScore();
             break;
