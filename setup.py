@@ -4,7 +4,7 @@ from distutils.sysconfig import customize_compiler
 import Cython.Build
 from Cython.Build import cythonize
 
-def CppExtension(name, sources):
+def CppExtension(name, sources, extra_compile_args=[]):
     
     include_dirs=[
             "src/",
@@ -20,7 +20,7 @@ def CppExtension(name, sources):
         name,
         sources=sources,
         language="c++",
-        extra_compile_args=["-std=c++20", "-Werror=return-type", "-Werror=narrowing"],
+        extra_compile_args=["-std=c++20", "-Werror=return-type", "-Werror=narrowing"]+extra_compile_args,
         include_dirs=include_dirs,
         library_dirs=library_dirs,
         libraries=libraries,
@@ -89,7 +89,8 @@ extensions = [
         sources=[
             "giggles/ext.pyx",
             "external/wrappers/wfawrapper.cpp"
-        ]
+        ],
+        extra_compile_args=["-O3", "-march=native"]
     ),
     CppExtension("giggles.align", sources=["giggles/align.pyx"]),
     CppExtension("giggles.priorityqueue", sources=["giggles/priorityqueue.pyx"]),
