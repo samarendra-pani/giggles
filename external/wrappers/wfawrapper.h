@@ -26,13 +26,19 @@ class WFAWrapper {
          * 
          * @returns alignment score
          */
-        int align(const std::string& text, const std::string& pattern, uint8_t type);
+        int align(const char* text, int text_len, const char* pattern, int pattern_len, uint8_t type);
 
     private:
         /**
          * aligners defined based on their type
          */
         WFAlignerEdit* aligner;
+
+        /**
+         * Internal switch case logic
+         * Returns negative status if status is negative. Otherwise returns score.
+         */
+        int attempt_alignment(const char* text, int text_len, const char* pattern, int pattern_len, uint8_t type);
 
 };
 
