@@ -198,7 +198,7 @@ class GAFReader(AlignmentReader):
             if group is None:
                 continue
             readset.add(group[0])
-        logger.debug("ReadSet Object Successfully Created")
+        logger.info("ReadSet Object Successfully Created")
         return readset      
 
     @staticmethod
@@ -638,7 +638,10 @@ class GAFReader(AlignmentReader):
         for i in range(1, start_scaf_idx, 2):
             # Simple lookup, assuming valid path structure
             n_id = alignment.path[i]
-            prefix_len += rgfa.get_node(n_id).tags['LN']
+            try:
+                prefix_len += rgfa.get_node(n_id).tags['LN']
+            except KeyError:
+                prefix_len += len(rgfa.get_node(n_id).sequence)
         current_path_pos = prefix_len
     
         # We need the start node object to calculate offsets
@@ -708,12 +711,12 @@ class GAFReader(AlignmentReader):
             if alignment is None:
                 yield None
                 continue
-
             # 1. Orientation & Finding Variants
             alignment, _ = GafAlignment.check_reverse(alignment, rgfa)
             
             logger.trace(f'Finding variants in {alignment.read_id}')
             # Use our new finding logic
+            logger.trace('Finding variants...')
             find_result = GAFReader.find_variants_in_alignment(
                 alignment, variants, rgfa, variant_pointer
             )
@@ -730,6 +733,7 @@ class GAFReader(AlignmentReader):
 
             # 2. Build Reference Sequence & Calculate SV Attributes
             # We return the constructed sequence and the updated variants list
+            logger.trace('Getting SV attributes...')
             reference_seq = self._calculate_sv_attributes(
                 alignment, 
                 variants_in_alignment, 
@@ -739,6 +743,7 @@ class GAFReader(AlignmentReader):
             
             # 3. Interpolate External Variant Positions
             # SNPs don't need node summing; they just need anchor offsets
+            logger.trace('Interpolating ext positions...')
             self._interpolate_ext_positions(
                 variants_in_alignment,
                 alignment,
@@ -798,7 +803,7 @@ class GAFReader(AlignmentReader):
                 alignment.mapping_quality,
                 alignment.source_id,
             )
-            
+            logger.trace('Detecting alleles by alignment...')
             detected = self.detect_alleles_by_alignment(
                 self._aligner,
                 variants_in_alignment,
@@ -866,6 +871,7 @@ class GAFReader(AlignmentReader):
         left_cigar, right_cigar = AlignmentReader.split_cigar(cigartuples, i, consumed)
 
         if not variant.is_sv():
+            logger.trace(f'Realigning Non-SV {variant.id}')
             assert variant.state == 0
             # this is an external variant
             # overhang is set to 10
@@ -902,11 +908,14 @@ class GAFReader(AlignmentReader):
                 score = edit_distance(query, allele)
                 f_score = 1.0
                 if (max(q_len, a_len) - score) != 0:
-                    f_score = score/(max(q_len, a_len) - score)
+                    f_score = 5*score/(max(q_len, a_len) - score)
                 scores.append(1.0 - min(1.0, f_score))
-                
+            
+            logger.trace(f'Realigning Non-SV {variant.id} complete')
             return scores
-
+        
+        logger.trace(f'Realigning SV {variant.id}')
+        
         aligner.reset_aligner()
         
         # This is a SV variant
@@ -1020,6 +1029,7 @@ class GAFReader(AlignmentReader):
                     # checking for heuristic 1
                     a_len = len(allele)
                     if a_len >= 1.2*q_len or a_len <= q_len/1.2:
+                        logger.trace(f'[Custom Graph][State: 0][Variant Idx {idx}] Heuristic 1 failed')
                         scores.append(0.0)
                         continue
                     idx1 = None
@@ -1035,21 +1045,24 @@ class GAFReader(AlignmentReader):
                     # If |s(A_i, R) - s(A_i, A_j)| / k*{ max(A_j, R) - |s(A_i, R) - s(A_i, A_j)| } >= 1   (from triangle inequality)
                     # No need to calculate s(A_j, R). Just set g(A_j, R) to 0.
                     if (5*abs(best_score-allele_to_allele_distance)) / ( max(a_len, q_len) -  abs(best_score-allele_to_allele_distance)) >= 1:
+                        logger.trace(f'[Custom Graph][State: 0][Variant Idx {idx}] Heuristic 2 failed')
                         scores.append(0.0)
                         continue
+                    logger.trace(f'[Custom Graph][State: 0][Variant Idx {idx}] Heuristic 1 & 2 passed. Getting distance...')
                     score = aligner.get_distance(query, allele, 0)
                     f_score = 1.0
                     if (max(q_len, a_len) - score) != 0:
-                        f_score = score/(max(q_len, a_len) - score)
+                        f_score = 5*score/(max(q_len, a_len) - score)
                     scores.append(1.0 - min(1.0, f_score))
             else:
                 # if its a partial alignment, then cannot apply the above heuristics
                 q_len = len(query)
                 for idx, allele in enumerate([ref]+alts):
+                    logger.trace(f'[Custom Graph][State: {variant.state}][Variant Idx {idx}] Getting distance...')
                     score = aligner.get_distance(query, allele, variant.state)
                     f_score = 1.0
                     if (q_len - score) != 0:
-                        f_score = score/(q_len - score)
+                        f_score = 5*score/(q_len - score)
                     scores.append(1.0 - min(1.0, f_score))
         else:
             # not a custom graph. 
@@ -1062,20 +1075,23 @@ class GAFReader(AlignmentReader):
                     a_len = len(allele)
                     # checking for heuristic 1
                     if a_len >= 1.2*q_len or a_len <= q_len/1.2:
+                        logger.trace(f'[Not Custom Graph][State: 0][Variant Idx {idx}] Heuristic 1 failed')
                         scores.append(0.0)
                         continue
+                    logger.trace(f'[Not Custom Graph][State: 0][Variant Idx {idx}] Heuristic 1 passed. Getting distance...')
                     score = aligner.get_distance(query, allele, 0)
                     f_score = 1.0
                     if (max(q_len, a_len) - score) != 0:
-                        f_score = score/(max(q_len, a_len) - score)
+                        f_score = 5*score/(max(q_len, a_len) - score)
                     scores.append(1.0 - min(1.0, f_score))
             else:
                 q_len = len(query)
                 for idx, allele in enumerate([ref]+alts):
+                    logger.trace(f'[Not Custom Graph][State: {variant.state}][Variant Idx {idx}] Getting distance...')
                     score = aligner.get_distance(query, allele, variant.state)
                     f_score = 1.0
                     if (q_len - score) != 0:
-                        f_score = score/(q_len - score)
+                        f_score = 5*score/(q_len - score)
                     scores.append(1.0 - min(1.0, f_score))
 
         # Old implementation. Doing realignment for each allele.
@@ -1085,7 +1101,7 @@ class GAFReader(AlignmentReader):
         #        scores.append(1e8)
         #    else:
         #        scores.append(aligner.get_distance(query, allele))        
-                
+        logger.trace(f'Realigning SV {variant.id} complete')
         return scores
 
     @staticmethod

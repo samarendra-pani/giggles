@@ -185,15 +185,18 @@ def run_genotype(
         haplotags = read_haplotags(haplotag_tsv)
         
         # vcf writer for final genotype likelihoods
+        logger.info("Initializing VCF writer.")
         vcf_writer = stack.enter_context(GenotypeVcfWriter(command_line=command_line, in_path=variant_file, out_file=output, sample=sample))
         
         # The samples in the gaf or bam is given as input since it will be used to make variant tables with those samples.
         # The variant tables are then simply just updated after the HMM is run.
+        logger.info("Initializing VCF reader.")
         vcf_reader = stack.enter_context(
             VcfReader(
                 path=variant_file, indels=True, required_chr=chromosomes, is_custom_graph=is_custom_graph
             )
         )
+        logger.info("Initializing recombination computer.")
         recombination_cost_computer = UniformRecombinationCostComputer(recombrate, eff_pop_size)
         # compute genotype likelihood threshold
         gt_prob = 1.0 - (10 ** (-gt_qual_threshold / 10.0))
