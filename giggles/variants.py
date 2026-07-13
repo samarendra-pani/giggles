@@ -38,6 +38,9 @@ class Realigner:
         dist = self.realigner.align(query, allele, state=state)
         return dist
             
+    def reset_aligner(self):
+        self.realigner = None
+        self.realigner = WFAWrapper()
 
     def close(self):
         self.realigner = None
@@ -904,6 +907,8 @@ class GAFReader(AlignmentReader):
                 
             return scores
 
+        aligner.reset_aligner()
+        
         # This is a SV variant
         left_ref_bases, left_query_bases = AlignmentReader.cigar_prefix_length(cigar=left_cigar[::-1], reference_bases=overhang)
         
@@ -948,7 +953,7 @@ class GAFReader(AlignmentReader):
 
             We only want to do a realignment if d(A_i, R) < b.
             So we check if |d(A_k, R) - d(A_k, A_i)| < b and do realignment accordingly.
-            '''
+        '''
 
         '''
             New metric and implementation:
@@ -985,7 +990,8 @@ class GAFReader(AlignmentReader):
                 If |s(A_i, R) - s(A_i, A_j)| / k*{ max(A_j, R) - |s(A_i, R) - s(A_i, A_j)| } >= 1   (from triangle inequality)
 
                 No need to calculate s(A_j, R). Just set g(A_j, R) to 0.
-            '''
+        '''
+        
         scores = []
         if is_custom_graph:
             # this means I can use the heuristics with the allele distance matrix
