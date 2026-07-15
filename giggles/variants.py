@@ -35,6 +35,7 @@ class Realigner:
         Returns
             int: the distance between the two string (always positive)
         """
+        
         dist = self.realigner.align(query, allele, state=state)
         return dist
             
@@ -1087,6 +1088,11 @@ class GAFReader(AlignmentReader):
             else:
                 q_len = len(query)
                 for idx, allele in enumerate([ref]+alts):
+                    a_len = len(allele)
+                    if a_len <= q_len/1.2:
+                        logger.trace(f'[Not Custom Graph][State: {variant.state}][Variant Idx {idx}] Heuristic 1 failed')
+                        scores.append(0.0)
+                        continue
                     logger.trace(f'[Not Custom Graph][State: {variant.state}][Variant Idx {idx}] Getting distance...')
                     score = aligner.get_distance(query, allele, variant.state)
                     f_score = 1.0
