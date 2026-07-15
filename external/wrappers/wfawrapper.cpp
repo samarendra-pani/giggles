@@ -10,9 +10,9 @@ WFAWrapper::WFAWrapper() {
  * Pattern: read segment
  * Text: allele
  */
-int WFAWrapper::align(const char* text, int text_len, const char* pattern, int pattern_len, uint8_t type) {
+int WFAWrapper::align(const char* allele, int allele_len, const char* query, int query_len, uint8_t type) {
     
-    int score = attempt_alignment(text, text_len, pattern, pattern_len, type);
+    int score = attempt_alignment(allele, allele_len, query, query_len, type);
     if ((int)score < 0) {
         // If it's a memory/step capacity issue, clear the slate and try ONE more time
         if ((int)score == -100) { 
@@ -22,55 +22,65 @@ int WFAWrapper::align(const char* text, int text_len, const char* pattern, int p
             aligner = new WFAlignerEdit(WFAligner::AlignmentScope::Score, WFAligner::MemoryModel::MemoryHigh);
             
             // Re-run the exact same alignment logic
-            score = attempt_alignment(text, text_len, pattern, pattern_len, type); 
+            score = attempt_alignment(allele, allele_len, query, query_len, type); 
             if ((int)score >= 0) {
                 return score;
             }
         }
         
         // If it still fails, or it's a different error, throw
-        throw std::runtime_error("Error: Non-success status for WFAWrapper after retry.");
+        std::string error = "Error: Non-success status " + std::to_string((int)score) + " for WFAWrapper after retry.";
+        throw std::runtime_error(error);
     }
     return score;
 }
 
-int WFAWrapper::attempt_alignment(const char* text, int text_len, const char* pattern, int pattern_len, uint8_t type) {
+int WFAWrapper::attempt_alignment(const char* allele, int allele_len, const char* query, int query_len, uint8_t type) {
     WFAligner::AlignmentStatus status;
     int score;
+    int bandwidth;
     switch (type) {
         case 0:
             /**
-             * full pattern is aligned with full text
+             * full query is aligned with full allele
              */
-            status = aligner->alignEnd2End(pattern, pattern_len, text, text_len);
+            bandwidth = (int)(std::max(allele_len, query_len)/6.0);
+            aligner->setHeuristicBandedStatic(-bandwidth, bandwidth);
+            status = aligner->alignEnd2End(query, query_len, allele, allele_len);
             score = aligner->getAlignmentScore();
+            //aligner->setHeuristicNone();
             break;
-
+    
         case 1:
             /**
-             * full pattern is aligned to beginning part of the text
+             * full query is aligned to end part of the allele
+             * 
+             * Since we can start anywhere on the allele but end at the end of the allele,
+             * the band needs to be shifted so that it can end at the end of the allele.
              */
-            
-            status = aligner->alignEndsFree(pattern, pattern_len, 0, 0, text, text_len, 0, text_len);
+            bandwidth = (int)(query_len/6.0);
+            aligner->setHeuristicBandedStatic(allele_len-query_len-bandwidth, allele_len-query_len+bandwidth);
+            status = aligner->alignEndsFree(query, query_len, 0, 0, allele, allele_len, allele_len, 0);
             score = aligner->getAlignmentScore();
+            //aligner->setHeuristicNone();
             break;
-            
+        
         case 2:
             /**
-             * full pattern is aligned to end part of the text
-             * 
-             * Since we can start anywhere on the text but end at the end of the text,
-             * the band needs to be shifted so that it can end at the end of the text.
+             * full query is aligned to beginning part of the allele
              */
-            status = aligner->alignEndsFree(pattern, pattern_len, 0, 0, text, text_len, text_len, 0);
+            bandwidth = (int)(query_len/6.0);
+            aligner->setHeuristicBandedStatic(-bandwidth, bandwidth);
+            status = aligner->alignEndsFree(query, query_len, 0, 0, allele, allele_len, 0, allele_len);
             score = aligner->getAlignmentScore();
+            //aligner->setHeuristicNone();
             break;
-            
+
         case 3:
             /**
-             * full pattern is aligned to part of the text
+             * full query is aligned to part of the allele
              */
-            status = aligner->alignEndsFree(pattern, pattern_len, 0, 0, text, text_len, text_len, text_len);
+            status = aligner->alignEndsFree(query, query_len, 0, 0, allele, allele_len, allele_len, allele_len);
             score = aligner->getAlignmentScore();
             break;
 

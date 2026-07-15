@@ -4,6 +4,6 @@ class WFAWrapper:
         ) -> None: ...
     def align(
         self, 
-        text: str = ..., 
-        pattern: str = ..., 
+        allele: str = ..., 
+        query: str = ..., 
         state: int = ...) -> int: ...
