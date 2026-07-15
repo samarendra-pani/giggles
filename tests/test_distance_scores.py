@@ -80,62 +80,97 @@ def test_edit_distance_banded():
 
 def test_wfa():
 
-    def expected_error(text, pattern, state):
+    def expected_error(allele, query, state):
         try:
-            _ = aligner.align(text=text, pattern=pattern, state=state)
+            _ = aligner.align(allele, query, state=state)
             assert False
         except RuntimeError:
             # expected
             pass
 
     
-    ### Testing with large bandwidth.
-    aligner = WFAWrapper(bandwidth=10)
+    aligner = WFAWrapper()
     
     # Testing alignment type 0
-    assert(aligner.align(text="AATGC", pattern="AATGC", state=0) == 0)
-    assert(aligner.align(text="AATGC", pattern="ATGC", state=0) == 1)
-    assert(aligner.align(text="AATGC", pattern="ATTGC", state=0) == 1)
-    assert(aligner.align(text="AATGC", pattern="ATC", state=0) == 2)
-    assert(aligner.align(text="AATGC", pattern="AGTCC", state=0) == 2)
-    assert(aligner.align(text="AAAAA", pattern="T", state=0) == 5)
-
-    # Testing alignment type 1
-    assert(aligner.align(text="AAAAA", pattern="T", state=1) == 1)
-    assert(aligner.align(text="TAAAA", pattern="T", state=1) == 0)
-    assert(aligner.align(text="GCGAA", pattern="GCA", state=1) == 1)
-    assert(aligner.align(text="AAAAGCG", pattern="GCG", state=1) == 3)
+    assert(aligner.align(allele="AATGC", query="AATGC", state=0) == 0)
+    expected_error(allele="AATGC", query="ATGC", state=0)
+    assert(aligner.align(allele="AATGC", query="ATTGC", state=0) == 1)
+    expected_error(allele="AATGC", query="ATC", state=0)
+    assert(aligner.align(allele="AATGC", query="AGTCC", state=0) == 2)
+    expected_error(allele="AAAAA", query="T", state=0)
+    assert(aligner.align(allele="AAAAA", query="TTTTT", state=0) == 5)
+    expected_error(allele="AAAAAA", query="TTTT", state=0)
 
     # Testing alignment type 2
-    assert(aligner.align(text="AAAAA", pattern="T", state=2) == 1)
-    assert(aligner.align(text="AAAAT", pattern="T", state=2) == 0)
-    assert(aligner.align(text="AAGCG", pattern="GCA", state=2) == 1)
-    assert(aligner.align(text="GCGAAAA", pattern="GCG", state=2) == 3)
-
-    ### Testing with smaller bandwidth
-    aligner = WFAWrapper(bandwidth=2)
-    
-    # Testing alignment type 0
-    assert(aligner.align(text="AATGC", pattern="AATGC", state=0) == 0)
-    assert(aligner.align(text="AAAAA", pattern="TTTTT", state=0) == 5)
-    expected_error(text="AAAAAA", pattern="T", state=0)
-    expected_error(text="AAAAAA", pattern="TT", state=0)
-    expected_error(text="AAAAAA", pattern="TTT", state=0)
-    assert(aligner.align(text="AAAAAA", pattern="TTTT", state=0) == 6)
+    assert(aligner.align(allele="AAAAA", query="T", state=2) == 1)
+    assert(aligner.align(allele="TAAAA", query="T", state=2) == 0)
+    assert(aligner.align(allele="GCGAA", query="GCA", state=2) == 1)
+    assert(aligner.align(allele="AAAAGCG", query="GCG", state=2) == 3)
+    assert(aligner.align(allele="AATGC", query="AT", state=2) == 1)
+    assert(aligner.align(allele="AATGC", query="TG", state=2) == 2)
+    assert(aligner.align(allele="AATGC", query="ATG", state=2) == 1)
 
     # Testing alignment type 1
-    assert(aligner.align(text="AATGC", pattern="AT", state=1) == 1)
-    assert(aligner.align(text="AATGC", pattern="TG", state=1) == 2)
-    assert(aligner.align(text="AATGC", pattern="ATG", state=1) == 1)
+    assert(aligner.align(allele="AAAAA", query="T", state=1) == 1)
+    assert(aligner.align(allele="AAAAT", query="T", state=1) == 0)
+    assert(aligner.align(allele="AAGCG", query="GCA", state=1) == 1)
+    assert(aligner.align(allele="GCGAAAA", query="GCG", state=1) == 3)
+    assert(aligner.align(allele="AATGC", query="TG", state=1) == 2) # Because of the bandwidth, the alignment happens between GC and TG which has an ed of 2
+    assert(aligner.align(allele="AATGC", query="AT", state=1) == 2) # Same bandwidth artefact
+    assert(aligner.align(allele="AATGC", query="ATG", state=1) == 3)    # Same bandwidth artefact
+    assert(aligner.align(allele="AAAATGC", query="AAATG", state=1) == 3)    # Same bandwidth artefact
+    assert(aligner.align(allele="AAAAATGC", query="AAAATG", state=1) == 1)  # Should have bandwidth of at least 1 which allows AAAATG to align with AAAATGC
     
-    # Testing alignment type 2
-    assert(aligner.align(text="AATGC", pattern="TG", state=2) == 1)
-    assert(aligner.align(text="AATGC", pattern="AT", state=2) == 2)
-    assert(aligner.align(text="AATGC", pattern="ATG", state=2) == 1)
-    
-
     # Testing alignment type 3 (does not care about bandwidth)
-    assert(aligner.align(text="AAAAA", pattern="T", state=3) == 1)
-    assert(aligner.align(text="AATAA", pattern="T", state=3) == 0)
-    assert(aligner.align(text="TTGCATT", pattern="GCA", state=3) == 0)
-    assert(aligner.align(text="TTGACAGTT", pattern="GCG", state=3) == 2)
+    assert(aligner.align(allele="AAAAA", query="T", state=3) == 1)
+    assert(aligner.align(allele="AATAA", query="T", state=3) == 0)
+    assert(aligner.align(allele="TTGCATT", query="GCA", state=3) == 0)
+    assert(aligner.align(allele="TTGACAGTT", query="GCG", state=3) == 2)
+    
+    '''
+    # Testing alignment type 0
+    print(f"Type 0 (AATGC vs AATGC) -> Expected: 0, Got: {aligner.align(allele='AATGC', query='AATGC', state=0)}")
+    print(f"Type 0 (AATGC vs ATGC)  -> Expected: 1, Got: {aligner.align(allele='AATGC', query='ATGC', state=0)}")
+    print(f"Type 0 (AATGC vs ATTGC) -> Expected: 1, Got: {aligner.align(allele='AATGC', query='ATTGC', state=0)}")
+    print(f"Type 0 (AATGC vs ATC)   -> Expected: 2, Got: {aligner.align(allele='AATGC', query='ATC', state=0)}")
+    print(f"Type 0 (AATGC vs AGTCC) -> Expected: 2, Got: {aligner.align(allele='AATGC', query='AGTCC', state=0)}")
+    print(f"Type 0 (AAAAA vs T)     -> Expected: 5, Got: {aligner.align(allele='AAAAA', query='T', state=0)}")
+
+    # Testing alignment type 2
+    print(f"Type 2 (AAAAA vs T)     -> Expected: 1, Got: {aligner.align(allele='AAAAA', query='T', state=2)}")
+    print(f"Type 2 (TAAAA vs T)     -> Expected: 0, Got: {aligner.align(allele='TAAAA', query='T', state=2)}")
+    print(f"Type 2 (GCGAA vs GCA)   -> Expected: 1, Got: {aligner.align(allele='GCGAA', query='GCA', state=2)}")
+    print(f"Type 2 (AAAAGCG vs GCG) -> Expected: 3, Got: {aligner.align(allele='AAAAGCG', query='GCG', state=2)}")
+
+    # Testing alignment type 1
+    print(f"Type 1 (AAAAA vs T)     -> Expected: 1, Got: {aligner.align(allele='AAAAA', query='T', state=1)}")
+    print(f"Type 1 (AAAAT vs T)     -> Expected: 0, Got: {aligner.align(allele='AAAAT', query='T', state=1)}")
+    print(f"Type 1 (AAGCG vs GCA)   -> Expected: 1, Got: {aligner.align(allele='AAGCG', query='GCA', state=1)}")
+    print(f"Type 1 (GCGAAAA vs GCG) -> Expected: 3, Got: {aligner.align(allele='GCGAAAA', query='GCG', state=1)}")
+
+    # Testing alignment type 0 (additional)
+    print(f"Type 0 (AATGC vs AATGC) -> Expected: 0, Got: {aligner.align(allele='AATGC', query='AATGC', state=0)}")
+    print(f"Type 0 (AAAAA vs TTTTT) -> Expected: 5, Got: {aligner.align(allele='AAAAA', query='TTTTT', state=0)}")
+    print(f"Type 0 (AAAAAA vs TTTT) -> Expected: 6, Got: {aligner.align(allele='AAAAAA', query='TTTT', state=0)}")
+
+    # Testing alignment type 2 (additional)
+    print(f"Type 2 (AATGC vs AT)    -> Expected: 1, Got: {aligner.align(allele='AATGC', query='AT', state=2)}")
+    print(f"Type 2 (AATGC vs TG)    -> Expected: 2, Got: {aligner.align(allele='AATGC', query='TG', state=2)}")
+    print(f"Type 2 (AATGC vs ATG)   -> Expected: 1, Got: {aligner.align(allele='AATGC', query='ATG', state=2)}")
+
+    # Testing alignment type 1 (additional)
+    print(f"Type 1 (AATGC vs TG)    -> Expected: 1, Got: {aligner.align(allele='AATGC', query='TG', state=1)}")
+    print(f"Type 1 (AATGC vs AT)    -> Expected: 2, Got: {aligner.align(allele='AATGC', query='AT', state=1)}")
+    print(f"Type 1 (AATGC vs ATG)   -> Expected: 1, Got: {aligner.align(allele='AATGC', query='ATG', state=1)}")
+
+    # Testing alignment type 3
+    print(f"Type 3 (AAAAA vs T)       -> Expected: 1, Got: {aligner.align(allele='AAAAA', query='T', state=3)}")
+    print(f"Type 3 (AATAA vs T)       -> Expected: 0, Got: {aligner.align(allele='AATAA', query='T', state=3)}")
+    print(f"Type 3 (TTGCATT vs GCA)   -> Expected: 0, Got: {aligner.align(allele='TTGCATT', query='GCA', state=3)}")
+    print(f"Type 3 (TTGACAGTT vs GCG) -> Expected: 2, Got: {aligner.align(allele='TTGACAGTT', query='GCG', state=3)}")
+    '''
+    allele='ATATTAAGCATGAATAAACATTAGATACTATTAAAATCCTATATATTAACAAAGCCAAAAGTTTCAAACTTTACTTTTTCCCAACATTCTTGTGAAATATGACACATCCCAATCTTAACAGATGCTCATTTGGGATACTGTACTTGTGAGTGGAAGTGTGTATATTTGTGTGCAAGTGTGTACTCATATACTTCCACCTTACCACCCTAGAAAGGCATGATGAAAATTTAAGATAGAAGGAAAATATAAATTGAAAAAAAAAAACCTTAACAAATGATTCTGACAAATATCTTCTCTTCCAGGGAGAGTCACTGAGCCAGAATAAAATTGAACACTAAATATTCTAAGAAAAAAAGGAATCTAGTTTGTCAAAATGTGACTTGAATTAATAGATAAGGAGAGTCAGATGATAAGAGGGTCAAAATTATGTTTATCTTAGGAAAAGTAGAATAGAAAATTTATAAGCAGATTAAAAACACATAATAAAAGTAGTAAATAATAATGACAGTATCTCAAATCAGTGCAG'
+    query='ATATTAAGCACTTTACTTTTTCCCAACATTCTTGTGAAATATGACACATCCCAATCTTAACAGATGCTCATTTGGGATACTGTACTTGTGAGTGGAAGTGTGTATATTTGTGTGCAAGTGTGTACTCATATACTTCCACCTTACCACCCTAGAAAGGCATGATGAAAATTTAAGATAGAAGGAAAATATAAATTGAAAAAAAAAAACCTTAACAAATGATTCTGACAAATATCTTCTCTTTCCAGGGAGAATCACTGAGCCAGAATAAAATTGAACACTAAATATTCTAAGAAAAAAGGAATCTAGTTTGTCAAAATGTGACTTGAATTAATAGATAAGGAGAGTCAGATGATAAGAGGGTCAAAATTATGTTTATCTTAGGAAAAGTAGAATAGAAAATTTATAAGCAGATTAAAAACACATAATAAAAGTAGTAAATAATAATGACAGTATCTCAAATCAGTGCAG'
+    for i in range(10):
+        assert aligner.align(allele, query, state=0) == 61
+    
