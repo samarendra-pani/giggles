@@ -10,7 +10,7 @@ WFAWrapper::WFAWrapper() {
  * Pattern: read segment
  * Text: allele
  */
-int WFAWrapper::align(const char* allele, int allele_len, const char* query, int query_len, uint8_t type) {
+int WFAWrapper::align(const char* query, int query_len, const char* allele, int allele_len, uint8_t type) {
     
     int score = attempt_alignment(allele, allele_len, query, query_len, type);
     if ((int)score < 0) {
@@ -22,7 +22,7 @@ int WFAWrapper::align(const char* allele, int allele_len, const char* query, int
             aligner = new WFAlignerEdit(WFAligner::AlignmentScope::Score, WFAligner::MemoryModel::MemoryHigh);
             
             // Re-run the exact same alignment logic
-            score = attempt_alignment(allele, allele_len, query, query_len, type); 
+            score = attempt_alignment(query, query_len, allele, allele_len, type); 
             if ((int)score >= 0) {
                 return score;
             }
@@ -35,7 +35,7 @@ int WFAWrapper::align(const char* allele, int allele_len, const char* query, int
     return score;
 }
 
-int WFAWrapper::attempt_alignment(const char* allele, int allele_len, const char* query, int query_len, uint8_t type) {
+int WFAWrapper::attempt_alignment(const char* query, int query_len, const char* allele, int allele_len, uint8_t type) {
     WFAligner::AlignmentStatus status;
     int score;
     int bandwidth;

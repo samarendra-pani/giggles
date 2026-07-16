@@ -26,7 +26,7 @@ class WFAWrapper {
          * 
          * @returns alignment score
          */
-        int align(const char* allele, int allele_len, const char* query, int query_len, uint8_t type);
+        int align(const char* query, int query_len, const char* allele, int allele_len, uint8_t type);
 
     private:
         /**
@@ -38,7 +38,7 @@ class WFAWrapper {
          * Internal switch case logic
          * Returns negative status if status is negative. Otherwise returns score.
          */
-        int attempt_alignment(const char* allele, int allele_len, const char* query, int query_len, uint8_t type);
+        int attempt_alignment(const char* query, int query_len, const char* allele, int allele_len, uint8_t type);
 
 };
 

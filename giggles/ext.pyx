@@ -13,7 +13,7 @@ cdef class WFAWrapper:
 	def __dealloc__(self):
 		del self.thisptr
 	
-	def align(self, str allele, str query, int state):
+	def align(self, str query, str allele, int state):
 		cdef bytes allele_bytes = allele.encode('UTF-8')
 		cdef bytes query_bytes = query.encode('UTF-8')
 		
@@ -27,9 +27,9 @@ cdef class WFAWrapper:
 
 		if state == 0:
 			if allele_len >= 1.2*query_len or allele_len <= query_len/1.2:
-				raise RuntimeError('Allele and Query lengths mismatch.')
-		elif state != 3:
+				raise RuntimeError('Allele and Query lengths mismatch with complete alignment.')
+		else:
 			if allele_len <= query_len/1.2:
-				raise RuntimeError('Allele and Query lengths mismatch.')
+				raise RuntimeError('Allele and Query lengths mismatch with partial alignment.')
 
-		return self.thisptr.align(c_allele, allele_len, c_query, query_len, _type)
+		return self.thisptr.align(c_query, query_len, c_allele, allele_len, _type)
