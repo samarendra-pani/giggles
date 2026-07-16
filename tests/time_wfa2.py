@@ -47,7 +47,7 @@ def time_wfa2():
                     if a_len >= 1.2*q_len or a_len <= q_len/1.2:
                         #print(f'\tScore for allele {idx} (allele={len(allele)};query={len(query)}): NaN (Heuristic 1)')
                         continue
-                    score = aligner.align(allele, query, state)
+                    score = aligner.align(allele=allele, query=query, state=state)
                     #score = ed(allele, query)
                     #print(f'\tScore for allele {idx} (allele={len(allele)};query={len(query)}): {score}')
             if state == 2:
@@ -57,7 +57,7 @@ def time_wfa2():
                     if a_len <= q_len/1.2:
                         #print(f'\tScore for allele {idx} (allele={len(allele)};query={len(query)}): NaN (Heuristic 2)')
                         continue
-                    score = aligner.align(allele, query, state)
+                    score = aligner.align(allele=allele, query=query, state=state)
                     #score = ed(allele, query)
                     #print(f'\tScore for allele {idx} (allele={len(allele)};query={len(query)}): {score}')
         times[state].append(timer.elapsed('align'))

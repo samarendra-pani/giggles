@@ -36,7 +36,7 @@ class Realigner:
             int: the distance between the two string (always positive)
         """
         
-        dist = self.realigner.align(query, allele, state=state)
+        dist = self.realigner.align(query=query, allele=allele, state=state)
         return dist
             
     def reset_aligner(self):
@@ -1017,7 +1017,7 @@ class GAFReader(AlignmentReader):
             
             if variant.state == 0:
                 best_allele = ref if closest_allele_idx == 0 else alts[closest_allele_idx-1]
-                best_score = aligner.get_distance(query, best_allele, 0)
+                best_score = aligner.get_distance(query=query, allele=best_allele, state=0)
                 q_len = len(query)
                 best_f = 1.0
                 if (max(q_len, len(best_allele)) - best_score) != 0:
@@ -1050,7 +1050,7 @@ class GAFReader(AlignmentReader):
                         scores.append(0.0)
                         continue
                     logger.trace(f'[Custom Graph][State: 0][Variant Idx {idx}] Heuristic 1 & 2 passed. Getting distance...')
-                    score = aligner.get_distance(query, allele, 0)
+                    score = aligner.get_distance(query=query, allele=allele, state=0)
                     f_score = 1.0
                     if (max(q_len, a_len) - score) != 0:
                         f_score = 5*score/(max(q_len, a_len) - score)
@@ -1060,7 +1060,7 @@ class GAFReader(AlignmentReader):
                 q_len = len(query)
                 for idx, allele in enumerate([ref]+alts):
                     logger.trace(f'[Custom Graph][State: {variant.state}][Variant Idx {idx}] Getting distance...')
-                    score = aligner.get_distance(query, allele, variant.state)
+                    score = aligner.get_distance(query=query, allele=allele, state=variant.state)
                     f_score = 1.0
                     if (q_len - score) != 0:
                         f_score = 5*score/(q_len - score)
@@ -1080,7 +1080,7 @@ class GAFReader(AlignmentReader):
                         scores.append(0.0)
                         continue
                     logger.trace(f'[Not Custom Graph][State: 0][Variant Idx {idx}] Heuristic 1 passed. Getting distance...')
-                    score = aligner.get_distance(query, allele, 0)
+                    score = aligner.get_distance(query=query, allele=allele, state=0)
                     f_score = 1.0
                     if (max(q_len, a_len) - score) != 0:
                         f_score = 5*score/(max(q_len, a_len) - score)
@@ -1094,7 +1094,7 @@ class GAFReader(AlignmentReader):
                         scores.append(0.0)
                         continue
                     logger.trace(f'[Not Custom Graph][State: {variant.state}][Variant Idx {idx}] Getting distance...')
-                    score = aligner.get_distance(query, allele, variant.state)
+                    score = aligner.get_distance(query=query, allele=allele, state=variant.state)
                     f_score = 1.0
                     if (q_len - score) != 0:
                         f_score = 5*score/(q_len - score)

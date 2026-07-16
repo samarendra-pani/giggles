@@ -82,7 +82,7 @@ def test_wfa():
 
     def expected_error(allele, query, state):
         try:
-            _ = aligner.align(allele, query, state=state)
+            _ = aligner.align(allele=allele, query=query, state=state)
             assert False
         except RuntimeError:
             # expected

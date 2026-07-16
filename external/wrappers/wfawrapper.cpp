@@ -12,7 +12,7 @@ WFAWrapper::WFAWrapper() {
  */
 int WFAWrapper::align(const char* query, int query_len, const char* allele, int allele_len, uint8_t type) {
     
-    int score = attempt_alignment(allele, allele_len, query, query_len, type);
+    int score = attempt_alignment(query, query_len, allele, allele_len, type);
     if ((int)score < 0) {
         // If it's a memory/step capacity issue, clear the slate and try ONE more time
         if ((int)score == -100) { 
