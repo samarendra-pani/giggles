@@ -14,21 +14,6 @@ int WFAWrapper::align(const char* query, int query_len, const char* allele, int 
     
     int score = attempt_alignment(query, query_len, allele, allele_len, type);
     if ((int)score < 0) {
-        // If it's a memory/step capacity issue, clear the slate and try ONE more time
-        if ((int)score == -100) { 
-            std::cerr << "[Core::WFAWrapper] Warning: Max steps reached. Resetting allocator and retrying..." << std::endl;
-            // Recreate the aligner inside the wrapper
-            delete aligner;
-            aligner = new WFAlignerEdit(WFAligner::AlignmentScope::Score, WFAligner::MemoryModel::MemoryHigh);
-            
-            // Re-run the exact same alignment logic
-            score = attempt_alignment(query, query_len, allele, allele_len, type); 
-            if ((int)score >= 0) {
-                return score;
-            }
-        }
-        
-        // If it still fails, or it's a different error, throw
         std::string error = "Error: Non-success status " + std::to_string((int)score) + " for WFAWrapper after retry.";
         throw std::runtime_error(error);
     }
@@ -46,6 +31,7 @@ int WFAWrapper::attempt_alignment(const char* query, int query_len, const char* 
              */
             bandwidth = (int)(std::max(allele_len, query_len)/6.0);
             aligner->setHeuristicBandedStatic(-bandwidth, bandwidth);
+            aligner->setMaxAlignmentSteps(bandwidth);
             status = aligner->alignEnd2End(query, query_len, allele, allele_len);
             score = aligner->getAlignmentScore();
             //aligner->setHeuristicNone();
@@ -60,6 +46,7 @@ int WFAWrapper::attempt_alignment(const char* query, int query_len, const char* 
              */
             bandwidth = (int)(query_len/6.0);
             aligner->setHeuristicBandedStatic(allele_len-query_len-bandwidth, allele_len-query_len+bandwidth);
+            aligner->setMaxAlignmentSteps(bandwidth);
             status = aligner->alignEndsFree(query, query_len, 0, 0, allele, allele_len, allele_len, 0);
             score = aligner->getAlignmentScore();
             //aligner->setHeuristicNone();
@@ -71,6 +58,7 @@ int WFAWrapper::attempt_alignment(const char* query, int query_len, const char* 
              */
             bandwidth = (int)(query_len/6.0);
             aligner->setHeuristicBandedStatic(-bandwidth, bandwidth);
+            aligner->setMaxAlignmentSteps(bandwidth);
             status = aligner->alignEndsFree(query, query_len, 0, 0, allele, allele_len, 0, allele_len);
             score = aligner->getAlignmentScore();
             //aligner->setHeuristicNone();
@@ -80,12 +68,18 @@ int WFAWrapper::attempt_alignment(const char* query, int query_len, const char* 
             /**
              * full query is aligned to part of the allele
              */
+            bandwidth = (int)(query_len/6.0);
+            aligner->setHeuristicNone();
+            aligner->setMaxAlignmentSteps(bandwidth);
             status = aligner->alignEndsFree(query, query_len, 0, 0, allele, allele_len, allele_len, allele_len);
             score = aligner->getAlignmentScore();
             break;
 
         default:
             break;
+    }
+    if ((int)status == -100) {
+        return bandwidth;
     }
     if ((int)status < 0) {
         return (int)status;
