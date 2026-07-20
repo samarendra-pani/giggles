@@ -715,7 +715,7 @@ class GAFReader(AlignmentReader):
             # 1. Orientation & Finding Variants
             alignment, _ = GafAlignment.check_reverse(alignment, rgfa)
             
-            logger.trace(f'Finding variants in {alignment.read_id}')
+            logger.trace(f'Finding variants in read {alignment.read_id}')
             # Use our new finding logic
             logger.trace('Finding variants...')
             find_result = GAFReader.find_variants_in_alignment(
@@ -804,7 +804,7 @@ class GAFReader(AlignmentReader):
                 alignment.mapping_quality,
                 alignment.source_id,
             )
-            logger.trace('Detecting alleles by alignment...')
+            logger.trace(f'Detecting alleles by alignment in read {alignment.read_id}')
             detected = self.detect_alleles_by_alignment(
                 self._aligner,
                 variants_in_alignment,
