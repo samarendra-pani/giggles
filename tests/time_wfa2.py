@@ -49,7 +49,7 @@ def time_wfa2():
                         continue
                     score = aligner.align(allele=allele, query=query, state=state)
                     #score = ed(allele, query)
-                    #print(f'\tScore for allele {idx} (allele={len(allele)};query={len(query)}): {score}')
+                    print(f'\tScore for allele {idx} (allele={len(allele)};query={len(query)}): {score}')
             if state == 2:
                 for idx, allele in enumerate(alleles):
                     a_len = len(allele)
@@ -59,7 +59,7 @@ def time_wfa2():
                         continue
                     score = aligner.align(allele=allele, query=query, state=state)
                     #score = ed(allele, query)
-                    #print(f'\tScore for allele {idx} (allele={len(allele)};query={len(query)}): {score}')
+                    print(f'\tScore for allele {idx} (allele={len(allele)};query={len(query)}): {score}')
         times[state].append(timer.elapsed('align'))
         timer._elapsed['align'] = 0
         count += 1
