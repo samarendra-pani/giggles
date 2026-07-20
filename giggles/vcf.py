@@ -34,7 +34,7 @@ class VariantCallPhase:
 class VcfVariant:
     """A variant in a VCF file (not to be confused with core.Variant)"""
 
-    __slots__ = ("id", "position", "position_on_ref", "reference_allele", "alternative_allele", "allele_origin", "length_on_path", "state", "distance_matrix")
+    __slots__ = ("id", "position", "position_on_ref", "reference_allele", "alternative_allele", "allele_origin", "length_on_path", "state", "distance_matrix", "sv")
 
     def __init__(self, id: str, position: int, reference_allele: str, alternative_allele: tuple, allele_origin: list, max_distance: int, use_distance_matrix: bool = False):
         
@@ -60,6 +60,7 @@ class VcfVariant:
         #   - 2: the read ends within this variant.
         #   - 3: the read starts and ends within this variant.
         self.state = None
+        self.sv = True if any(len(alt) >= 50 or len(self.reference_allele) >= 50 for alt in self.alternative_allele) else False
         if use_distance_matrix and self.is_sv():
             self.distance_matrix = self.calculate_distance_matrix(max_distance=max_distance)
         else:
@@ -98,7 +99,7 @@ class VcfVariant:
         )
     
     def is_sv(self) -> bool:
-        return True if any(len(alt) > 50 or len(self.reference_allele) > 50 for alt in self.alternative_allele) else False
+        return self.sv
 
     def get_variant_bo(self, rgfa):
         if not self.is_sv():
