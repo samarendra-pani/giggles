@@ -154,7 +154,6 @@ def test_gaf_variant_position_identification_with_ext(tmp_path):
                 continue
 
             # --- TEST BLOCK 3: Variant Details ---
-            print()
             for index, variant in enumerate(variants_in_alignment):
                 if variant.id in expected['variants_in_alignment']:
                     expected_var_info = expected['variants_in_alignment'][variant.id]
