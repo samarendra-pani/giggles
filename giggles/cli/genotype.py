@@ -54,13 +54,26 @@ def genotype_chromosome(variant_table,
     allele_references_list = []
     is_sv_list = []
     variant_count = 0
-    logger.info("Collating variant information to pass into C++ core.")
+    
+    # Get the reads
+    with timers("read_alignment"):
+        readset = readset_creator.read(
+            chromosome, variant_table.variants, haplotags, keep_untagged
+        )
+    readset_positions = readset.get_positions()
+    logger.info(f"Successfully created Readset for {chromosome}. Found {len(readset)} reads covering {len(readset_positions)} variants.")
+    if len(readset) == 0:
+        logger.info(f"Skipping chromosome {chromosome} because no reads were found.")
+        return
+
     for i in range(len(variant_table.variants)):
         v = variant_table.variants[i]
+        if v.position_on_ref not in readset_positions:
+            continue
         if v.position_on_ref in var_pos_to_ind:
             raise RuntimeError(f'Position {v.position_on_ref} has multiple variant lines.')
         var_pos_to_ind[v.position_on_ref] = i
-        positions_list.append(i)
+        positions_list.append(v.position_on_ref)
         n_allele_list.append(len(v.alternative_allele)+1)
         is_sv_list.append(v.is_sv())
         allele_reference_to_list = []
@@ -73,23 +86,10 @@ def genotype_chromosome(variant_table,
         allele_references_list.append(allele_reference_to_list)
         variant_count += 1
     
+    logger.info(f"Collating variant information from {len(readset_positions)} covered variant positions to pass into C++ core.")
+
     logger.info("Computing recombination costs.")
     recombination_costs = recombination_cost_computer.compute(positions_list)
-
-    #Prior genotyping with equal probabilities
-    variant_table.query_set_genotype_likelihoods_of(
-        [None]*variant_count
-    )
-    
-    # Get the reads
-    with timers("read_alignment"):
-        readset = readset_creator.read(
-            chromosome, variant_table.variants, haplotags, keep_untagged
-        )
-    logger.info(f"Successfully created Readset for {chromosome}. Found {len(readset)} reads covering {len(readset.get_positions())} variants.")
-    if len(readset) == 0:
-        logger.info(f"Skipping chromosome {chromosome} because no reads were found.")
-        return
     
     # Have to do the selection for the phasing algorithm
     with timers("select"):
@@ -122,16 +122,15 @@ def genotype_chromosome(variant_table,
         # store results
         likelihood_list = variant_table.query_genotype_likelihoods_of()
         genotypes_list = variant_table.query_genotypes_of()
-        assert len(likelihood_list) == len(positions_list)
-        assert len(genotypes_list) == len(positions_list)
 
-        for index, _ in enumerate(positions_list):
+        for index, pos in enumerate(positions_list):
             likelihoods = result.get_genotype_likelihoods(index, n_allele_list[index])
             # compute genotypes from likelihoods and store information
             geno = determine_genotype(likelihoods, gt_prob, n_allele_list[index], ploidy)
             assert isinstance(geno, Genotype)
-            genotypes_list[index] = geno
-            likelihood_list[index] = likelihoods
+            index_in_var_table = var_pos_to_ind[pos]
+            genotypes_list[index_in_var_table] = geno
+            likelihood_list[index_in_var_table] = likelihoods
 
         variant_table.query_set_genotypes_of(genotypes_list)
         variant_table.query_set_genotype_likelihoods_of(likelihood_list)
