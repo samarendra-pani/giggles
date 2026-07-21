@@ -36,6 +36,7 @@ class Read {
 		uint32_t getID() const;
 		Entry* getEntry(size_t variant_idx);
 		uint32_t getPosition(size_t variant_idx) const;
+		std::vector<uint8_t> getScores(size_t variant_idx) const;
 		bool getHaplotag() const;
 		uint32_t getPhaseSet() const;
 		uint32_t getClusterID() const;

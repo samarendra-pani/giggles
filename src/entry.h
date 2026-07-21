@@ -39,6 +39,7 @@ class Entry {
 		
 		uint32_t get_read_id() const;
 		uint32_t get_phred_score() const;
+		std::vector<uint8_t> get_scores() const;
 		/**
 		 * Return allele type: ALLELE1, ALLELE2, BLANK, or EQUAL_SCORES
 		 */

@@ -73,6 +73,10 @@ Entry::allele_t Entry::get_allele_type() const {
 	return allele;
 }
 
+std::vector<uint8_t> Entry::get_scores() const {
+	return scores;
+}
+		
 bool Entry::has_allele_type() const {
 	return (allele != BLANK);
 }
@@ -97,9 +101,6 @@ void Entry::initialize_probability_cache(float temperature) {
 	}
 	probability_cache[k] = 1.0L;	// prob(g = 1) = 1
 	reciprocal_probability_cache[k] = 1.0L;
-	for (uint32_t i = 0; i <= k; i++) {
-		std::cout << i << "\t" << probability_cache[i] << std::endl;
-	}
 }
 
 long double Entry::get_emission_score(uint32_t i) const {

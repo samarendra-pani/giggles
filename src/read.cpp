@@ -182,6 +182,10 @@ void Read::setScores(size_t variant_idx, std::vector<uint8_t> scores) {
 	variants[variant_idx].entry.set_scores(scores);
 }
 
+std::vector<uint8_t> Read::getScores(size_t variant_idx) const {
+	assert(variant_idx < variants.size());
+	return variants[variant_idx].entry.get_scores();
+}
 
 Entry* Read::getEntry(size_t variant_idx) {
 	return &(variants[variant_idx].entry);
