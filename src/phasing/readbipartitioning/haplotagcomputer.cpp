@@ -43,6 +43,7 @@ void haplotag_unselected_reads(ReadSet* read_set, ReadSet* superreads) {
     }
 
     // Haplotag each read based on distance to superreads
+    size_t count = 0;
     for (uint32_t i = 0; i < read_set->size(); ++i) {
         Read* read = read_set->get(i);
         /** Skip selected reads. Their haplotag comes from the DP table. */
@@ -52,21 +53,27 @@ void haplotag_unselected_reads(ReadSet* read_set, ReadSet* superreads) {
         uint32_t distance_to_hap0 = calculate_distance_from_superread(read, superread0, position_to_index);
         uint32_t distance_to_hap1 = calculate_distance_from_superread(read, superread1, position_to_index);
         if (distance_to_hap0 < distance_to_hap1) {
+            count++;
             read->setHaplotag(false);
         } else if (distance_to_hap1 < distance_to_hap0) {
+            count++;
             read->setHaplotag(true);
         }
     }
+    std::cerr << "[Core::Phasing] Haplotagged " << count << " unselected reads (out of " << read_set->size() << " total reads)" << std::endl;
 }
 
 void haplotag_selected_reads(ReadSet* read_set, const std::vector<bool>* partitioning) {
     assert (read_set->size() == partitioning->size());
+    size_t count = 0;
     for (uint32_t i = 0; i < read_set->size(); ++i) {
         Read* read = read_set->get(i);
         if (!read->isSelected()) {
             assert (partitioning->at(i) == false); // they should be partitioned in the DP table as false
             continue;
         }
+        count++;
         read->setHaplotag(partitioning->at(i));
     }
+    std::cerr << "[Core::Phasing] Haplotagged " << count << " selected reads (out of " << read_set->size() << " total reads)" << std::endl;
 }

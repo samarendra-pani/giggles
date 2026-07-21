@@ -31,7 +31,11 @@ void find_phasesets_tag_reads(ComponentFinder<uint32_t>* component_finder, const
         }
     }
 
+    std::cerr << "[Core::Phasing] Found " << component_finder->size()-(accessible_positions_set->size()-heterozygous_positions.size()) << " phaseblocks (from " << heterozygous_positions.size() << " heterozygous positions), and " << accessible_positions_set->size()-heterozygous_positions.size() << " positions are homozygous variants (can't be phased)." << std::endl;
+
     // tagging reads with their phaseset ID (representative position)
+    size_t count1 = 0;
+    size_t count2 = 0;
     for (uint32_t i = 0; i < read_set->size(); ++i) {
         Read* read = read_set->get(i);
         if (read->isSelected()) {
@@ -49,6 +53,7 @@ void find_phasesets_tag_reads(ComponentFinder<uint32_t>* component_finder, const
                 continue;
             }
             uint32_t ps = component_finder->find(first_het_pos);
+            count1++;
             read->setPhaseSet(ps);
             continue;
         }
@@ -75,10 +80,12 @@ void find_phasesets_tag_reads(ComponentFinder<uint32_t>* component_finder, const
                 }
             }
             if (all_same_component && has_het_position) {
+                count2++;
                 read->setPhaseSet(rep);
             }
         }  
     }
+    std::cerr << "[Core::Phasing] Out of " << read_set->size() << " total reads, " << count1 << " selected reads and " << count2 << " unselected reads have phasesets. " << read_set->size()-count1-count2 << " don't have a phaseset." << std::endl;
 }
 
 void compute_phasesets(const std::vector<uint32_t>* accessible_positions, ReadSet* read_set, ReadSet* superreads) {

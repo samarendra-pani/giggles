@@ -77,6 +77,20 @@ public:
     }
 
     /**
+     * Returns the total number of connected components.
+     */
+    size_t size() {
+        size_t count = 0;
+        for (const auto& pair : nodes) {
+            // A node is a component representative (root) if its parent is null
+            if (pair.second.parent == nullptr) {
+                ++count;
+            }
+        }
+        return count;
+    }
+
+    /**
      * Debug print function.
      */
     void print() {

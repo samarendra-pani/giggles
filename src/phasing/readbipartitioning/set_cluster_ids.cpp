@@ -16,6 +16,8 @@ void set_read_cluster_ids(ReadSet* read_set) {
      * Creating a hash map from (phaseset, haplotag) to cluster ID.
      * Each unique (phaseset, haplotag) pair gets a unique cluster ID which is the ID of the first read in that cluster.
      */
+    size_t count1 = 0;
+    size_t count2 = 0;
     std::unordered_map<std::pair<uint32_t, bool>, uint32_t, pair_hash> cluster_map;
     for (uint32_t i = 0; i < read_set->size(); ++i) {
         Read* read = read_set->get(i);
@@ -24,12 +26,16 @@ void set_read_cluster_ids(ReadSet* read_set) {
             auto [it, inserted] = cluster_map.try_emplace(key, read->getID());
             read->setClusterID(it->second);
             read->setClusterStatus(true);
+            count1++;
         } else {
             // Untagged reads get their own read ID as cluster ID.
             read->setClusterID(read->getID());
             read->setClusterStatus(false);
+            count2++;
         }
     }
+    std::cerr << "[Core::Phasing] " << count1 << " reads clustered into " << cluster_map.size() << " read clusters." << std::endl;
+    std::cerr << "[Core::Phasing] " << count2 << " reads are unclustered." << std::endl;
 
     /**
      * Setting constrained cluster IDs for reads.

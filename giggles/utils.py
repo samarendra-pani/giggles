@@ -51,6 +51,7 @@ def update_reads_with_selected(readset, max_coverage, preferred_source_ids=None)
     """
     selected_indices = readselection(readset, max_coverage, preferred_source_ids)
     readset.assign_selection_status(selected_indices)
+    logger.info(f"Selected {len(selected_indices)} reads for phasing.")
     
 
 class UniformRecombinationCostComputer:
