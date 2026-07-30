@@ -18,11 +18,12 @@ HaplotypeMapper::HaplotypeMapper(const GenotypeLikelihoods& genotype_likelihoods
     std::vector<uint32_t> sorted_alleles;
     sorted_alleles.reserve(2);
     uint32_t count = 0;
-    
+    int allele_i;
+    int allele_j;
     for (uint32_t i = 0; i < n_haplotypes; i++) {
         for (uint32_t j = 0; j < n_haplotypes; j++) {
-            int allele_i = allele_references.at(i);
-            int allele_j = allele_references.at(j);
+            allele_i = allele_references[i];
+            allele_j = allele_references[j];
             if (allele_i == -1 || allele_j == -1) { continue; } // if one of the alleles is invalid or not available, don't consider that pair.
             sorted_alleles.clear();
             if (allele_i < allele_j) {
@@ -37,6 +38,7 @@ HaplotypeMapper::HaplotypeMapper(const GenotypeLikelihoods& genotype_likelihoods
             /**
              * index is added if
              *  - all genotypes have been selected.
+             *    OR
              *  - if this was one of the selected genotypes.
              */
             bool allowed = all_genotypes_selected || (index < is_genotype_selected.size() && is_genotype_selected[index]);
