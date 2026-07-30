@@ -24,17 +24,23 @@ void Entry::set_read_id(uint32_t r) {
 }
 
 void Entry::set_scores(const std::vector<float>& s) {
+	max_score = 0;
 	scores.resize(s.size());
 	for (uint32_t i = 0; i < s.size(); i++) {
 		float score = s[i];
 		uint8_t discretized_score;
 		discretized_score = (int)(score*k + 0.5);
+		if (discretized_score > max_score) { max_score=discretized_score; }
 		scores[i] = discretized_score;
 	}
 }
 
 void Entry::set_scores(const std::vector<uint8_t>& s) {
 	scores = s;
+	max_score = 0;
+	for (uint32_t i = 0; i < s.size(); i++) {
+		if (scores[i] > max_score) { max_score=scores[i]; }
+	}
 }
 
 void Entry::set_allele_type(const std::vector<bool>& active_alleles) {
@@ -75,6 +81,10 @@ Entry::allele_t Entry::get_allele_type() const {
 
 std::vector<uint8_t> Entry::get_scores() const {
 	return scores;
+}
+
+uint8_t Entry::get_max_score() const {
+	return max_score;
 }
 		
 bool Entry::has_allele_type() const {

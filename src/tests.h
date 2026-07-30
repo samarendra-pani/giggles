@@ -31,6 +31,8 @@
 #include "phasing/tests/test_phasingcolumncostcomputer.h"
 #include "phasing/tests/test_phasingdptable.h"
 
+#include "haplotypesampler/tests/test_haplotypesampler.h"
+
 void run_all_tests();
 
 #endif // TESTS_H

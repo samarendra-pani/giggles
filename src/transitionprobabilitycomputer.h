@@ -17,6 +17,6 @@ struct TransitionProbabilities {
  * Note:
  * We do not normalize these values since we do an overall normalization at the end.
  */
-TransitionProbabilities calculate_transition_probabilities(float recombcost, uint32_t num_haplotypes);
+TransitionProbabilities calculate_transition_probabilities(uint32_t varpos1, uint32_t varpos2, long double transition_constant, uint32_t num_haplotypes);
 
 #endif // TRANSITIONPROBABILITYCOMPUTER_H

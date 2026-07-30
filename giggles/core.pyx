@@ -345,7 +345,23 @@ def get_max_genotype_alleles():
 
 
 cdef class GenotypingAlgorithm:
-	def __cinit__(self, ReadSet readset, recombcost, n_haplotypes, ploidy, temperature, positions, n_allele_positions, allele_references, is_sv):
+	def __cinit__(
+			self, 
+			ReadSet readset, 
+			n_haplotypes, 
+			ploidy, 
+			temperature, 
+			recombrate, 
+			eff_pop_size,
+			num_sampled_haplotypes,
+			remove_reference_path,
+			sampling_eff_pop_size,
+			allele_penalty,
+			positions, 
+			n_allele_positions, 
+			allele_references, 
+			is_sv
+			):
 		"""
 		The GenotypingAlgorithm performs an iterative phasing-genotyping algorithm
 		using the following ReadSet at positions specified.
@@ -362,6 +378,13 @@ cdef class GenotypingAlgorithm:
 		cdef vector[vector[int]]* c_allele_references_ptr = NULL
 		cdef vector[bool]* c_is_sv_ptr = NULL
 		
+		cdef uint32_t c_num_sampled_haplotypes = num_sampled_haplotypes
+		cdef bool c_remove_reference_path = remove_reference_path
+		cdef float c_sampling_eff_pop_size = sampling_eff_pop_size
+		cdef uint32_t c_allele_penalty = allele_penalty
+		
+		cdef float c_recombrate = recombrate
+		cdef float c_eff_pop_size = eff_pop_size
 		cdef uint32_t n_references = n_haplotypes
 		cdef uint32_t c_ploidy = ploidy
 		cdef float c_temperature = temperature
@@ -387,7 +410,21 @@ cdef class GenotypingAlgorithm:
 			c_is_sv_ptr = &c_is_sv_stack
 		
 		# Finally, create the C++ object
-		self.thisptr = new cpp.GenotypingAlgorithm(readset.thisptr, recombcost, n_references, c_ploidy, c_temperature, c_positions_ptr, c_n_allele_positions_ptr, c_allele_references_ptr, c_is_sv_ptr)
+		self.thisptr = new cpp.GenotypingAlgorithm(
+			readset.thisptr, 
+			n_references, 
+			c_ploidy, 
+			c_temperature, 
+			c_recombrate,
+			c_eff_pop_size,
+			c_num_sampled_haplotypes,
+			c_remove_reference_path,
+			c_sampling_eff_pop_size,
+			c_allele_penalty,
+			c_positions_ptr, 
+			c_n_allele_positions_ptr, 
+			c_allele_references_ptr, 
+			c_is_sv_ptr)
 
 	def __dealloc__(self):
 		del self.thisptr

@@ -3,9 +3,24 @@
 #include "genotypingalgorithm.h"
 #include "genotypehmm.h"
 #include "phasing/phasingdptable.h"
+#include "haplotypesampler/haplotypesampler.h"
 
 
-GenotypingAlgorithm::GenotypingAlgorithm(ReadSet* read_set, const std::vector<float>& recombcost, const uint32_t& num_haplotypes, const uint32_t& ploidy, const float& temperature, const std::vector<uint32_t>* positions, const std::vector<uint32_t>* n_allele_positions, const std::vector<std::vector<int> >* allele_references, const std::vector<bool>* is_sv_position) {
+GenotypingAlgorithm::GenotypingAlgorithm(
+	ReadSet* read_set, 
+	const uint32_t& num_haplotypes, 
+	const uint32_t& ploidy,
+	const float& temperature,
+	const float& recombrate,
+	const float& eff_pop_size,
+	const uint32_t& num_sampled_haplotypes,
+	const bool remove_reference_path,
+	const float& sampling_eff_pop_size,
+	const uint32_t& allele_penalty,
+	const std::vector<uint32_t>* positions,
+	const std::vector<uint32_t>* n_allele_positions,
+	const std::vector<std::vector<int> >* allele_references,
+	const std::vector<bool>* is_sv_position) {
 	
 	std::cerr << "[Core::Initialization] Sorting of ReadSet object and setting Read IDs." << std::endl;
 	read_set->initialize();
@@ -27,6 +42,28 @@ GenotypingAlgorithm::GenotypingAlgorithm(ReadSet* read_set, const std::vector<fl
 			read_set->setEntryAlleles(positions->at(i), variant_info_table[i].active_alleles);
 		}
 	}
+
+	/**
+	 * Haplotype sampling algorithm
+	 */
+	std::cerr << "[Core::HaplotypeSampling] Running haplotype sampling to get " << num_sampled_haplotypes << " haplotypes";
+	if (remove_reference_path) {
+		std::cerr << " (not mandatorily keeping the reference path.)" << std::endl;
+	} else {
+		std::cerr << " (mandatorily keeping the reference path.)" << std::endl;
+	}
+	HaplotypeSampler haplotype_sampler = HaplotypeSampler(
+		read_set, 
+		&variant_info_table, 
+		num_sampled_haplotypes, 
+		recombrate, 
+		sampling_eff_pop_size, 
+		nullptr, 
+		remove_reference_path, 
+		allele_penalty);
+
+	std::cerr << "[Core::HaplotypeSampling] Creating updated variant table." << std::endl;
+	variant_info_table = haplotype_sampler.get_updated_variant_table(ploidy);
 	
 	bool is_first_iteration = true;
 	// some recursive condition to alternate between phasing and genotyping
@@ -50,7 +87,7 @@ GenotypingAlgorithm::GenotypingAlgorithm(ReadSet* read_set, const std::vector<fl
 		is_first_iteration = false;
 		// running the HMM for genotyping
 		std::cerr << "[Core::Genotyping] Round " << round << " of genotyping." << std::endl;
-		genotype_hmm = new GenotypeHMM(read_set, ploidy, recombcost, num_haplotypes, &variant_info_table);
+		genotype_hmm = new GenotypeHMM(read_set, ploidy, recombrate, eff_pop_size, num_haplotypes, &variant_info_table);
 		// reseting all tags for the next phasing iteration
 		read_set->resetTags();
 		round += 1;

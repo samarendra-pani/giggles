@@ -83,7 +83,22 @@ cdef extern from "../src/indexset.h":
 
 cdef extern from "../src/genotypingalgorithm.h":
 	cdef cppclass GenotypingAlgorithm:
-		GenotypingAlgorithm(ReadSet* readset, vector[float] recombcost, uint32_t n_samples, uint32_t ploidy, float temperature, vector[uint32_t]* positions, vector[uint32_t]* n_allele_positions, vector[vector[int]]*, vector[bool]*) except +
+		GenotypingAlgorithm(
+			ReadSet* readset, 
+			uint32_t n_samples, 
+			uint32_t ploidy, 
+			float temperature, 
+			float recombrate, 
+			float eff_pop_size, 
+			uint32_t num_sampled_haplotypes,
+			bool remove_reference_path,
+			float sampling_eff_pop_size,
+			uint32_t allele_penalty, 
+			vector[uint32_t]* positions, 
+			vector[uint32_t]* n_allele_positions, 
+			vector[vector[int]]*, 
+			vector[bool]*
+		) except +
 		vector[long double] get_genotype_likelihoods(uint32_t position) except +
 
 cdef extern from "../src/tests.h":

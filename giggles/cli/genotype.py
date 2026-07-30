@@ -39,8 +39,13 @@ def genotype_chromosome(variant_table,
         haplotags, 
         keep_untagged, 
         max_coverage, 
-        gt_prob, 
-        recombination_cost_computer, 
+        gt_prob,
+        recombrate,
+        eff_pop_size,
+        num_sampled_haplotypes,
+        remove_reference_path,
+        sampling_eff_pop_size,
+        allele_penalty,
         n_haplotypes,
         ploidy,
         temperature
@@ -88,9 +93,6 @@ def genotype_chromosome(variant_table,
     
     logger.info(f"Collating variant information from {len(readset_positions)} covered variant positions to pass into C++ core.")
 
-    logger.info("Computing recombination costs.")
-    recombination_costs = recombination_cost_computer.compute(positions_list)
-    
     # Have to do the selection for the phasing algorithm
     with timers("select"):
         #readset = readset.subset(
@@ -108,11 +110,17 @@ def genotype_chromosome(variant_table,
 
     # Run genotyping algorithm
     with timers("genotyping-phasing"):
-        result = GenotypingAlgorithm(readset, 
-            recombination_costs,
+        result = GenotypingAlgorithm(
+            readset, 
             n_haplotypes,
             ploidy,
             temperature,
+            recombrate,
+            eff_pop_size,
+            num_sampled_haplotypes,
+            remove_reference_path,
+            sampling_eff_pop_size,
+            allele_penalty,
             positions_list,
             n_allele_list,
             allele_references_list,
@@ -157,7 +165,11 @@ def run_genotype(
     overhang=10,
     temperature=10.0,
     recombrate=1.26,
-    eff_pop_size=10
+    eff_pop_size=10.0,
+    num_sampled_haplotypes=15,
+    remove_reference_path=False,
+    sampling_eff_pop_size=1.0,
+    allele_penalty=10
 ):
     logger.info(f"This is Giggles (genotyping) {__version__} running under Python {platform.python_version()}.\n")
     logger.info('== Working Files ==')
@@ -195,8 +207,6 @@ def run_genotype(
                 path=variant_file, indels=True, required_chr=chromosomes, is_custom_graph=is_custom_graph
             )
         )
-        logger.info("Initializing recombination computer.")
-        recombination_cost_computer = UniformRecombinationCostComputer(recombrate, eff_pop_size)
         # compute genotype likelihood threshold
         gt_prob = 1.0 - (10 ** (-gt_qual_threshold / 10.0))
 
@@ -215,8 +225,13 @@ def run_genotype(
             haplotags=haplotags, 
             keep_untagged=keep_untagged, 
             max_coverage=max_coverage, 
-            gt_prob=gt_prob, 
-            recombination_cost_computer=recombination_cost_computer, 
+            gt_prob=gt_prob,
+            recombrate=recombrate,
+            eff_pop_size=eff_pop_size,
+            num_sampled_haplotypes=num_sampled_haplotypes,
+            remove_reference_path=remove_reference_path,
+            sampling_eff_pop_size=sampling_eff_pop_size,
+            allele_penalty=allele_penalty,
             n_haplotypes=n_haplotypes,
             ploidy=ploidy,
             temperature=temperature)
@@ -301,8 +316,18 @@ def add_arguments(parser):
     arg('--recombrate', metavar='RECOMBRATE', type=float, default=1.26,
         help='Recombination rate in cM/Mb (used with --ped). If given, a constant recombination '
         'rate is assumed (default: %(default)gcM/Mb).')
-    arg('--eff-pop-size', metavar='EFFPOPSIZE', default = 10, type = int,
+    arg('--eff-pop-size', metavar='EFF_POP_SIZE', default = 10.0, type = float,
         help="Parameter for transition probability computing (default: %(default)s)")
+    
+    arg = parser.add_argument_group('Haplotype sampling parameters').add_argument
+    arg('--num-sampled-haplotypes', metavar='NUM_SAMPLED_HAPLOTYPES', default = 15, type = int,
+        help="How many haplotypes to select (default: %(default)s)")
+    arg('--remove-reference-path',action='store_true',
+        help="Remove the reference path as a sampled haplotpe.")
+    arg('--sampling-eff-pop-size', metavar='SAMPLING_EFF_POP_SIZE', default = 1.0, type = float,
+        help="Parameter for transition probability computing for haplotype sampling (default: %(default)s)")
+    arg('--allele-penalty', metavar='ALLELE_PENALTY', default = 10, type = int,
+        help="Penalty for an allele already selected in one of sample haplotype paths (default: %(default)s)")
 # fmt: on
 
 

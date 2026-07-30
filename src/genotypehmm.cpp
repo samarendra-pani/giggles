@@ -14,10 +14,17 @@
 
 using namespace std;
 
-GenotypeHMM::GenotypeHMM(ReadSet* read_set, const uint32_t ploidy, const vector<float>& recombcost, const uint32_t& num_haplotypes, vector<variant_information_t>* variant_info_table)
+GenotypeHMM::GenotypeHMM(
+	ReadSet* read_set, 
+	const uint32_t ploidy, 
+	const float& recombrate,
+	const float& eff_pop_size,
+	const uint32_t& num_haplotypes, 
+	vector<variant_information_t>* variant_info_table)
 	:read_set(read_set),
 	ploidy(ploidy),
-	recombcost(recombcost),
+	recombrate(recombrate),
+	eff_pop_size(eff_pop_size),
 	column_iterator(*read_set, variant_info_table),
 	scaling_parameters(column_iterator.get_column_count(),-1.0L),
 	num_haplotypes(num_haplotypes),
@@ -38,6 +45,7 @@ GenotypeHMM::~GenotypeHMM()
 	init(backward_pass_table, 0);
 	init(hmm_columns, 0);
 	init(haplotype_mapper_table, 0);
+	init(transition_probabilities, 0);
 }
 
 void GenotypeHMM::clear_backward_table()
@@ -59,6 +67,7 @@ void GenotypeHMM::compute_index(){
 	if(column_count == 0) return;
 	init(hmm_columns, column_count);
 	init(haplotype_mapper_table, column_count);
+	init(transition_probabilities, column_count-1);
 	// do one forward pass to get the indexers (that are needed in forward and backward pass)
 	column_iterator.jump_to_column(0);
 	unique_ptr<vector<const Entry*> > current_input_column;
@@ -68,6 +77,7 @@ void GenotypeHMM::compute_index(){
 	Column* current_column = nullptr;
 	next_input_column = column_iterator.get_next();
 	next_read_ids = extract_read_ids(*next_input_column);
+	long double transition_constant = 0.000004L * ((long double)recombrate) * ((long double)eff_pop_size);
 
 	for(size_t column_index=0; column_index < column_iterator.get_column_count(); ++column_index){
 		
@@ -79,6 +89,7 @@ void GenotypeHMM::compute_index(){
 			current_column = new Column(*current_read_ids, *next_read_ids, read_set);
 			hmm_columns[column_index] = current_column;
 			haplotype_mapper_table[column_index] = new HaplotypeMapper(variant_info_table->at(column_index).genotype_likelihoods, variant_info_table->at(column_index).allele_references);
+			transition_probabilities[column_index] = new TransitionProbabilities(calculate_transition_probabilities(variant_info_table->at(column_index).position, variant_info_table->at(column_index+1).position, transition_constant, num_haplotypes));
 		} 
 		else {
 			assert (column_index == column_iterator.get_column_count() - 1);
@@ -171,6 +182,9 @@ void GenotypeHMM::compute_backward_column(size_t column_index) {
 	uint32_t num_prev_ref_states = prev_haplotype_mapper->get_num_states();
 	vector<long double>* current_backward_scores = nullptr;
 	uint32_t n_alleles = variant_info_table->at(column_index).get_num_alleles();
+	/**
+	 * TODO: get rid of useless alleles from EmissionProbabilityComputer
+	 */
 	EmissionProbabilityComputer emission_probability_computer = EmissionProbabilityComputer(n_alleles);
 	
 	/**
@@ -212,7 +226,7 @@ void GenotypeHMM::compute_backward_column(size_t column_index) {
 		/**
 		 * Computing the transition probabilities of Li Stephens model
 		 */
-		TransitionProbabilities transition_probabilities = calculate_transition_probabilities(recombcost.at(column_index-1), num_haplotypes);
+		TransitionProbabilities* transition_probability = transition_probabilities[column_index-1];
 		HaplotypeMapper* curr_haplotype_mapper = haplotype_mapper_table.at(column_index-1);
 		uint32_t num_curr_ref_states = curr_haplotype_mapper->get_num_states();
 		Column* curr_indexer = hmm_columns.at(column_index-1);
@@ -343,9 +357,9 @@ void GenotypeHMM::compute_backward_column(size_t column_index) {
 							emission_probability_computer.at(prev_allele0, prev_allele1);
 					}
 					current_backward_scores->at(state_index) += 
-						(transition_probabilities.q2 * beta_helper_0)
-						+ (transition_probabilities.pq * (beta_helper_2[haplotypes.first] + beta_helper_3[haplotypes.second] - (2 * beta_helper_0)))
-						+ (transition_probabilities.p2 * (beta_helper_1 - beta_helper_2[haplotypes.first] - beta_helper_3[haplotypes.second] + beta_helper_0));
+						(transition_probability->q2 * beta_helper_0)
+						+ (transition_probability->pq * (beta_helper_2[haplotypes.first] + beta_helper_3[haplotypes.second] - (2 * beta_helper_0)))
+						+ (transition_probability->p2 * (beta_helper_1 - beta_helper_2[haplotypes.first] - beta_helper_3[haplotypes.second] + beta_helper_0));
 				}
 			}
 		}
@@ -473,6 +487,9 @@ void GenotypeHMM::compute_forward_column(size_t column_index)
 	HaplotypeMapper* curr_haplotype_mapper = haplotype_mapper_table.at(column_index);
 	uint32_t num_curr_ref_states = curr_haplotype_mapper->get_num_states();
 	uint32_t n_alleles = variant_info_table->at(column_index).get_num_alleles();
+	/**
+	 * TODO: get rid of useless alleles from EmissionProbabilityComputer
+	 */
 	EmissionProbabilityComputer emission_probability_computer = EmissionProbabilityComputer(n_alleles);
 	HaplotypeMapper* prev_haplotype_mapper;
 	uint32_t num_prev_ref_states;
@@ -496,7 +513,7 @@ void GenotypeHMM::compute_forward_column(size_t column_index)
 	vector<int> curr_haplotype_to_allele = variant_info_table->at(column_index).allele_references;     // This contains the haplotype-to-allele mapping for the position column_index
 	vector<int> prev_haplotype_to_allele;
 	pair<uint32_t, uint32_t> haplotypes;	// storing haplotypes
-	TransitionProbabilities transition_probabilities;
+	TransitionProbabilities* transition_probability;
 	uint32_t curr_allele0;    		// to store allele0 of current column
 	uint32_t curr_allele1;			// to store allele1 of current column
 	uint32_t prev_r_index;			// to store r_index of the previous column.
@@ -535,7 +552,7 @@ void GenotypeHMM::compute_forward_column(size_t column_index)
 		/**
 		 * Computing the transition probabilities of Li Stephens model
 		 */
-		transition_probabilities = calculate_transition_probabilities(recombcost.at(column_index-1), num_haplotypes);
+		transition_probability = transition_probabilities[column_index-1];
 		prev_haplotype_to_allele = variant_info_table->at(column_index-1).allele_references;     // This contains the haplotype-to-allele mapping for the position column_index-1
 		prev_indexer = hmm_columns[column_index-1];
 		num_prev_bipartitions = prev_indexer->get_num_bipartition();
@@ -643,9 +660,9 @@ void GenotypeHMM::compute_forward_column(size_t column_index)
 					// Updating the forward value
 					current_forward_probabilities[state_index] += 
 						emission_probability_computer.at(curr_allele0, curr_allele1)
-							* ((transition_probabilities.q2 * ah_0 )
-							+ (transition_probabilities.pq * (ah_2[haplotypes.first] + ah_3[haplotypes.second] - (2 * ah_0)))
-							+ (transition_probabilities.p2 * (ah_1 - ah_2[haplotypes.first] - ah_3[haplotypes.second] + ah_0)));
+							* ((transition_probability->q2 * ah_0 )
+							+ (transition_probability->pq * (ah_2[haplotypes.first] + ah_3[haplotypes.second] - (2 * ah_0)))
+							+ (transition_probability->p2 * (ah_1 - ah_2[haplotypes.first] - ah_3[haplotypes.second] + ah_0)));
 					/**
 					 * Updating the alpha helpers of current column 
 					 */	

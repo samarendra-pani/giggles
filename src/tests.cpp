@@ -41,4 +41,6 @@ void run_all_tests() {
     test_phasingcolumncostcomputer();
     std::cout << "\n================ Testing PhasingDPTable ========================" << std::endl;
     test_phasingdptable();
+    std::cout << "\n================ Testing HaplotypeSampler ======================" << std::endl;
+    test_haplotypesampler();
 }

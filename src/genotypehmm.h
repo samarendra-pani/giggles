@@ -33,12 +33,16 @@ class GenotypeHMM {
 		// the input sequencing reads
 		ReadSet* read_set;
 		
+		// parameters for Li-Stephens transitions probabilities.
+		const float eff_pop_size;
+		const float recombrate;
+
 		/**
-		 * the recombination cost vector based on Li Stephens model
-		 * @see UniformRecombinationCostComputer in giggles/giggles/utils.py
+		 * Vector of transition probabilities of size column_count-1
+		 * value at index i stores the probabilities between column i and column i+1
 		 */
-		const std::vector<float>& recombcost;
-		
+		std::vector<TransitionProbabilities*> transition_probabilities;
+
 		// storing the Columns that are made from read clusters at variant positions
 		std::vector<Column*> hmm_columns;
 
@@ -46,6 +50,7 @@ class GenotypeHMM {
 		 * maps between haplotype pairs to the reduced states selected based on previous genotyping
 		 */
 		std::vector<HaplotypeMapper*> haplotype_mapper_table;
+
 		
 		/**
 		 * tables storing the values calculated from the backward pass
@@ -159,7 +164,14 @@ class GenotypeHMM {
 		 * @param n_references number of reference haplotypes in the graph
 		 * @param variant_info_table contains information about each variant position which is to be genotyped.
 		 */
-		GenotypeHMM(ReadSet* read_set, const uint32_t ploidy, const std::vector<float>& recombcost, const uint32_t& n_references, std::vector<variant_information_t>* variant_info_table);
+		GenotypeHMM(
+			ReadSet* read_set, 
+			const uint32_t ploidy, 
+			const float& recombrate,
+			const float& eff_pop_size,
+			const uint32_t& n_references, 
+			std::vector<variant_information_t>* variant_info_table
+		);
 		~GenotypeHMM();
 
 		// returns the computed genotype likelihoods for a given index

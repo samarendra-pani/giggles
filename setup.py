@@ -46,6 +46,11 @@ core_cpp_sources = [
     "src/transitionprobabilitycomputer.cpp",
     "src/variantinfo.cpp"
 ]
+haplotype_sampler_cpp_sources = [
+    "src/haplotypesampler/haplotypesampler.cpp",
+    "src/haplotypesampler/samplingemissions.cpp",
+    "src/haplotypesampler/samplingtransitions.cpp"
+]
 phasing_cpp_sources = [
     "src/phasing/phasingcolumncostcomputer.cpp",
     "src/phasing/phasingcolumnindexingiterator.cpp",
@@ -76,13 +81,14 @@ test_sources = [
     "src/phasing/readbipartitioning/tests/test_componentfinder.cpp",
     "src/phasing/readbipartitioning/tests/test_phasesetcomputer.cpp",
     "src/phasing/readbipartitioning/tests/test_haplotagcomputer.cpp",
-    "src/phasing/readbipartitioning/tests/test_set_cluster_ids.cpp"
+    "src/phasing/readbipartitioning/tests/test_set_cluster_ids.cpp",
+    "src/haplotypesampler/tests/test_haplotypesampler.cpp"
 ]
 
 extensions = [
     CppExtension(
         "giggles.core",
-        sources=["giggles/core.pyx"] + core_cpp_sources + phasing_cpp_sources + test_sources
+        sources=["giggles/core.pyx"] + core_cpp_sources + haplotype_sampler_cpp_sources + phasing_cpp_sources + test_sources
     ),
     CppExtension(
         "giggles.ext",
