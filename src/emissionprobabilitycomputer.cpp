@@ -10,8 +10,9 @@ long double EmissionProbabilityComputer::at(uint32_t i, uint32_t j) const {
     return emission_probability_table.at(i, j);
 }
 
-void EmissionProbabilityComputer::update_emission_probability(const int cluster_bit_changed, const BipartitionIterator& iterator, std::vector<const Entry *>& entries) {
+void EmissionProbabilityComputer::update_emission_probability(const int cluster_bit_changed, const BipartitionIterator& iterator, std::vector<const Entry *>& entries, const std::vector<bool>& active_alleles) {
     uint32_t n_alleles = emission_probability_table.get_size0();
+	assert(active_alleles.size() == n_alleles);
 	long double* table_data = emission_probability_table.data();
 	if (cluster_bit_changed >= 0) {
 		/**
@@ -36,12 +37,14 @@ void EmissionProbabilityComputer::update_emission_probability(const int cluster_
 			if (entry->get_allele_type() == Entry::BLANK) continue;
 			if (newBit) {
 				for (uint32_t allele = 0; allele < n_alleles; allele++) {
+					if (!active_alleles[allele]) { continue; }
 					i_multiplier[allele] *= entry->get_reciprocal_emission_score(allele);
 					j_multiplier[allele] *= entry->get_emission_score(allele);
 				}
 			}
 			else {
 				for (uint32_t allele = 0; allele < n_alleles; allele++) {
+					if (!active_alleles[allele]) { continue; }
 					i_multiplier[allele] *= entry->get_emission_score(allele);
 					j_multiplier[allele] *= entry->get_reciprocal_emission_score(allele);
 				}
@@ -50,8 +53,10 @@ void EmissionProbabilityComputer::update_emission_probability(const int cluster_
 
 		/* Update emissions using the multipliers. */
 		for (uint32_t i = 0; i < n_alleles; i++) {
+			if (!active_alleles[i]) { continue; }
 			long double i_mult = i_multiplier[i];
 			for (uint32_t j = 0; j < n_alleles; j++) {
+				if (!active_alleles[j]) { continue; }
 				long double total_ratio = i_mult * j_multiplier[j];
 				uint32_t flat_index = i*n_alleles + j;
 				table_data[flat_index] = table_data[flat_index] * total_ratio;
@@ -63,6 +68,17 @@ void EmissionProbabilityComputer::update_emission_probability(const int cluster_
 		 * Initialization case.
 		 * The  is at the first bipartition.
 		 */
+
+		/**
+		 * If there is only active allele, then we don't to calculate actual probabilities.
+		 * Since the rest of the alleles will never be accessed, we can just leave the active allele's emission at 1.0L
+		 */
+		int active_allele_count = 0;
+		for (bool a: active_alleles) {
+			if (a) { active_allele_count++; }
+		}
+		assert(active_allele_count > 0);
+		if (active_allele_count == 1) { return; }
 		
 		/* Separate the reads into bipartition 0 and 1 */
 		std::vector<uint32_t> bipar_0_reads;
@@ -88,6 +104,7 @@ void EmissionProbabilityComputer::update_emission_probability(const int cluster_
 		std::vector<long double> prod_0(n_alleles, 1.0L);
 		std::vector<long double> prod_1(n_alleles, 1.0L);
 		for (uint32_t i = 0; i < n_alleles; i++) {
+			if (!active_alleles[i]) { continue; }
 			for (uint32_t r_idx : bipar_0_reads) {
 				prod_0[i] *= entries[r_idx]->get_emission_score(i);
 			}
@@ -98,7 +115,9 @@ void EmissionProbabilityComputer::update_emission_probability(const int cluster_
 
 		/* Calculate emission probabilities */
 		for (uint32_t i = 0; i < n_alleles; i++) {
+			if (!active_alleles[i]) { continue; }
 			for (uint32_t j = 0; j < n_alleles; j++) {
+				if (!active_alleles[j]) { continue; }
 				// emission_probability_table.set(i, j, prod_0[i] * prod_1[j]);
 				uint32_t flat_index = i*n_alleles + j;
 				table_data[flat_index] = prod_0[i]*prod_1[j];

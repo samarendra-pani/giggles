@@ -35,8 +35,10 @@ class EmissionProbabilityComputer {
          *      - Since Initialization already created a starting emission probability table, this code block just updates the table.
          *      - The bit that was flippped corresponds to a cluster. We extract the reads that were present in the cluster.
          *      - If read was flipped from bipartition 0 to 1, we divide the table value with emission score i and multiply with emission score j
+         * 
+         * Now it accounts for which alleles are active. Accordingly the computer calculates a subset of alleles.
          */
-        void update_emission_probability(const int bit_changed, const BipartitionIterator& iterator, std::vector<const Entry *>& entries);
+        void update_emission_probability(const int bit_changed, const BipartitionIterator& iterator, std::vector<const Entry *>& entries, const std::vector<bool>& active_alleles);
 
 
     private:
