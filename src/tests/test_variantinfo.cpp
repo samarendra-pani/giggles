@@ -22,14 +22,14 @@ void test_active_allele_functions() {
     var_info.active_alleles[1] = false;
 
     assert(var_info.count_active_alleles() == 2);
-    std::vector<uint32_t> active_positions = var_info.get_active_positions();
+    std::vector<uint32_t> active_positions = var_info.get_active_allele_positions();
     assert(active_positions.size() == 2);
     assert(active_positions[0] == 2);
     assert(active_positions[1] == 3);
 
     var_info.active_alleles[3] = false;
     assert(var_info.count_active_alleles() == 1);
-    active_positions = var_info.get_active_positions();
+    active_positions = var_info.get_active_allele_positions();
     assert(active_positions.size() == 1);
     assert(active_positions[0] == 2);
     

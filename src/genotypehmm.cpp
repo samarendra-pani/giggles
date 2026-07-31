@@ -88,14 +88,14 @@ void GenotypeHMM::compute_index(){
 			next_read_ids = extract_read_ids(*next_input_column);
 			current_column = new Column(*current_read_ids, *next_read_ids, read_set);
 			hmm_columns[column_index] = current_column;
-			haplotype_mapper_table[column_index] = new HaplotypeMapper(variant_info_table->at(column_index).genotype_likelihoods, variant_info_table->at(column_index).allele_references);
+			haplotype_mapper_table[column_index] = new HaplotypeMapper(variant_info_table->at(column_index));
 			transition_probabilities[column_index] = new TransitionProbabilities(calculate_transition_probabilities(variant_info_table->at(column_index).position, variant_info_table->at(column_index+1).position, transition_constant, num_haplotypes));
 		} 
 		else {
 			assert (column_index == column_iterator.get_column_count() - 1);
 			current_column = new Column(*current_read_ids, vector<uint32_t>{}, read_set); 
 			hmm_columns[column_index] = current_column;
-			haplotype_mapper_table[column_index] = new HaplotypeMapper(variant_info_table->at(column_index).genotype_likelihoods, variant_info_table->at(column_index).allele_references);
+			haplotype_mapper_table[column_index] = new HaplotypeMapper(variant_info_table->at(column_index));
 		}
 	}
 }
@@ -177,7 +177,7 @@ void GenotypeHMM::compute_backward_column(size_t column_index) {
 	prev_indexer = hmm_columns[column_index];
 	assert(prev_indexer != nullptr);
 
-	vector<int> prev_haplotype_to_allele = variant_info_table->at(column_index).allele_references;     // This contains the haplotype-to-allele mapping for the position column_index		
+	const vector<int>& prev_haplotype_to_allele = variant_info_table->at(column_index).allele_references;     // This contains the haplotype-to-allele mapping for the position column_index		
 	HaplotypeMapper* prev_haplotype_mapper = haplotype_mapper_table.at(column_index);
 	uint32_t num_prev_ref_states = prev_haplotype_mapper->get_num_states();
 	vector<long double>* current_backward_scores = nullptr;
@@ -240,7 +240,8 @@ void GenotypeHMM::compute_backward_column(size_t column_index) {
 		 */
 		uint32_t num_total_states = curr_indexer->get_num_bipartition() * num_curr_ref_states;
 		current_backward_scores = new vector<long double>(num_total_states, 0.0L);
-		vector<int> curr_haplotype_to_allele = variant_info_table->at(column_index-1).allele_references;     // This contains the haplotype-to-allele mapping for the position column_index-1
+		const vector<int>& curr_haplotype_to_allele = variant_info_table->at(column_index-1).allele_references;     // This contains the haplotype-to-allele mapping for the position column_index-1
+		const vector<bool>& prev_active_alleles = variant_info_table->at(column_index).active_alleles;
 
 		/**
 		 * This iterator iterates through all the bipartitions of previous column.
@@ -249,7 +250,7 @@ void GenotypeHMM::compute_backward_column(size_t column_index) {
 			int bit_changed = -1;
 			iterator->advance(&bit_changed);
 			// Update the emission probability based on the bipartition defined by the iterator
-			emission_probability_computer.update_emission_probability(bit_changed, *iterator, *current_input_column);
+			emission_probability_computer.update_emission_probability(bit_changed, *iterator, *current_input_column, prev_active_alleles);
 			/**
 			 * getting the indices from the iterator.
 			 * bipartition_index gives the bipartition number as determined by the Gray Code.
@@ -510,7 +511,8 @@ void GenotypeHMM::compute_forward_column(size_t column_index)
 	uint32_t r_index;				// to store the index of states inside the bipartition
 	uint32_t state_index;			// combining bipartition_index and haplotype_index to get the index of the particular state.
 	vector<uint32_t> compatible_bipartitions; // to store bipartition indices of current column
-	vector<int> curr_haplotype_to_allele = variant_info_table->at(column_index).allele_references;     // This contains the haplotype-to-allele mapping for the position column_index
+	const vector<int>& curr_haplotype_to_allele = variant_info_table->at(column_index).allele_references;     // This contains the haplotype-to-allele mapping for the position column_index
+	const vector<bool>& curr_active_alleles = variant_info_table->at(column_index).active_alleles;
 	vector<int> prev_haplotype_to_allele;
 	pair<uint32_t, uint32_t> haplotypes;	// storing haplotypes
 	TransitionProbabilities* transition_probability;
@@ -565,7 +567,7 @@ void GenotypeHMM::compute_forward_column(size_t column_index)
 		int bit_changed = -1;
 		iterator->advance(&bit_changed);
 		// Update the emission probability based on the bipartition defined by the iterator
-		emission_probability_computer.update_emission_probability(bit_changed, *iterator, *current_input_column);
+		emission_probability_computer.update_emission_probability(bit_changed, *iterator, *current_input_column, curr_active_alleles);
 		/**
 		 * getting the indices from the iterator.
 		 * bipartition_index gives the bipartition number as determined by the Gray Code.
@@ -679,9 +681,8 @@ void GenotypeHMM::compute_forward_column(size_t column_index)
 	 */
 	long double forward_backward = 0.0L;
 	uint32_t cannonical_genotype_index;
-	vector<uint32_t> sorted_alleles;
-	sorted_alleles.reserve(2);
-	variant_information_t variant_info = variant_info_table->at(column_index);
+	vector<uint32_t> sorted_alleles(2);
+	variant_information_t& variant_info = variant_info_table->at(column_index);
 	assert (current_forward_probabilities.size() == backward_probabilities->size());
 	variant_info.genotype_likelihoods.reset(); // reseting the likelihood vector since it still has values from last genotyping round.
 	for (bipartition_index = 0; bipartition_index < num_curr_bipartitions; bipartition_index++) {
@@ -690,14 +691,13 @@ void GenotypeHMM::compute_forward_column(size_t column_index)
 			haplotypes = curr_haplotype_mapper->get_haplotypes_indices(r_index);
 			curr_allele0 = curr_haplotype_to_allele[haplotypes.first];
 			curr_allele1 = curr_haplotype_to_allele[haplotypes.second];
-			sorted_alleles.clear();
 			if (curr_allele0 < curr_allele1) {
-				sorted_alleles.push_back(curr_allele0);
-				sorted_alleles.push_back(curr_allele1);
+				sorted_alleles[0] = curr_allele0;
+				sorted_alleles[1] = curr_allele1;
 			}
 			else {
-				sorted_alleles.push_back(curr_allele1);
-				sorted_alleles.push_back(curr_allele0);
+				sorted_alleles[0] = curr_allele1;
+				sorted_alleles[1] = curr_allele0;
 			}
 			cannonical_genotype_index = convert_alleles_to_index(sorted_alleles);
 			current_forward_probabilities[state_index] /= scaling_parameters[column_index];

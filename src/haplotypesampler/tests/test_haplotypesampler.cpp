@@ -44,24 +44,24 @@ void test_singlecolumn() {
 
     assert(updated_table.size() == 1);
     assert(updated_table[0].count_active_alleles() == 1);
-    assert(updated_table[0].get_active_positions()[0] == 0);
+    assert(updated_table[0].get_active_allele_positions()[0] == 0);
 
     sampler = nullptr;
     sampler = new HaplotypeSampler(read_set, &variant_info_table, 6, 1.0, 1.0, nullptr, true, 10);
     updated_table = sampler->get_updated_variant_table(2);
     assert(updated_table.size() == 1);
     assert(updated_table[0].count_active_alleles() == 2);
-    assert(updated_table[0].get_active_positions()[0] == 0);
-    assert(updated_table[0].get_active_positions()[1] == 1);
+    assert(updated_table[0].get_active_allele_positions()[0] == 0);
+    assert(updated_table[0].get_active_allele_positions()[1] == 1);
 
     sampler = nullptr;
     sampler = new HaplotypeSampler(read_set, &variant_info_table, 8, 1.0, 1.0, nullptr, true, 10);
     updated_table = sampler->get_updated_variant_table(2);
     assert(updated_table.size() == 1);
     assert(updated_table[0].count_active_alleles() == 3);
-    assert(updated_table[0].get_active_positions()[0] == 0);
-    assert(updated_table[0].get_active_positions()[1] == 1);
-    assert(updated_table[0].get_active_positions()[2] == 2);
+    assert(updated_table[0].get_active_allele_positions()[0] == 0);
+    assert(updated_table[0].get_active_allele_positions()[1] == 1);
+    assert(updated_table[0].get_active_allele_positions()[2] == 2);
 
     assert_msg(true, "HaplotypeSampler", "Single column haplotype sampling.");
 }
@@ -148,14 +148,14 @@ void test_multiplecolumns() {
 
     assert(updated_table.size() == 3);
     assert(updated_table[0].count_active_alleles() == 2);
-    assert(updated_table[0].get_active_positions()[0] == 0);
-    assert(updated_table[0].get_active_positions()[1] == 2);
+    assert(updated_table[0].get_active_allele_positions()[0] == 0);
+    assert(updated_table[0].get_active_allele_positions()[1] == 2);
     assert(updated_table[1].count_active_alleles() == 2);
-    assert(updated_table[1].get_active_positions()[0] == 0);
-    assert(updated_table[1].get_active_positions()[1] == 1);
+    assert(updated_table[1].get_active_allele_positions()[0] == 0);
+    assert(updated_table[1].get_active_allele_positions()[1] == 1);
     assert(updated_table[2].count_active_alleles() == 2);
-    assert(updated_table[2].get_active_positions()[0] == 1);
-    assert(updated_table[2].get_active_positions()[1] == 2);
+    assert(updated_table[2].get_active_allele_positions()[0] == 1);
+    assert(updated_table[2].get_active_allele_positions()[1] == 2);
 
     assert(best_scores->at(0) == 6);    // Emission for 0 (at 100) = 2, 0 (at 200) = 2, and 1 (at 300) = 2
     assert(best_scores->at(1) == 23);   // Emission for 2 (at 100) = 3, 1 (at 200) = 3, and 2 (at 300) = 3. And a haplotype change between 100 and 200 which is 14.

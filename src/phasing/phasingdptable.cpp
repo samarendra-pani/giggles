@@ -332,7 +332,7 @@ void PhasingDPTable::get_super_reads(ReadSet* output_read_set) {
 			cost_computer.set_partitioning(v);
 			population_alleles = cost_computer.get_alleles();
 			// some sort of check if see if the alleles are blank?
-			active_alleles = variant_info_table->at(i).get_active_positions();
+			active_alleles = variant_info_table->at(i).get_active_allele_positions();
 			pos = input_column_iterator.get_position(i);
 			if (active_alleles.size() > 2) {
 				// This position was not phased. Adding BLANKs

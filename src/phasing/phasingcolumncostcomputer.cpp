@@ -28,9 +28,10 @@ PhasingColumnCostComputer::PhasingColumnCostComputer(const std::vector <const En
 	this->phasable = true;
 
 	/** Pileup analysis of the entry alleles to get some idea about which genotype it might be. */
-	std::vector<uint32_t> selected_genotype_indices = variant_info.genotype_likelihoods.select_genotypes();
+	const std::vector<uint32_t> selected_genotype_indices = variant_info.get_active_gts_positions();
 	std::vector<uint32_t> compatible_genotype_indices;
-	assert(selected_genotype_indices.size() <= 3); // With <= 2 active alleles, there can only be a max of 3 selected genotypes possible.
+	assert(variant_info.count_active_alleles() <= 2);
+	assert(selected_genotype_indices.size() <= 3);
 	if (selected_genotype_indices.size() == 3) {
 		/** All genotype combinations seems to be possible. Doing a pileup analysis of entries */
 		switch (analyse_entry_alleles()) {
@@ -70,7 +71,8 @@ PhasingColumnCostComputer::PhasingColumnCostComputer(const std::vector <const En
 				assert(false);
 				break;
 		}
-	} else {
+	} 
+	else {
 		/** Adding the genotype indices selected through genotype likelihoods. */
 		compatible_genotype_indices = selected_genotype_indices;
 		homozygous = false;
@@ -86,7 +88,7 @@ PhasingColumnCostComputer::PhasingColumnCostComputer(const std::vector <const En
 	 * i = 2 -> Hap0 has Allele0 (allele0 = 0) and Hap1 has Allele1 (allele1 = 1)
 	 * i = 3 -> Hap0 has Allele1 (allele0 = 1) and Hap1 has Allele1 (allele1 = 1)
 	 */
-	std::vector<uint32_t> active_alleles = variant_info.get_active_positions();
+	std::vector<uint32_t> active_alleles = variant_info.get_active_allele_positions();
 	uint32_t allele0;
 	uint32_t allele1;
 	Genotype genotype;

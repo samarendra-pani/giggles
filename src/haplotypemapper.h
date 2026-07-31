@@ -26,7 +26,7 @@ class HaplotypeMapper {
 
     public:
 
-        HaplotypeMapper(const GenotypeLikelihoods& genotype_likelihoods, const std::vector<int>& allele_references);
+        HaplotypeMapper(const variant_information_t& variant_info);
 
         // returns the size of the linearized reduced-space states, i.e. M
         uint32_t get_num_states() const;

@@ -2,21 +2,16 @@
 
 #include "haplotypemapper.h"
 
-HaplotypeMapper::HaplotypeMapper(const GenotypeLikelihoods& genotype_likelihoods, const std::vector<int>& allele_references) {
+HaplotypeMapper::HaplotypeMapper(const variant_information_t& variant_info) {
 
-    std::vector<uint32_t> selected_indices = genotype_likelihoods.select_genotypes();
-    std::vector<bool> is_genotype_selected(genotype_likelihoods.size(), false);
-    for (uint32_t idx : selected_indices) {
-        if (idx < is_genotype_selected.size()) {
-            is_genotype_selected[idx] = true;
-        }
-    }
-    bool all_genotypes_selected = selected_indices.size() == genotype_likelihoods.size();
+    const std::vector<uint32_t>& selected_indices = variant_info.get_active_gts_positions();
+    const std::vector<bool>& is_genotype_selected = variant_info.active_gts;
+    bool all_genotypes_selected = selected_indices.size() == is_genotype_selected.size();
+    const std::vector<int>& allele_references = variant_info.allele_references;
     uint32_t n_haplotypes = allele_references.size();
     haplotype_to_selected_map.remake(n_haplotypes, n_haplotypes, -1);
     
-    std::vector<uint32_t> sorted_alleles;
-    sorted_alleles.reserve(2);
+    std::vector<uint32_t> sorted_alleles(2);
     uint32_t count = 0;
     int allele_i;
     int allele_j;
@@ -25,14 +20,13 @@ HaplotypeMapper::HaplotypeMapper(const GenotypeLikelihoods& genotype_likelihoods
             allele_i = allele_references[i];
             allele_j = allele_references[j];
             if (allele_i == -1 || allele_j == -1) { continue; } // if one of the alleles is invalid or not available, don't consider that pair.
-            sorted_alleles.clear();
             if (allele_i < allele_j) {
-                sorted_alleles.push_back((uint32_t)allele_i);
-                sorted_alleles.push_back((uint32_t)allele_j);
+                sorted_alleles[0] = (uint32_t)allele_i;
+                sorted_alleles[1] = (uint32_t)allele_j;
             }
             else {
-                sorted_alleles.push_back((uint32_t)allele_j);
-                sorted_alleles.push_back((uint32_t)allele_i);
+                sorted_alleles[0] = (uint32_t)allele_j;
+                sorted_alleles[1] = (uint32_t)allele_i;
             }
             uint32_t index = convert_alleles_to_index(sorted_alleles);
             /**

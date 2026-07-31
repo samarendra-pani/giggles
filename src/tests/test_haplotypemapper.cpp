@@ -9,7 +9,7 @@ void test_haplotypemapper() {
     /**
      * Genotype Likelihoods are all 0. So all genotypes are active.
      */
-    HaplotypeMapper mapper(var_info.genotype_likelihoods, var_info.allele_references);
+    HaplotypeMapper mapper(var_info);
     assert_msg(mapper.get_num_states() == 64, "HaplotypeMapper", "Initial number of states.");
     /**
      * testing get_state_index
@@ -53,8 +53,9 @@ void test_haplotypemapper() {
     std::vector<long double> likelihoods = {0.01L, 0.1L, 0.0L, 0.2L, 0.1L, 0.3L, 0.2L, 0.05L, 0.02L, 0.02L};
     // selcted genotypes are 0/1, 0/2, 1/2, 2/2 and 0/3
     var_info.genotype_likelihoods = GenotypeLikelihoods(likelihoods, 4, 2);
-    mapper = HaplotypeMapper(var_info.genotype_likelihoods, var_info.allele_references);
-
+    std::vector<uint32_t> selected_indices = var_info.genotype_likelihoods.select_genotypes();
+    var_info.update_active_alleles(2, selected_indices);
+    mapper = HaplotypeMapper(var_info);
     assert_msg(mapper.get_num_states() == 42, "HaplotypeMapper", "Number of states with selected genotypes.");
     /**
      * testing get_state_index
