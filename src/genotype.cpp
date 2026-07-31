@@ -222,14 +222,14 @@ uint32_t convert_alleles_to_index(std::vector<uint32_t> alleles) {
 		throw std::runtime_error("Ploidy is more than the maximum supported!");
 	}
 	if (ploidy == 2) {
-		if (alleles.at(0) > alleles.at(1)) {
+		if (alleles[0] > alleles[1]) {
 			throw std::runtime_error("Alleles are not sorted!");
 		}
 	}
 	uint32_t index = 0;
 	uint32_t k = 1;
 	for (uint32_t i = 0; i < ploidy; i++) {
-		uint32_t allele = alleles.at(i);
+		uint32_t allele = alleles[i];
 		index += binomial_coefficient(k + allele - 1, allele - 1);
 		k += 1;
 	}
