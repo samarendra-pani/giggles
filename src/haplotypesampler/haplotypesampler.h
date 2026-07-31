@@ -79,7 +79,7 @@ class HaplotypeSampler {
 		**/
 		HaplotypeSampler(
 			ReadSet* read_set,
-			std::vector<variant_information_t>* variant_info_table,
+			const std::vector<variant_information_t>* variant_info_table,
 			const uint32_t size, 
 			const float recombrate = 1.26, 
 			const float effective_N = 25000.0, 
@@ -117,7 +117,7 @@ class HaplotypeSampler {
 		void compute_viterbi_column(uint32_t column_index);
 
 		ReadSet* read_set;
-		std::vector<variant_information_t>* variant_info_table;
+		const std::vector<variant_information_t>* variant_info_table;
 
 		std::vector<DPColumn*> viterbi_columns;
 		SampledPaths sampled_paths;

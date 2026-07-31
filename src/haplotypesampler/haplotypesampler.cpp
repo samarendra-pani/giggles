@@ -23,7 +23,7 @@ void print_dpcolumn(DPColumn* column) {
 
 HaplotypeSampler::HaplotypeSampler(
 	ReadSet* read_set,
-	std::vector<variant_information_t>* variant_info_table,	
+	const std::vector<variant_information_t>* variant_info_table,	
 	const uint32_t size,
 	const float recombrate, 
 	const float effective_N, 
@@ -314,36 +314,37 @@ void HaplotypeSampler::compute_viterbi_column(uint32_t column_index) {
 
 std::vector<variant_information_t> HaplotypeSampler::get_updated_variant_table(uint32_t ploidy) {
 	
-	std::vector<variant_information_t> updated_table(variant_info_table->size());
-	variant_information_t variant;
-	uint32_t position;
-	uint32_t n_alleles;
-	std::vector<int> allele_references(sampled_paths.sampled_paths.size());
-	bool sv_flag;
-	uint32_t hap_index;
-	int hap_allele;
+	std::vector<variant_information_t> updated_table;
+	updated_table.reserve(variant_info_table->size());
+	const size_t num_sampled_paths = sampled_paths.sampled_paths.size();
+    std::vector<int> allele_references(num_sampled_paths);
 	std::vector<bool> allele_presence_vector;
 
 	for (uint32_t i = 0; i < variant_info_table->size(); i++) {
-		variant = variant_info_table->at(i);
-		position = variant.position;
-		n_alleles = variant.get_num_alleles();
-		allele_presence_vector = std::vector<bool>(n_alleles, false);
-		sv_flag = variant.is_sv;
-		for (uint32_t j = 0; j < sampled_paths.sampled_paths.size(); j++) {
-			hap_index = sampled_paths.sampled_paths[j][i];
-			hap_allele = variant.allele_references[hap_index];
+		const variant_information_t& variant = variant_info_table->at(i);
+		uint32_t position = variant.position;
+        uint32_t n_alleles = variant.get_num_alleles();
+        bool sv_flag = variant.is_sv;
+		std::vector<bool> allele_presence_vector(n_alleles, false);
+
+		for (uint32_t j = 0; j < num_sampled_paths; j++) {
+			uint32_t hap_index = sampled_paths.sampled_paths[j][i];
+			int hap_allele = variant.allele_references[hap_index];
 			assert(hap_allele != -1);	// should not be selecting unknown haplotype
 			assert(hap_allele < n_alleles);	// should be less than the number of alleles defined at the position
 			allele_references[j] = hap_allele;
 			allele_presence_vector[hap_allele] = true;
 		}
-		updated_table[i] = variant_information_t(position, ploidy, n_alleles, allele_references, sv_flag);
-		updated_table[i].active_alleles = allele_presence_vector;
-		if (updated_table[i].count_active_alleles() <= 2 && !sv_flag) {
-			updated_table[i].phasable = true;
+		updated_table.emplace_back(position, ploidy, n_alleles, allele_references, sv_flag);
+		variant_information_t& current_variant = updated_table.back();
+        current_variant.active_alleles = std::move(allele_presence_vector);
+        current_variant.update_active_gts(ploidy);
+
+		if (current_variant.count_active_alleles() <= 2 && !sv_flag) {
+			current_variant.phasable = true;
+			read_set->setEntryAlleles(position, current_variant.active_alleles);	// if positions is phasable, set the Entry alleles.
 		} else {
-			updated_table[i].phasable = false;
+			current_variant.phasable = false;
 		}
 	}
 	
