@@ -324,7 +324,7 @@ def add_arguments(parser):
         help="How many haplotypes to select (default: %(default)s)")
     arg('--remove-reference-path',action='store_true',
         help="Remove the reference path as a sampled haplotpe.")
-    arg('--sampling-eff-pop-size', metavar='SAMPLING_EFF_POP_SIZE', default = 1.0, type = float,
+    arg('--sampling-eff-pop-size', metavar='SAMPLING_EFF_POP_SIZE', default = 25000.0, type = float,
         help="Parameter for transition probability computing for haplotype sampling (default: %(default)s)")
     arg('--allele-penalty', metavar='ALLELE_PENALTY', default = 10, type = int,
         help="Penalty for an allele already selected in one of sample haplotype paths (default: %(default)s)")
