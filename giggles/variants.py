@@ -14,6 +14,7 @@ from giggles.vcf import VcfVariant
 from giggles.align import edit_distance
 from giggles.ext import WFAWrapper
 from giggles._variants import _iterate_cigar
+from giggles.utils import reverse_complement
 
 
 class Realigner:
@@ -514,7 +515,7 @@ class GAFReader(AlignmentReader):
             node = rgfa.get_node(node_id)
             node_seq = node.sequence
             if orient == '<':
-                node_seq = GAFReader.reverse_complement(node_seq)
+                node_seq = reverse_complement(node_seq)
             
             # Track start of this node in the built sequence
             current_seq_pos = len(reference_seq)
