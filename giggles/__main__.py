@@ -10,16 +10,18 @@ from . import __version__
 from .args import HelpfulArgumentParser
 
 
-def ensure_pysam_version():
+def ensure_version():
     from pysam import __version__ as pysam_version
-    from distutils.version import LooseVersion
+    import re
+    def parse_version(version_string):
+        return tuple(int(x) for x in re.findall(r"\d+", version_string))
 
-    if LooseVersion(pysam_version) < LooseVersion("0.8.1"):
-        sys.exit("Giggles requires pysam >= 0.8.1")
+    if parse_version(pysam_version) < parse_version("0.23.0"):
+        sys.exit("Giggles requires pysam >= 0.23.0")
 
 
 def main(argv=sys.argv[1:]):
-    ensure_pysam_version()
+    ensure_version()
     parser = HelpfulArgumentParser(description=__doc__, prog="giggles")
     parser.add_argument("--version", action="version", version="%(prog)s " + __version__)
     parser.add_argument("--logging-level", default="INFO", choices=["INFO", "DEBUG", "TRACE"], help="Set the logging level. (Level: INFO < DEBUG < TRACE)")
