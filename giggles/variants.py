@@ -197,17 +197,15 @@ class GAFReader(AlignmentReader):
         logger.debug("Converting Alignments to Read Objects")
         reads = self._alignments_to_reads(updated_variants)
         logger.debug("Grouping Reads into ReadSet Object")
-        grouped_reads = self._remove_duplicate_reads(reads)
+        selected_reads = self._remove_duplicate_reads(reads)
         readset = ReadSet()
-        for group in grouped_reads:
-            if group is None:
-                continue
-            readset.add(group[0])
+        for read in selected_reads:
+            readset.add(read)
         logger.info("ReadSet Object Successfully Created")
         return readset      
 
     @staticmethod
-    def _remove_duplicate_reads(reads: Iterable[Read]) -> Iterator[List[Read]]:
+    def _remove_duplicate_reads(reads: Iterable[Read]) -> Iterator[Read]:
         """Removes reads which have been mapped multiple times and selects one best read.
 
         Args:
@@ -220,9 +218,6 @@ class GAFReader(AlignmentReader):
         """
         groups = {}
         for read in reads:
-            if read is None:
-                yield None
-                continue
             key = (read.source_id, read.name)
             existing_read = groups.get(key)
             if existing_read is None:
@@ -235,9 +230,8 @@ class GAFReader(AlignmentReader):
                     groups[key] = read
                 elif len_new == len_existing and read.mapqs > existing_read.mapqs:
                     groups[key] = read
-        # Yield as single-element lists to maintain compatibility with downstream code
         for read in groups.values():
-            yield [read]
+            yield read
 
     def _usable_alignments(self, chromosome: str) -> Iterator[GafAlignment]:
         """"Retrieves usable alignments from the alignment file.
@@ -714,7 +708,6 @@ class GAFReader(AlignmentReader):
 
         for alignment in alignments:
             if alignment is None:
-                yield None
                 continue
 
             if variant_pointer >= len(variants):
@@ -736,7 +729,6 @@ class GAFReader(AlignmentReader):
             variant_pointer = new_pointer
 
             if not variants_in_alignment:
-                yield (None, alignment, None)
                 continue
 
             # Build reference sequence & calculate SV attributes
@@ -777,16 +769,10 @@ class GAFReader(AlignmentReader):
 
         for result in updated_variants:
 
-            # if no alignment was found 
-            if result is None:
-                yield None
-                continue
-
             variants_in_alignment, alignment, reference = result
 
             # if no variants found in the alignment
             if variants_in_alignment is None:
-                yield None
                 continue
 
             # Extract the aligned segement from the complete read sequence and create a new object.
@@ -877,7 +863,7 @@ class GAFReader(AlignmentReader):
             assert variant.state == 0
             # this is an external variant
             # overhang is set to 10
-            left_ref_bases, left_query_bases = AlignmentReader.cigar_prefix_length(cigar=left_cigar[::-1], reference_bases=10)
+            left_ref_bases, left_query_bases = AlignmentReader.cigar_prefix_length(cigar=reversed(left_cigar), reference_bases=10)
             if variant.reference_allele == "*":
                 ref_allele = ""
             else:
@@ -921,7 +907,7 @@ class GAFReader(AlignmentReader):
         aligner.reset_aligner()
         
         # This is a SV variant
-        left_ref_bases, left_query_bases = AlignmentReader.cigar_prefix_length(cigar=left_cigar[::-1], reference_bases=overhang)
+        left_ref_bases, left_query_bases = AlignmentReader.cigar_prefix_length(cigar=reversed(left_cigar), reference_bases=overhang)
         
         if variant.reference_allele == "*":
             ref_allele = ""
