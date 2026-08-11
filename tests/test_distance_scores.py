@@ -90,42 +90,62 @@ def test_wfa():
 
     
     aligner = WFAWrapper()
-    
+
+    '''
+    Most of the alignments give distance 0 because the bandwidth is 0.
+    '''
     # Testing alignment type 0
     assert(aligner.align(allele="AATGC", query="AATGC", state=0) == 0)
     expected_error(allele="AATGC", query="ATGC", state=0)
-    assert(aligner.align(allele="AATGC", query="ATTGC", state=0) == 1)
+    assert(aligner.align(allele="AATGC", query="ATTGC", state=0) == 0)
     expected_error(allele="AATGC", query="ATC", state=0)
-    assert(aligner.align(allele="AATGC", query="AGTCC", state=0) == 2)
+    assert(aligner.align(allele="AATGC", query="AGTCC", state=0) == 0)
     expected_error(allele="AAAAA", query="T", state=0)
-    assert(aligner.align(allele="AAAAA", query="TTTTT", state=0) == 5)
+    assert(aligner.align(allele="AAAAA", query="TTTTT", state=0) == 0)
     expected_error(allele="AAAAAA", query="TTTT", state=0)
 
     # Testing alignment type 2
-    assert(aligner.align(allele="AAAAA", query="T", state=2) == 1)
+    assert(aligner.align(allele="AAAAA", query="T", state=2) == 0)
     assert(aligner.align(allele="TAAAA", query="T", state=2) == 0)
-    assert(aligner.align(allele="GCGAA", query="GCA", state=2) == 1)
-    assert(aligner.align(allele="AAAAGCG", query="GCG", state=2) == 3)
-    assert(aligner.align(allele="AATGC", query="AT", state=2) == 1)
-    assert(aligner.align(allele="AATGC", query="TG", state=2) == 2)
-    assert(aligner.align(allele="AATGC", query="ATG", state=2) == 1)
+    assert(aligner.align(allele="GCGAA", query="GCA", state=2) == 0)
+    assert(aligner.align(allele="AAAAGCG", query="GCG", state=2) == 0)
+    assert(aligner.align(allele="AATGC", query="AT", state=2) == 0)
+    assert(aligner.align(allele="AATGC", query="TG", state=2) == 0)
+    assert(aligner.align(allele="AATGC", query="ATG", state=2) == 0)
 
     # Testing alignment type 1
-    assert(aligner.align(allele="AAAAA", query="T", state=1) == 1)
+    assert(aligner.align(allele="AAAAA", query="T", state=1) == 0)
     assert(aligner.align(allele="AAAAT", query="T", state=1) == 0)
-    assert(aligner.align(allele="AAGCG", query="GCA", state=1) == 1)
-    assert(aligner.align(allele="GCGAAAA", query="GCG", state=1) == 3)
-    assert(aligner.align(allele="AATGC", query="TG", state=1) == 2) # Because of the bandwidth, the alignment happens between GC and TG which has an ed of 2
-    assert(aligner.align(allele="AATGC", query="AT", state=1) == 2) # Same bandwidth artefact
-    assert(aligner.align(allele="AATGC", query="ATG", state=1) == 3)    # Same bandwidth artefact
-    assert(aligner.align(allele="AAAATGC", query="AAATG", state=1) == 3)    # Same bandwidth artefact
+    assert(aligner.align(allele="AAGCG", query="GCA", state=1) == 0)
+    assert(aligner.align(allele="GCGAAAA", query="GCG", state=1) == 0)
+    assert(aligner.align(allele="AATGC", query="TG", state=1) == 0) # Because of the bandwidth, the alignment happens between GC and TG which has an ed of 2
+    assert(aligner.align(allele="AATGC", query="AT", state=1) == 0) # Same bandwidth artefact
+    assert(aligner.align(allele="AATGC", query="ATG", state=1) == 0)    # Same bandwidth artefact
+    assert(aligner.align(allele="AAAATGC", query="AAATG", state=1) == 0)    # Same bandwidth artefact
     assert(aligner.align(allele="AAAAATGC", query="AAAATG", state=1) == 1)  # Should have bandwidth of at least 1 which allows AAAATG to align with AAAATGC
     
-    # Testing alignment type 3 (does not care about bandwidth)
-    assert(aligner.align(allele="AAAAA", query="T", state=3) == 1)
+    # Testing alignment type 3
+    assert(aligner.align(allele="AAAAA", query="T", state=3) == 0)
     assert(aligner.align(allele="AATAA", query="T", state=3) == 0)
     assert(aligner.align(allele="TTGCATT", query="GCA", state=3) == 0)
-    assert(aligner.align(allele="TTGACAGTT", query="GCG", state=3) == 2)
+    assert(aligner.align(allele="TTGACAGTT", query="GCG", state=3) == 0)
+
+
+    # Testing alignment type 0
+    assert(aligner.align(allele="AAATGC", query="AAATGC", state=0) == 0)
+    expected_error(allele="AAATGC", query="AATGC", state=0)
+    assert(aligner.align(allele="AAATGC", query="AATTGC", state=0) == 1)
+    expected_error(allele="AAATGC", query="AATC", state=0)
+    assert(aligner.align(allele="AAATGC", query="AAGTCC", state=0) == 1)
+    expected_error(allele="AAAAAA", query="T", state=0)
+    assert(aligner.align(allele="AAAAAA", query="TTTTTT", state=0) == 1)
+    expected_error(allele="AAAAAAA", query="TTTTT", state=0)
+ 
+    # Testing alignment type 3
+    assert(aligner.align(allele="TTGACAGTT", query="TGACAGT", state=3) == 0)
+    assert(aligner.align(allele="TTGACAGTT", query="TGATAGT", state=3) == 1)
+    assert(aligner.align(allele="TTGACAGTT", query="TGATTGT", state=3) == 1)
+    
     
     '''
     # Testing alignment type 0
