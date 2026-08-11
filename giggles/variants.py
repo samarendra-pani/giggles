@@ -40,8 +40,7 @@ class Realigner:
             int: the distance between the two string (always positive)
         """
         
-        dist = self.realigner.align(query=query, allele=allele, state=state)
-        return dist
+        return self.realigner.align(query, allele, state)
             
     def reset_aligner(self):
         self.realigner = None
@@ -904,7 +903,7 @@ class GAFReader(AlignmentReader):
         
         logger.trace(f'Realigning SV {variant.id}')
         
-        aligner.reset_aligner()
+        # aligner.reset_aligner()
         
         # This is a SV variant
         left_ref_bases, left_query_bases = AlignmentReader.cigar_prefix_length(cigar=reversed(left_cigar), reference_bases=overhang)
