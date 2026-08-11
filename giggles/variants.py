@@ -16,6 +16,9 @@ from giggles.ext import WFAWrapper
 from giggles._variants import _iterate_cigar
 from giggles.utils import reverse_complement
 
+CIGAR_REGEX = re.compile(r'(\d+)([MIDNSHP=X])')
+CG_LETTER_TO_OP = {'M': 0, 'I': 1, 'D': 2, 'N': 3, 'S': 4, 'H': 5, 'P': 6, 'X': 7, '=': 8}
+Alignment = namedtuple('Alignment', ['cigartuples', 'reference_start', 'query_sequence'])
 
 class Realigner:
     """
@@ -769,9 +772,6 @@ class GAFReader(AlignmentReader):
             Read: the Read object
         """
 
-        cg_letter_to_op = {'M': 0, 'I': 1, 'D': 2, 'N': 3, 'S': 4, 'H': 5, 'P': 6, 'X': 7, '=': 8}
-        Alignment = namedtuple('Alignment', ['cigartuples', 'reference_start', 'query_sequence'])        # Class created to maintain compatibility with old code
-        
         for result in updated_variants:
 
             # if no alignment was found 
@@ -790,12 +790,9 @@ class GAFReader(AlignmentReader):
             # Need cigartuples, and reference_start (where it starts in the reference. So the path start in this case.)
             #print(f'num_var_alignment: {len(variants_in_alignment)}')
             gaf_aligned_segment = alignment.sequence[alignment.q_start:alignment.q_end]
-            cg_tuples = []
-            cg = list(filter(None, re.split("([MIDNSHP=X])", alignment.cigar)))
-            for i in range(0,len(cg),2):
-                l = int(cg[i])
-                op = cg_letter_to_op[cg[i+1]]
-                cg_tuples.append((op,l))
+            cg_tuples = [
+                (CG_LETTER_TO_OP[m.group(2)], int(m.group(1))) for m in CIGAR_REGEX.finditer(alignment.cigar)
+            ]
             
             # This new variable is created to make the gaf alignments compatible with the old code.
             processed_alignment = Alignment(cigartuples=cg_tuples, reference_start=alignment.p_start, query_sequence=gaf_aligned_segment)
