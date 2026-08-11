@@ -218,28 +218,26 @@ class GAFReader(AlignmentReader):
                 - key is a tuple of the source id (which is an integer index of the file in which the read is present) and name of the read.
                 - the value is the Read object created in _alignments_to_reads
         """
-        groups = defaultdict(list)
+        groups = {}
         for read in reads:
             if read is None:
                 yield None
                 continue
-            if groups[(read.source_id, read.name)] == []:
-                groups[(read.source_id, read.name)] = [read]       # Keeping this as a list so that I dont need to change _make_readset_from_grouped_reads()
+            key = (read.source_id, read.name)
+            existing_read = groups.get(key)
+            if existing_read is None:
+                groups[key] = read
             else:
-                old_read = groups[(read.source_id, read.name)][0]
-
-                # Check the number of variants it covers
-                if len(old_read) < len(read):
-                    groups[(read.source_id, read.name)] = [read]
-                
-                # Check the mapping quality
-                if old_read.mapqs < read.mapqs:
-                    groups[(read.source_id, read.name)] = [read]
-        
-        for group in groups.values():
-            if len(group) > 1:
-                raise Exception(f"Read name {group[0].name} occurs more than twice in the input file")
-            yield group
+                # Check number of variants, then tie-break with mapq
+                len_existing = len(existing_read)
+                len_new = len(read)
+                if len_new > len_existing:
+                    groups[key] = read
+                elif len_new == len_existing and read.mapqs > existing_read.mapqs:
+                    groups[key] = read
+        # Yield as single-element lists to maintain compatibility with downstream code
+        for read in groups.values():
+            yield [read]
 
     def _usable_alignments(self, chromosome: str) -> Iterator[GafAlignment]:
         """"Retrieves usable alignments from the alignment file.
@@ -718,11 +716,14 @@ class GAFReader(AlignmentReader):
             if alignment is None:
                 yield None
                 continue
-            # 1. Orientation & Finding Variants
+
+            if variant_pointer >= len(variants):
+                logger.info(f"All variants processed. Skipping the remaining GAF alignments.")
+                break
+
             alignment, _ = GafAlignment.check_reverse(alignment, rgfa)
             
             logger.trace(f'Finding variants in read {alignment.read_id}')
-            # Use our new finding logic
             logger.trace('Finding variants...')
             find_result = GAFReader.find_variants_in_alignment(
                 alignment, variants, rgfa, variant_pointer
@@ -738,7 +739,7 @@ class GAFReader(AlignmentReader):
                 yield (None, alignment, None)
                 continue
 
-            # 2. Build Reference Sequence & Calculate SV Attributes
+            # Build reference sequence & calculate SV attributes
             # We return the constructed sequence and the updated variants list
             logger.trace('Getting SV attributes...')
             reference_seq = self._calculate_sv_attributes(
@@ -748,7 +749,7 @@ class GAFReader(AlignmentReader):
                 start_scaf_idx
             )
             
-            # 3. Interpolate External Variant Positions
+            # Interpolate External Variant Positions
             # SNPs don't need node summing; they just need anchor offsets
             logger.trace('Interpolating ext positions...')
             self._interpolate_ext_positions(
