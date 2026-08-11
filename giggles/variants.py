@@ -495,7 +495,8 @@ class GAFReader(AlignmentReader):
         """
 
         logger.trace(f'Setting attributes for SV bubble variants on {alignment.read_id}')
-        reference_seq = ""
+        reference_seq_parts = []
+        current_seq_pos = 0  # Track length manually instead of calling len(string)
         len_on_path = 0     # Accumulator for current bubble length
         active_pointer = 0  # Pointer to variants_in_alignment list
         
@@ -521,8 +522,9 @@ class GAFReader(AlignmentReader):
                 node_seq = reverse_complement(node_seq)
             
             # Track start of this node in the built sequence
-            current_seq_pos = len(reference_seq)
-            reference_seq += node_seq
+            current_seq_pos_snapshot = current_seq_pos
+            reference_seq_parts.append(node_seq)
+            current_seq_pos += len(node_seq)
             
             is_scaffold = (node.tags.get('NO') == 0)
 
@@ -572,7 +574,7 @@ class GAFReader(AlignmentReader):
                 
                 # Position: Start of current node minus the bubble length
                 # (This points to the index in reference_seq where the bubble began)
-                sv.position = current_seq_pos - len_on_path
+                sv.position = current_seq_pos_snapshot - len_on_path
                 
                 active_pointer += 1
                 advance_pointer_to_next_sv()
@@ -605,9 +607,9 @@ class GAFReader(AlignmentReader):
             else:
                 # State 2 (Partial End)
                 sv.length_on_path = len_on_path - distance_from_end
-                sv.position = len(reference_seq) - len_on_path
+                sv.position = current_seq_pos - len_on_path
             
-        return reference_seq
+        return "".join(reference_seq_parts)
 
 
     def _interpolate_ext_positions(self, variants: List[VcfVariant], alignment: GafAlignment, rgfa: rGFA, start_scaf_idx: int):
