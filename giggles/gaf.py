@@ -352,15 +352,20 @@ class GafParser:
                 if alignment_file.tell() == offsets[1]:
                     iterator = False
                 a = GafAlignment(line, source_id, self._fastas[source_id])
+                logger.trace(f'Processed {a.read_id}')
                 if a.mapping_quality < self._mapq:
+                    logger.trace(f'Skipping {a.read_id} due to low mapq.')
                     continue
                 if a.tags['tp'] != "P":
+                    logger.trace(f'Skipping {a.read_id}. Not a primary alignment.')
                     continue
                 if a.tags['sn'] != self._contig_iter:
                     assert a.tags['sn'] == 'unknown', "GAF is not properly sorted."
-                    continue
+                    #logger.trace(f'Skipping {a.read_id} since it does not touch any reference nodes.')
+                    #continue
                 # TODO: What to do with this inversion case?
                 if a.tags['iv'] == 1:
+                    logger.trace(f'Skipping {a.read_id} due to having inversion.')
                     continue
                 yield a
 
