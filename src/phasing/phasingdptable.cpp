@@ -338,11 +338,14 @@ void PhasingDPTable::get_super_reads(ReadSet* output_read_set) {
 				// This position was not phased. Adding BLANKs
 				superreads.first->addVariant(pos, vector<uint8_t>{}, Entry::BLANK);
 				superreads.second->addVariant(pos, vector<uint8_t>{}, Entry::BLANK);	
-			} else {
-				assert (active_alleles.size() == 2);
+			} else if (active_alleles.size() == 2) {
 				// TODO: compute proper weights based on likelihoods.
 				superreads.first->addVariant(pos, vector<uint8_t>{}, population_alleles.allele0);
 				superreads.second->addVariant(pos, vector<uint8_t>{}, population_alleles.allele1);
+			} else {
+				assert(active_alleles.size() == 1);
+				superreads.first->addVariant(pos, vector<uint8_t>{}, Entry::ALLELE1);
+				superreads.second->addVariant(pos, vector<uint8_t>{}, Entry::ALLELE1);
 			}
 			++i; // next column
 		}
