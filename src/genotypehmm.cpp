@@ -110,6 +110,7 @@ void GenotypeHMM::compute_backward_prob()
 	// backward pass: create sparse table
 	size_t k = (size_t)sqrt(column_count);
 	for(uint32_t column_index = column_count-1; column_index >= 0; --column_index){
+		//std::cout << "\n[BackwardColumn] Computing column " << column_index << std::endl;
 		compute_backward_column(column_index);
 		/**
 		 * To conserve space, we only keep every k columns' backward values
@@ -136,6 +137,7 @@ void GenotypeHMM::compute_forward_prob() {
 	// reset active column to the leftmost column
 	column_iterator.jump_to_column(0);
 	for (size_t column_index=0; column_index < column_iterator.get_column_count(); ++column_index) {
+		//std::cout << "\n[ForwardColumn] Computing column" << column_index << std::endl;
 		compute_forward_column(column_index);
 	}
 }
@@ -158,9 +160,11 @@ void GenotypeHMM::compute_backward_column(size_t column_index) {
 	// NOTE: Need column_index = 0 since we need to store the scaling parameter for the column.
 	assert(column_index < column_iterator.get_column_count());
 	// if current input column was not provided, create it
+	//std::cout << "\t[BackwardColumn] Extracting entry objects.\n";
 	unique_ptr<vector<const Entry*>> current_input_column = nullptr;
 	column_iterator.jump_to_column(column_index);
 	current_input_column = column_iterator.get_prev();
+	//std::cout << "\t[BackwardColumn] Extracting entry objects is successful.\n";
 	
 	if(column_index > 0){
 		/**
@@ -176,7 +180,7 @@ void GenotypeHMM::compute_backward_column(size_t column_index) {
 	Column* prev_indexer;
 	prev_indexer = hmm_columns[column_index];
 	assert(prev_indexer != nullptr);
-
+	//std::cout << "\t[BackwardColumn] Initializing variables and get data structures to the heap.\n";
 	const vector<int>& prev_haplotype_to_allele = variant_info_table->at(column_index).allele_references;     // This contains the haplotype-to-allele mapping for the position column_index		
 	HaplotypeMapper* prev_haplotype_mapper = haplotype_mapper_table.at(column_index);
 	uint32_t num_prev_ref_states = prev_haplotype_mapper->get_num_states();
@@ -204,6 +208,7 @@ void GenotypeHMM::compute_backward_column(size_t column_index) {
 	/**
 	 * Helper variables
 	 */
+	//std::cout << "\t[BackwardColumn] Initialzing beta helpers.\n";
 	long double beta_helper_0;		 // This helper just store the value of beta(R1,R2).
 	long double beta_helper_1;       // This helper value is the beta(*,*) value.
 	vector<long double> beta_helper_2(num_haplotypes);      // This helper value is the beta(R1,*) value.
@@ -238,24 +243,40 @@ void GenotypeHMM::compute_backward_column(size_t column_index) {
 		 *                           V                                      V
 		 *              from the BipartitionIterator              from HaplotypeMapper
 		 */
+		//std::cout << "\t[BackwardColumn] Number of bipartitions: " << curr_indexer->get_num_bipartition() << "\t Number of reference states: " << num_curr_ref_states << "\n";
 		uint32_t num_total_states = curr_indexer->get_num_bipartition() * num_curr_ref_states;
 		current_backward_scores = new vector<long double>(num_total_states, 0.0L);
 		const vector<int>& curr_haplotype_to_allele = variant_info_table->at(column_index-1).allele_references;     // This contains the haplotype-to-allele mapping for the position column_index-1
 		const vector<bool>& prev_active_alleles = variant_info_table->at(column_index).active_alleles;
 
+		// DEBUGGING STATEMENTS
+		{
+			if (n_alleles == 0) {
+				//std::cout << "\t[BackwardColumn] Column " << column_index << " has 0 alleles!\n";
+			}
+			if (previous_backward_scores != nullptr && previous_backward_scores->size() == 0) {
+				//std::cout << "\t[BackwardColumn] previous_backward_scores size is 0 for column " << column_index << "!\n";
+			}
+			if (current_backward_scores != nullptr && current_backward_scores->size() == 0) {
+				//std::cout << "\t[BackwardColumn] current_backward_scores size is 0 for column " << column_index << "!\n";
+			}
+		}
 		/**
 		 * This iterator iterates through all the bipartitions of previous column.
 		 */
+		//std::cout << "\t[BackwardColumn] Bipartition iteration begins.\n";
 		while (iterator->has_next()){
 			int bit_changed = -1;
 			iterator->advance(&bit_changed);
 			// Update the emission probability based on the bipartition defined by the iterator
+			//std::cout << "\t\t[BackwardColumn] Updating emission probability computer.\n";
 			emission_probability_computer.update_emission_probability(bit_changed, *iterator, *current_input_column, prev_active_alleles);
 			/**
 			 * getting the indices from the iterator.
 			 * bipartition_index gives the bipartition number as determined by the Gray Code.
 			 * read_cluster_bit_rep gives the info of which read clusters are in which bipartition.
 			 */
+			//std::cout << "\t\t[BackwardColumn] Getting indices associated with bipartition.\n";
 			bipartition_index = iterator->get_bipartition_index();
 			read_cluster_bit_rep = iterator->get_read_cluster_bit_representation();
 
@@ -268,6 +289,7 @@ void GenotypeHMM::compute_backward_column(size_t column_index) {
 			 * 
 			 * Hence we use curr_indexer which has columns column_index - 1 and column_index.
 			 */
+			//std::cout << "\t\t[BackwardColumn] Getting backward compatible bipartitions.\n";
 			curr_indexer->get_backward_compatible_bipartitions(read_cluster_bit_rep, compatible_bipartitions);
 			
 			/**
@@ -283,6 +305,7 @@ void GenotypeHMM::compute_backward_column(size_t column_index) {
 			 * We construct the helper variables by looking at the map from
 			 * index in the reduced linear-space vector to the haplotype pair.
 			 */
+			//std::cout << "\t\t[BackwardColumn] Computing helpers.\n";
 			for (r_index = 0; r_index < prev_haplotype_mapper->get_num_states(); r_index++) {
 				haplotypes = prev_haplotype_mapper->get_haplotypes_indices(r_index);
 				
@@ -303,6 +326,7 @@ void GenotypeHMM::compute_backward_column(size_t column_index) {
 			 *    the bipartition of the previous column.
 			 * We calculate the contribution of Bx on the different By.
 			 */
+			//std::cout << "\t\t[BackwardColumn] Computing backward scores.\n";
 			for (uint32_t compatible_bipartition_index: compatible_bipartitions) {
 				/**
 				 * Now we are iterating over the states in some bipartition
@@ -364,8 +388,10 @@ void GenotypeHMM::compute_backward_column(size_t column_index) {
 				}
 			}
 		}
+		//std::cout << "\t[BackwardColumn] Bipartition iteration ends.\n";
 	}
 	else {
+		//std::cout << "\t[BackwardColumn] Executing logic for column 0.\n";
 		/**
 		 * This block is executed when we are at column_index = 0
 		 * So we have finished calculating all the backward values for each column
@@ -383,6 +409,7 @@ void GenotypeHMM::compute_backward_column(size_t column_index) {
 	 * Here we see why the compute_backward_column() was executed for column_index = 0.
 	 * Here we normalize that.
 	 */
+	//std::cout << "\t[BackwardColumn] Normalizing previous scores.\n";
 	if(previous_backward_scores != nullptr){
 		std::transform((*previous_backward_scores).begin(), (*previous_backward_scores).end(), (*previous_backward_scores).begin(), [scaling_sum](long double val) { return val/scaling_sum; });
 	}
@@ -391,6 +418,7 @@ void GenotypeHMM::compute_backward_column(size_t column_index) {
 	 * This does not normalize the values but makes it less likely that we run into underflow issues
 	 *   when we use values of column_index - 1 to calculate for column_index - 2.
 	 */
+	//std::cout << "\t[BackwardColumn] Normalizing current scores.\n";
 	if(current_backward_scores != nullptr){
 		std::transform((*current_backward_scores).begin(), (*current_backward_scores).end(), (*current_backward_scores).begin(), [scaling_sum](long double val) { return val/scaling_sum; });
 		backward_pass_table[column_index-1] = current_backward_scores;
@@ -453,10 +481,12 @@ void GenotypeHMM::compute_forward_column(size_t column_index)
 	vector<long double>* backward_probabilities = nullptr;
 	backward_probabilities = backward_pass_table[column_index];
 	// if column is not stored, recompute it
-	if(backward_probabilities == nullptr) {
+	//std::cout << "\t[ForwardColumn] Recomputing Backward Columns.\n";
+	if (backward_probabilities == nullptr) {
 		// compute index of next column that has been stored
 		size_t next = std::min((uint32_t) ( ((column_index + k) / k) * k ), column_iterator.get_column_count()-1);
 		for(size_t i = next; i > column_index; --i){
+			//std::cout << "\t\t[ForwardColumn] Recomputing column " << i << ".\n";
 			compute_backward_column(i);
 		}
 		if (backward_pass_table[column_index] ==  nullptr) {
@@ -473,6 +503,7 @@ void GenotypeHMM::compute_forward_column(size_t column_index)
 	assert(backward_probabilities != nullptr);
 
 	// Get the active entries at this position
+	//std::cout << "\t[ForwardColumn] Extracting entry objects.\n";
 	unique_ptr<vector<const Entry*>> current_input_column = nullptr;
 	column_iterator.jump_to_column(column_index);
 	current_input_column = column_iterator.get_next();
@@ -480,6 +511,7 @@ void GenotypeHMM::compute_forward_column(size_t column_index)
 	/**
 	 * Initializing objects and retrieving appropriate information
 	 */
+	//std::cout << "\t[ForwardColumn] Initializing variables and get data structures to the heap.\n";
 	Column* curr_indexer = hmm_columns[column_index];
 	assert(curr_indexer != nullptr);
 	uint32_t num_curr_bipartitions = curr_indexer->get_num_bipartition();
@@ -524,6 +556,7 @@ void GenotypeHMM::compute_forward_column(size_t column_index)
 	 * Resizing helpers from current column
 	 * This will be used for calculating values for column_index + 1 (the column after current column)
 	 */
+	//std::cout << "\t[ForwardColumn] Initialzing alpha helpers.\n";
 	curr_alpha_helper_1.assign(num_curr_bipartitions, 0.0L);
 	curr_alpha_helper_2.resize(num_curr_bipartitions);
 	for (auto& row : curr_alpha_helper_2) {
@@ -545,9 +578,24 @@ void GenotypeHMM::compute_forward_column(size_t column_index)
 	/**
 	 * initializing the vector to store forward probabilities of current column
 	 */
+	//std::cout << "\t[ForwardColumn] Number of bipartitions: " << num_curr_bipartitions << "\t Number of reference states: " << num_curr_ref_states << "\n";
 	uint32_t num_total_states = num_curr_bipartitions * num_curr_ref_states;
 	current_forward_probabilities.assign(num_total_states, 0.0L);
 	
+	{
+		if (n_alleles == 0) {
+			//std::cout << "\t[ForwardColumn] Column " << column_index << " has 0 alleles!\n";
+		}
+		if (backward_probabilities != nullptr && backward_probabilities->size() == 0) {
+			//std::cout << "\t[ForwardColumn] previous_backward_scores size is 0 for column " << column_index << "!\n";
+		}
+		if (previous_forward_probabilities.size() == 0 && column_index != 0) {
+			//std::cout << "\t[ForwardColumn] previous_forward_probabilities size is 0 for column " << column_index << "!\n";
+		}
+		if (current_forward_probabilities.size() == 0) {
+			//std::cout << "\t[ForwardColumn] current_forward_probabilities size is 0 for column " << column_index << "!\n";
+		}
+	}
 
 	// calculating variables required for all columns other than column 0 (initilization column)
 	if (column_index > 0) {
@@ -563,16 +611,19 @@ void GenotypeHMM::compute_forward_column(size_t column_index)
 	}
 	// iterate over all bipartitions
 	unique_ptr<BipartitionIterator> iterator = curr_indexer->get_iterator(read_set);
+	//std::cout << "\t[ForwardColumn] Bipartition iteration begins.\n";
 	while (iterator->has_next()) {
 		int bit_changed = -1;
 		iterator->advance(&bit_changed);
 		// Update the emission probability based on the bipartition defined by the iterator
+		//std::cout << "\t\t[ForwardColumn] Updating emission probability computer.\n";
 		emission_probability_computer.update_emission_probability(bit_changed, *iterator, *current_input_column, curr_active_alleles);
 		/**
 		 * getting the indices from the iterator.
 		 * bipartition_index gives the bipartition number as determined by the Gray Code.
 		 * read_cluster_bit_rep gives the info of which read clusters are in which bipartition.
 		 */
+		//std::cout << "\t\t[ForwardColumn] Getting indices associated with bipartition.\n";
 		bipartition_index = iterator->get_bipartition_index();
 		read_cluster_bit_rep = iterator->get_read_cluster_bit_representation();
 		if (column_index == 0) {
@@ -580,6 +631,7 @@ void GenotypeHMM::compute_forward_column(size_t column_index)
 			 * Calculating the forward probabilities for the first column.
 			 * Since no prior information is available, this column gets the values of the emissions.
 			 */
+			//std::cout << "\t[ForwardColumn] Executing logic for column 0.\n";
 			for (r_index = 0; r_index < num_curr_ref_states; r_index++) {
 				haplotypes = curr_haplotype_mapper->get_haplotypes_indices(r_index);
 				state_index = get_node_index(bipartition_index, r_index, num_curr_ref_states);
@@ -602,6 +654,7 @@ void GenotypeHMM::compute_forward_column(size_t column_index)
 			 * Iterating through compatible bipartitions of previous column
 			 */
 			prev_indexer->get_backward_compatible_bipartitions(read_cluster_bit_rep, compatible_bipartitions);
+			//std::cout << "\t\t[ForwardColumn] Computing forward scores.\n";
 			for (uint32_t compatible_bipartition_index : compatible_bipartitions) {
 				assert(compatible_bipartition_index < num_prev_bipartitions);
 				/**
@@ -674,11 +727,13 @@ void GenotypeHMM::compute_forward_column(size_t column_index)
 				}
 			}
 		}
+		//std::cout << "\t[ForwardColumn] Bipartition iteration ends.\n";
 	}
 	
 	/**
 	 * Calculating the Genotype Likelihoods of current column
 	 */
+	//std::cout << "\t[ForwardColumn] Computing genotype likelihoods.\n";
 	long double forward_backward = 0.0L;
 	uint32_t cannonical_genotype_index;
 	vector<uint32_t> sorted_alleles(2);
@@ -710,6 +765,7 @@ void GenotypeHMM::compute_forward_column(size_t column_index)
 	}
 	
 	// normalzing the forward probabilities of current column
+	//std::cout << "\t[ForwardColumn] Normalizing current forward scores.\n";
 	std::transform(current_forward_probabilities.begin(), current_forward_probabilities.end(), current_forward_probabilities.begin(), [sum](long double val) { return val/sum; });
 	// normalize the helper variables
 	std::transform(curr_alpha_helper_1.begin(), curr_alpha_helper_1.end(), curr_alpha_helper_1.begin(), [sum](long double val) { return val/sum; });
@@ -721,12 +777,14 @@ void GenotypeHMM::compute_forward_column(size_t column_index)
 	variant_info.genotype_likelihoods.divide_likelihoods_by(normalization);
 
 	// update the variant info tables active alleles based on the calculated likelihoods
+	//std::cout << "\t[ForwardColumn] Selecting alleles and genotypes based on genotype likelihoods.\n";
 	std::vector<uint32_t> selected_genotype_indices = variant_info.genotype_likelihoods.select_genotypes();
 	variant_info.update_active_alleles(ploidy, selected_genotype_indices);
 	if (variant_info.phasable) {
 		read_set->setEntryAlleles(variant_info.position, variant_info.active_alleles);
 	}
 
+	//std::cout << "\t[ForwardColumn] Swapping vectors.\n";
 	/**
 	 * Replace the forward values from previous column to current column.
 	 * 

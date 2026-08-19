@@ -103,12 +103,12 @@ unique_ptr<vector<const Entry*> > PhasingColumnIterator::get_next(bool testing) 
 	// genomic position of the column to be returned
 	int next_pos = variant_info_table->at(n).position;
 	// check which of the current reads remain active
-	//std::cout << "\n\n[Checking Existing Active Reads] At column: " << n << std::endl;
+	//std::cout << "\n\n[Checking Existing Active Reads] At column: " << n << " with pos: " << next_pos << std::endl;
 	list<active_read_t>::iterator list_it = active_reads.begin();
 	while (list_it != active_reads.end()) {
 		const Read* read = set.get(list_it->read_index);
 		if (read->lastPosition() < next_pos) {
-			//std::cout << "\t[Checking Existing Active Reads] Erasing " << read->getName() << std::endl;
+			//std::cout << "\t[Checking Existing Active Reads] Erasing " << read->getName() << " at read index: " << list_it->read_index << std::endl;
 			list_it = active_reads.erase(list_it);
 			continue;
 		}
@@ -125,13 +125,13 @@ unique_ptr<vector<const Entry*> > PhasingColumnIterator::get_next(bool testing) 
 		const Read* read = set.get(next_read_index);
 		if (!read->isSelected()) {
 			// skip unselected reads
-			//std::cout << "\t[Checking New Active Reads] Found unselected read " << read->getName() << std::endl;
+			//std::cout << "\t[Checking New Active Reads] Found unselected read " << read->getName() << " at read index: " << next_read_index << std::endl;
 			next_read_index += 1;
 			continue;
 		}
 		int read_start = read->firstPosition();
 		if (read_start == next_pos) {
-			//std::cout << "\t[Checking New Active Reads] Found selected read " << read->getName() << std::endl;
+			//std::cout << "\t[Checking New Active Reads] Found selected read " << read->getName() << " at read index: " << next_read_index << std::endl;
 			active_reads.push_back(active_read_t(next_read_index));
 			next_read_index += 1;
 		} else {
@@ -148,7 +148,7 @@ unique_ptr<vector<const Entry*> > PhasingColumnIterator::get_next(bool testing) 
 		if (!variant_info_table->at(n).phasable) {
 			// the position has multiple possible alleles.
 			// cannot phase
-			//std::cout << "\t[Gathering Entries] Unphasable position. Adding BLANK for " << read->getName() << std::endl;
+			//std::cout << "\t[Gathering Entries] Unphasable position. Adding BLANK for " << read->getName() << " at read index: " << list_it->read_index << std::endl;
 			Entry* e = new Entry(read->getID());
 			blank_entries.push_back(e);
 			result->push_back(e);
@@ -174,11 +174,11 @@ unique_ptr<vector<const Entry*> > PhasingColumnIterator::get_next(bool testing) 
 				assert(testing);	// assert that this is only used in the testing case
 				entry->set_allele_type(variant_info_table->at(n).active_alleles);
 			}
-			//std::cout << "\t[Gathering Entries] Adding Entry for " << read->getName() << std::endl;
+			//std::cout << "\t[Gathering Entries] Adding Entry for " << read->getName() << " at read index: " << list_it->read_index << std::endl;
 			result->push_back(entry);
 		} else {
 			// if not, generate a blank entry
-			//std::cout << "\t[Gathering Entries] Found gap in read. Adding BLANK for " << read->getName() << std::endl;
+			//std::cout << "\t[Gathering Entries] Found gap in read. Adding BLANK for " << read->getName() << " at read index: " << list_it->read_index << std::endl;
 			Entry* e = new Entry(read->getID());
 			blank_entries.push_back(e);
 			result->push_back(e);
@@ -200,19 +200,24 @@ void PhasingColumnIterator::jump_to_column(size_t k) {
 
 	// determine set of active reads
 	//std::cout << "\n\n[Jumping Columns] At column: " << n << std::endl;
+	//std::cout << "[Jumping Columns] With next_read_index: " << next_read_index << std::endl;
 	while (next_read_index < set.size()) {
 		const Read* read = set.get(next_read_index);
+		if (!read->isSelected()) {
+			next_read_index += 1;
+			continue;	
+		}
 		if (read->lastPosition() < pos) {
 			next_read_index += 1;
 			continue;
 		}
-		if (read->firstPosition() <= pos && read->isSelected()) {
+		if (read->firstPosition() <= pos) {
 			size_t active_entry = 0;
 			while (read->getPosition(active_entry) < pos) {
 				active_entry += 1;
 				assert(active_entry < read->getVariantCount());
 			}
-			//std::cout << "\t[Jumping Columns] Adding Active Read Index: " << read->getName() << std::endl;
+			//std::cout << "\t[Jumping Columns] Adding Active Read Index: " << read->getName() << " at read index: " << next_read_index << std::endl;
 			active_reads.push_back(active_read_t(next_read_index, active_entry));
 			next_read_index += 1;
 		} else {
