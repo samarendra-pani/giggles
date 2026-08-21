@@ -250,8 +250,8 @@ cdef class ReadSet:
 		return result
 
 cdef class GenotypeLikelihoods:
-	def __cinit__(self, vector[long double] gl, uint32_t ploidy, uint32_t num_alleles):
-		self.thisptr = new cpp.GenotypeLikelihoods(gl, ploidy, num_alleles)
+	def __cinit__(self, vector[long double] gl, uint32_t num_alleles, uint32_t ploidy):
+		self.thisptr = new cpp.GenotypeLikelihoods(gl, num_alleles, ploidy)
 
 	def __dealloc__(self):
 		del self.thisptr
@@ -429,8 +429,8 @@ cdef class GenotypingAlgorithm:
 	def __dealloc__(self):
 		del self.thisptr
 	
-	def get_genotype_likelihoods(self, uint32_t pos, uint32_t ploidy, uint32_t num_allele):
-		return GenotypeLikelihoods(self.thisptr.get_genotype_likelihoods(pos), ploidy = ploidy, num_alleles = num_allele)
+	def get_genotype_likelihoods(self, uint32_t index, uint32_t num_allele, uint32_t ploidy):
+		return GenotypeLikelihoods(self.thisptr.get_genotype_likelihoods(index), num_allele, ploidy)
 
 def run_cpp_tests():
 	cpp.run_all_tests()

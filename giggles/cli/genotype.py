@@ -132,7 +132,7 @@ def genotype_chromosome(variant_table,
         genotypes_list = variant_table.query_genotypes_of()
 
         for index, pos in enumerate(positions_list):
-            likelihoods = result.get_genotype_likelihoods(index, n_allele_list[index])
+            likelihoods = result.get_genotype_likelihoods(index, n_allele_list[index], ploidy)
             # compute genotypes from likelihoods and store information
             geno = determine_genotype(likelihoods, gt_prob, n_allele_list[index], ploidy)
             assert isinstance(geno, Genotype)
