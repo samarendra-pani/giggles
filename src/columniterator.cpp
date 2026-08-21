@@ -105,6 +105,7 @@ unique_ptr<vector<const Entry*>> ColumnIterator::get_next() {
 	unique_ptr<vector<const Entry*> > result(new vector<const Entry*>());
 	for (list_it = active_reads.begin(); list_it != active_reads.end(); ++list_it) {
 		Read* read = set.get(list_it->read_index);
+		if (!read->isClustered()) { continue; }
 		// Does read cover the current position?
 		if (read->getPosition(list_it->active_entry) == next_pos) {
 			result->push_back(read->getEntry(list_it->active_entry));
@@ -139,6 +140,7 @@ unique_ptr<vector<const Entry*>> ColumnIterator::get_prev() {
 	unique_ptr<vector<const Entry*> > result(new vector<const Entry*>());
 	for (list_it = active_reads.begin(); list_it != active_reads.end(); ++list_it) {
 		Read* read = set.get(list_it->read_index);
+		if (!read->isClustered()) { continue; }
 		// Does read cover the current position?
 		if (read->getPosition(list_it->active_entry) == next_pos) {
 			result->push_back(read->getEntry(list_it->active_entry));
