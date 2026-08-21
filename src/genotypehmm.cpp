@@ -81,8 +81,8 @@ void GenotypeHMM::compute_index(){
 
 	for(size_t column_index=0; column_index < column_iterator.get_column_count(); ++column_index){
 		
-		current_input_column = std::move(next_input_column);
-		current_read_ids = std::move(next_read_ids);
+		current_input_column = move(next_input_column);
+		current_read_ids = move(next_read_ids);
 		if (column_iterator.has_next()) {
 			next_input_column = column_iterator.get_next();
 			next_read_ids = extract_read_ids(*next_input_column);
@@ -419,7 +419,7 @@ void GenotypeHMM::compute_backward_column(size_t column_index) {
 	 */
 	//std::cout << "\t[BackwardColumn] Normalizing previous scores.\n";
 	if(previous_backward_scores != nullptr){
-		std::transform((*previous_backward_scores).begin(), (*previous_backward_scores).end(), (*previous_backward_scores).begin(), [scaling_sum](long double val) { return val/scaling_sum; });
+		transform((*previous_backward_scores).begin(), (*previous_backward_scores).end(), (*previous_backward_scores).begin(), [scaling_sum](long double val) { return val/scaling_sum; });
 	}
 	/**
 	 * We also divide all the backward values calculated for column_index - 1 with the same factor.
@@ -428,7 +428,7 @@ void GenotypeHMM::compute_backward_column(size_t column_index) {
 	 */
 	//std::cout << "\t[BackwardColumn] Normalizing current scores.\n";
 	if(current_backward_scores != nullptr){
-		std::transform((*current_backward_scores).begin(), (*current_backward_scores).end(), (*current_backward_scores).begin(), [scaling_sum](long double val) { return val/scaling_sum; });
+		transform((*current_backward_scores).begin(), (*current_backward_scores).end(), (*current_backward_scores).begin(), [scaling_sum](long double val) { return val/scaling_sum; });
 		backward_pass_table[column_index-1] = current_backward_scores;
 	}
 	scaling_parameters[column_index] = scaling_sum;
@@ -492,7 +492,7 @@ void GenotypeHMM::compute_forward_column(size_t column_index)
 	//std::cout << "\t[ForwardColumn] Recomputing Backward Columns.\n";
 	if (backward_probabilities == nullptr) {
 		// compute index of next column that has been stored
-		size_t next = std::min((uint32_t) ( ((column_index + k) / k) * k ), column_iterator.get_column_count()-1);
+		size_t next = min((uint32_t) ( ((column_index + k) / k) * k ), column_iterator.get_column_count()-1);
 		for(size_t i = next; i > column_index; --i){
 			//std::cout << "\t\t[ForwardColumn] Recomputing column " << i << ".\n";
 			compute_backward_column(i);
@@ -505,7 +505,7 @@ void GenotypeHMM::compute_forward_column(size_t column_index)
 		assert (backward_pass_table[column_index] != nullptr);
 		// last column just computed still needs to be scaled
 		long double scaling_sum = scaling_parameters[column_index];
-		std::transform((*backward_pass_table[column_index]).begin(), (*backward_pass_table[column_index]).end(), (*backward_pass_table[column_index]).begin(), [scaling_sum](long double val) { return val/scaling_sum; });
+		transform((*backward_pass_table[column_index]).begin(), (*backward_pass_table[column_index]).end(), (*backward_pass_table[column_index]).begin(), [scaling_sum](long double val) { return val/scaling_sum; });
 	}
 	backward_probabilities = backward_pass_table[column_index];
 	assert(backward_probabilities != nullptr);
@@ -754,7 +754,9 @@ void GenotypeHMM::compute_forward_column(size_t column_index)
 	vector<uint32_t> sorted_alleles(2);
 	variant_information_t& variant_info = variant_info_table->at(column_index);
 	assert (current_forward_probabilities.size() == backward_probabilities->size());
-	variant_info.genotype_likelihoods.reset(); // reseting the likelihood vector since it still has values from last genotyping round.
+	vector<long double> genotype_likelihood_vector(variant_info.genotype_likelihoods.size(), 0.0L);
+	/* No longer need the reset since we want to store the GL of unselected genotypes and decay them. */
+	// variant_info.genotype_likelihoods.reset(); // reseting the likelihood vector since it still has values from last genotyping round.
 	for (bipartition_index = 0; bipartition_index < num_curr_bipartitions; bipartition_index++) {
 		for (r_index = 0; r_index < num_curr_ref_states; r_index++) {
 			state_index = get_node_index(bipartition_index, r_index, num_curr_ref_states);
@@ -775,26 +777,47 @@ void GenotypeHMM::compute_forward_column(size_t column_index)
 			forward_backward = current_forward_probabilities[state_index] * backward_probabilities->at(state_index);
 			normalization += forward_backward;
 
-			variant_info.genotype_likelihoods.increment_by_index(cannonical_genotype_index, forward_backward);
+			genotype_likelihood_vector[cannonical_genotype_index] += forward_backward;
+			// variant_info.genotype_likelihoods.increment_by_index(cannonical_genotype_index, forward_backward);
 		}
 	}
-	
+
+	//std::cout << "\t[ForwardColumn] Normalizing genotype likelihoods of currently selected genotypes.\n";
+	transform(genotype_likelihood_vector.begin(), genotype_likelihood_vector.end(), genotype_likelihood_vector.begin(), [normalization](long double val) { return val/normalization; });
+	normalization = 0.0L;
+	for (uint32_t i = 0; i < genotype_likelihood_vector.size(); i++) {
+		if (genotype_likelihood_vector[i] == 0.0L) {
+			normalization += variant_info.genotype_likelihoods.get_by_index(i);
+		} else {
+			variant_info.genotype_likelihoods.set_by_index(i, 2.0L*genotype_likelihood_vector[i]);
+			/**
+			 * Here we multiply by 2 to increase the weights of the current genotype likelihoods as compared to the genotypes that were not selected.
+			 * For example, in round 1 of genotyping we got the vector {0.1, 0.4, 0.5} and so we only select genotypes 1 and 2.
+			 * So in round 2, when we get the genotype likelihoods 0.3 and 0.7, we get the vector {0.1, 0.6, 1.4} which then gets normalized. So we are weighting the current genotypes more.
+			 */
+			normalization += 2.0L*genotype_likelihood_vector[i];
+		}
+	}
+
 	// normalzing the forward probabilities of current column
 	//std::cout << "\t[ForwardColumn] Normalizing current forward scores.\n";
-	std::transform(current_forward_probabilities.begin(), current_forward_probabilities.end(), current_forward_probabilities.begin(), [sum](long double val) { return val/sum; });
+	transform(current_forward_probabilities.begin(), current_forward_probabilities.end(), current_forward_probabilities.begin(), [sum](long double val) { return val/sum; });
 	// normalize the helper variables
-	std::transform(curr_alpha_helper_1.begin(), curr_alpha_helper_1.end(), curr_alpha_helper_1.begin(), [sum](long double val) { return val/sum; });
+	transform(curr_alpha_helper_1.begin(), curr_alpha_helper_1.end(), curr_alpha_helper_1.begin(), [sum](long double val) { return val/sum; });
 	for (uint32_t i = 0; i < num_curr_bipartitions; i++) {
-		std::transform(curr_alpha_helper_2[i].begin(), curr_alpha_helper_2[i].end(), curr_alpha_helper_2[i].begin(), [sum](long double val) { return val/sum; });
-		std::transform(curr_alpha_helper_3[i].begin(), curr_alpha_helper_3[i].end(), curr_alpha_helper_3[i].begin(), [sum](long double val) { return val/sum; });
+		transform(curr_alpha_helper_2[i].begin(), curr_alpha_helper_2[i].end(), curr_alpha_helper_2[i].begin(), [sum](long double val) { return val/sum; });
+		transform(curr_alpha_helper_3[i].begin(), curr_alpha_helper_3[i].end(), curr_alpha_helper_3[i].begin(), [sum](long double val) { return val/sum; });
 	}
 	// normalize the likelihoods
+	//std::cout << "\t[ForwardColumn] Normalizing all genotype likelihoods.\n";
 	variant_info.genotype_likelihoods.divide_likelihoods_by(normalization);
 
 	// update the variant info tables active alleles based on the calculated likelihoods
 	//std::cout << "\t[ForwardColumn] Selecting alleles and genotypes based on genotype likelihoods.\n";
-	std::vector<uint32_t> selected_genotype_indices = variant_info.genotype_likelihoods.select_genotypes();
+	vector<uint32_t> selected_genotype_indices = variant_info.genotype_likelihoods.select_genotypes();
+	//std::cout << "\t[ForwardColumn] Selected " << selected_genotype_indices.size() << " genotypes.\n";
 	variant_info.update_active_alleles(ploidy, selected_genotype_indices);
+	//std::cout << "\t[ForwardColumn] Selected " << variant_info.count_active_alleles() << " alleles.\n";
 	if (variant_info.phasable) {
 		read_set->setEntryAlleles(variant_info.position, variant_info.active_alleles);
 	}
