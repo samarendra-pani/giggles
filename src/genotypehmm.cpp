@@ -109,8 +109,9 @@ void GenotypeHMM::compute_backward_prob()
 	column_iterator.jump_to_column(column_count-1);
 	// backward pass: create sparse table
 	size_t k = (size_t)sqrt(column_count);
-	for(uint32_t column_index = column_count-1; column_index >= 0; --column_index){
-		//std::cout << "\n[BackwardColumn] Computing column " << column_index << std::endl;
+	for(int32_t column_index = column_count-1; column_index >= 0; --column_index){
+		//std::cout << "\n[BackwardColumn] Computing column " << column_index;
+		//std::cout << "\tSV:" << (int)variant_info_table->at(column_index).is_sv << "\tPhasable:" << (int)variant_info_table->at(column_index).phasable << "\n";
 		compute_backward_column(column_index);
 		/**
 		 * To conserve space, we only keep every k columns' backward values
@@ -137,7 +138,8 @@ void GenotypeHMM::compute_forward_prob() {
 	// reset active column to the leftmost column
 	column_iterator.jump_to_column(0);
 	for (size_t column_index=0; column_index < column_iterator.get_column_count(); ++column_index) {
-		//std::cout << "\n[ForwardColumn] Computing column" << column_index << std::endl;
+		//std::cout << "\n[ForwardColumn] Computing column" << column_index;
+		//std::cout << "\tSV:" << (int)variant_info_table->at(column_index).is_sv << "\tPhasable:" << (int)variant_info_table->at(column_index).phasable << "\n";
 		compute_forward_column(column_index);
 	}
 }
@@ -164,7 +166,7 @@ void GenotypeHMM::compute_backward_column(size_t column_index) {
 	unique_ptr<vector<const Entry*>> current_input_column = nullptr;
 	column_iterator.jump_to_column(column_index);
 	current_input_column = column_iterator.get_prev();
-	//std::cout << "\t[BackwardColumn] Extracting entry objects is successful.\n";
+	//std::cout << "\t[BackwardColumn] Found " << current_input_column->size() << " entries.\n";
 	
 	if(column_index > 0){
 		/**
@@ -248,6 +250,12 @@ void GenotypeHMM::compute_backward_column(size_t column_index) {
 		current_backward_scores = new vector<long double>(num_total_states, 0.0L);
 		const vector<int>& curr_haplotype_to_allele = variant_info_table->at(column_index-1).allele_references;     // This contains the haplotype-to-allele mapping for the position column_index-1
 		const vector<bool>& prev_active_alleles = variant_info_table->at(column_index).active_alleles;
+
+		// Some stats from Column objects
+		//std::cout << "\t[BackwardColumn] Column object at " << column_index << " has " << prev_indexer->get_read_ids()->size() << " reads.\n";
+		//std::cout << "\t[BackwardColumn] Column object at " << column_index << " has " << prev_indexer->get_read_cluster_ids()->size() << " clusters.\n";
+		//std::cout << "\t[BackwardColumn] Column object at " << column_index-1 << " has " << curr_indexer->get_read_ids()->size() << " reads.\n";
+		//std::cout << "\t[BackwardColumn] Column object at " << column_index-1 << " has " << curr_indexer->get_read_cluster_ids()->size() << " clusters.\n";
 
 		// DEBUGGING STATEMENTS
 		{
@@ -507,6 +515,7 @@ void GenotypeHMM::compute_forward_column(size_t column_index)
 	unique_ptr<vector<const Entry*>> current_input_column = nullptr;
 	column_iterator.jump_to_column(column_index);
 	current_input_column = column_iterator.get_next();
+	//std::cout << "\t[ForwardColumn] Found " << current_input_column->size() << " entries.\n";
 	
 	/**
 	 * Initializing objects and retrieving appropriate information
@@ -608,6 +617,12 @@ void GenotypeHMM::compute_forward_column(size_t column_index)
 		num_prev_bipartitions = prev_indexer->get_num_bipartition();
 		prev_haplotype_mapper = haplotype_mapper_table.at(column_index-1);
 		num_prev_ref_states = prev_haplotype_mapper->get_num_states();
+
+		// Some stats from Column objects
+		//std::cout << "\t[ForwardColumn] Column object at " << column_index-1 << " has " << prev_indexer->get_read_ids()->size() << " reads.\n";
+		//std::cout << "\t[ForwardColumn] Column object at " << column_index-1 << " has " << prev_indexer->get_read_cluster_ids()->size() << " clusters.\n";
+		//std::cout << "\t[ForwardColumn] Column object at " << column_index << " has " << curr_indexer->get_read_ids()->size() << " reads.\n";
+		//std::cout << "\t[ForwardColumn] Column object at " << column_index << " has " << curr_indexer->get_read_cluster_ids()->size() << " clusters.\n";
 	}
 	// iterate over all bipartitions
 	unique_ptr<BipartitionIterator> iterator = curr_indexer->get_iterator(read_set);
