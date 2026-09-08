@@ -34,7 +34,7 @@ class VariantCallPhase:
 class VcfVariant:
     """A variant in a VCF file (not to be confused with core.Variant)"""
 
-    __slots__ = ("id", "position", "position_on_ref", "reference_allele", "alternative_allele", "allele_origin", "length_on_path", "state", "distance_matrix", "sv")
+    __slots__ = ("id", "position", "position_on_ref", "reference_allele", "alternative_allele", "allele_origin", "length_on_path", "state", "distance_matrix", "sv", "has_anchor")
 
     def __init__(self, id: str, position: int, reference_allele: str, alternative_allele: tuple, allele_origin: list, max_distance: int, use_distance_matrix: bool = False):
         
@@ -60,7 +60,10 @@ class VcfVariant:
         #   - 2: the read ends within this variant.
         #   - 3: the read starts and ends within this variant.
         self.state = None
+        self.has_anchor = False
         self.sv = True if any(len(alt) >= 50 or len(self.reference_allele) >= 50 for alt in self.alternative_allele) else False
+        if self.has_anchor_base():
+            self.remove_anchor_base()
         if use_distance_matrix and self.is_sv():
             self.distance_matrix = self.calculate_distance_matrix(max_distance=max_distance)
         else:
@@ -119,6 +122,7 @@ class VcfVariant:
             if alt[0] != anchor_base:
                 has_anchor = False
                 break
+        self.has_anchor = has_anchor
         return has_anchor
     
     def remove_anchor_base(self):
@@ -389,8 +393,6 @@ class VcfReader:
             prev_position = pos
             
             variant = VcfVariant(id = id, position=pos, reference_allele=ref, alternative_allele=alts, allele_origin=allele_origin, max_distance=self.max_allele_distance, use_distance_matrix=self._is_custom_graph)
-            if variant.has_anchor_base():
-                variant.remove_anchor_base()
             table.add_variant(variant)
 
         logger.info(f"Processed Chromosome {chromosome}. Parsed {n_snvs} SNVs, {n_other} non-SNVs and {n_multi} multi-ALTs. Identified {n_ext} external variants added to the graph variants. Also skipped {n_skip} records exceeding max allele caparacity.")
@@ -705,10 +707,15 @@ class GenotypeVcfWriter(VcfAugmenter):
         # map positions to index
         genotyped_variants = dict()
         for i in range(len(variant_table)):
-            genotyped_variants[variant_table.variants[i].position_on_ref] = i
+            if variant_table.variants[i].has_anchor:
+                genotyped_variants[variant_table.variants[i].position_on_ref-1] = i
+            else:
+                genotyped_variants[variant_table.variants[i].position_on_ref] = i
+        num_genotypable_positions = len(variant_table)
 
         # INT_TO_UNPHASED_GT = {0: (0, 0), 1: (0, 1), 2: (1, 1), -1: None}
         GT_GL_GQ = frozenset(["GT", "GL", "GQ"])
+        count_genotypable_positions = 0
         for record in self._record_modifier(chromosome):
             pos = record.start
             if not record.alts:
@@ -721,6 +728,7 @@ class GenotypeVcfWriter(VcfAugmenter):
                 geno_q = None
                 # for genotyped variants, get computed likelihoods/genotypes (for all others, give uniform likelihoods)
                 if pos in genotyped_variants:
+                    count_genotypable_positions += 1
                     likelihoods = variant_table.query_genotype_likelihoods_of()[
                         genotyped_variants[pos]
                     ]
@@ -758,3 +766,4 @@ class GenotypeVcfWriter(VcfAugmenter):
                 # delete all other genotype information that might have been present before
                 for tag in set(call.keys()) - GT_GL_GQ:
                     del call[tag]
+        assert (count_genotypable_positions == num_genotypable_positions)
