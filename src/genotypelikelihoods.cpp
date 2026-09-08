@@ -52,6 +52,7 @@ std::string GenotypeLikelihoods::toString() const {
 		if (i > 0) oss << ",";
 		oss << gl[i];
 	}
+    oss << ")";
 	return oss.str();
 }
 
