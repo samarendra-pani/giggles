@@ -59,7 +59,27 @@ def genotype_chromosome(variant_table,
     allele_references_list = []
     is_sv_list = []
     variant_count = 0
-    
+
+    for i in range(len(variant_table.variants)):
+            v = variant_table.variants[i]
+            if v.position_on_ref not in readset_positions:
+                continue
+            if v.position_on_ref in var_pos_to_ind:
+                raise RuntimeError(f'Position {v.position_on_ref} has multiple variant lines.')
+            var_pos_to_ind[v.position_on_ref] = i
+            positions_list.append(v.position_on_ref)
+            n_allele_list.append(len(v.alternative_allele)+1)
+            is_sv_list.append(v.is_sv())
+            allele_reference_to_list = []
+            for ref_sample in v.allele_origin:
+                for hap in ref_sample:
+                    try:
+                        allele_reference_to_list.append(int(hap))
+                    except TypeError:
+                        allele_reference_to_list.append(-1)
+            allele_references_list.append(allele_reference_to_list)
+            variant_count += 1
+
     # Get the reads
     with timers("read_alignment"):
         readset = readset_creator.read(
@@ -71,25 +91,6 @@ def genotype_chromosome(variant_table,
         logger.info(f"Skipping chromosome {chromosome} because no reads were found.")
         return
 
-    for i in range(len(variant_table.variants)):
-        v = variant_table.variants[i]
-        if v.position_on_ref not in readset_positions:
-            continue
-        if v.position_on_ref in var_pos_to_ind:
-            raise RuntimeError(f'Position {v.position_on_ref} has multiple variant lines.')
-        var_pos_to_ind[v.position_on_ref] = i
-        positions_list.append(v.position_on_ref)
-        n_allele_list.append(len(v.alternative_allele)+1)
-        is_sv_list.append(v.is_sv())
-        allele_reference_to_list = []
-        for ref_sample in v.allele_origin:
-            for hap in ref_sample:
-                try:
-                    allele_reference_to_list.append(int(hap))
-                except TypeError:
-                    allele_reference_to_list.append(-1)
-        allele_references_list.append(allele_reference_to_list)
-        variant_count += 1
     
     logger.info(f"Collating variant information from {len(readset_positions)} covered variant positions to pass into C++ core.")
 
