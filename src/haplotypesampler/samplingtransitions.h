@@ -17,7 +17,7 @@ public:
 	* @param number of paths in the panel
 	* @param effective_N effective population size
 	**/
-	SamplingTransitions(size_t from_variant, size_t to_variant, double recomb_rate, unsigned short nr_paths, long double effective_N = 25000.0L);
+	SamplingTransitions(size_t from_variant, size_t to_variant, double recomb_rate, unsigned int nr_paths, long double effective_N = 25000.0L);
 	/** computes transition cost. If there is a recombination event, cost is defined as the phred-scaled recombination probability
 	* if no recombination, cost is zero.
 	* @param indicates if recombination event happened between columns

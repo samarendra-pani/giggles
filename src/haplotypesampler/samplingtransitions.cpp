@@ -7,7 +7,7 @@
 #include <iostream>
 #include "samplingtransitions.h"
 
-SamplingTransitions::SamplingTransitions(size_t from_variant, size_t to_variant, double recomb_rate, unsigned short nr_paths, long double effective_N) {
+SamplingTransitions::SamplingTransitions(size_t from_variant, size_t to_variant, double recomb_rate, unsigned int nr_paths, long double effective_N) {
 	assert(from_variant <= to_variant);
 	// using same formula as in WhatsHap
 	long double distance = (to_variant - from_variant) * 0.000004L * ((long double) recomb_rate) * effective_N;

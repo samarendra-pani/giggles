@@ -12,10 +12,10 @@
 class SamplingEmissions {
 public:
 	SamplingEmissions(const std::vector<const Entry*>& entries, uint32_t n_alleles);
-	unsigned int get_emission_cost(unsigned short allele_id) const;
-	void penalize(unsigned short allele_id, unsigned short penalty);
+	unsigned int get_emission_cost(unsigned int allele_id) const;
+	void penalize(unsigned int allele_id, unsigned int penalty);
 private:
-	std::vector<unsigned short> allele_penalties;
+	std::vector<unsigned int> allele_penalties;
 	unsigned int default_penalty;
 
 };

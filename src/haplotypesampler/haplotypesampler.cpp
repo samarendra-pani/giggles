@@ -181,7 +181,7 @@ void HaplotypeSampler::compute_viterbi_path(vector<uint32_t>* best_scores) {
 		path[column_index] = best_index;
 
 		// penalize allele covered by selected path
-		unsigned short best_allele = this->variant_info_table->at(column_index).allele_references[best_index];
+		unsigned int best_allele = this->variant_info_table->at(column_index).allele_references[best_index];
 		emission_costs.at(column_index).penalize(best_allele, allele_penalty);
 
 		if (column_index == 0) break;
@@ -294,7 +294,7 @@ void HaplotypeSampler::compute_viterbi_column(uint32_t column_index) {
 			}
 		}
 		// add Emission costs
-		unsigned short allele = (unsigned short)this->variant_info_table->at(column_index).allele_references[i];
+		unsigned int allele = (unsigned int)this->variant_info_table->at(column_index).allele_references[i];
 		current_column->column[i] = previous_cell + emission_costs.at(column_index).get_emission_cost(allele);
 		
 		// check if there was an overflow
