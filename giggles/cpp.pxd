@@ -91,7 +91,6 @@ cdef extern from "../src/genotypingalgorithm.h":
 			float recombrate, 
 			float eff_pop_size, 
 			uint32_t num_sampled_haplotypes,
-			bool remove_reference_path,
 			float sampling_eff_pop_size,
 			uint32_t allele_penalty, 
 			vector[uint32_t]* positions, 
