@@ -3,7 +3,7 @@ SUBMODULE_DIR = external/wfa2
 PYTHON = python3
 PIP = pip
 
-.PHONY: all wfa2 install clean
+.PHONY: all wfa2 install clean clean-install submodules dev-install hilbert-install
 
 all: wfa2 install
 
@@ -33,6 +33,12 @@ install:
 dev-install: submodules
 	@echo "\nCompiling Cython and installing developmental giggles via pip..."
 	pip install -e .[dev]
+
+hilbert-install:
+	@echo "\nSetting up environment, compiling submodules, and installing via pip..."
+	module load gcc/15.1.0
+	$(MAKE) submodules
+	PIP_CONFIG_FILE=/software/python/pip.conf pip install -e .[dev]
 
 # cleanup
 # -------
