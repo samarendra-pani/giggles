@@ -27,7 +27,6 @@ class GenotypingAlgorithm {
 			const float& recombrate,
 			const float& eff_pop_size,
 			const uint32_t& num_sampled_haplotypes,
-			const bool remove_reference_path,
 			const float& sampling_eff_pop_size,
 			const uint32_t& allele_penalty,
 			const std::vector<uint32_t>* positions, 

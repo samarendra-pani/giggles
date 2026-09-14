@@ -39,7 +39,7 @@ void test_singlecolumn() {
     read9->addVariant(100, std::vector<uint8_t>{95, 90, 0, 10});
     read10->addVariant(100, std::vector<uint8_t>{90, 10, 0, 10});
     
-    HaplotypeSampler* sampler = new HaplotypeSampler(read_set, &variant_info_table, 2, 1.0, 1.0, nullptr, true, 10);
+    HaplotypeSampler* sampler = new HaplotypeSampler(read_set, &variant_info_table, 2, 1.0, 1.0, nullptr, 10);
     std::vector<variant_information_t> updated_table = sampler->get_updated_variant_table(2);
 
     assert(updated_table.size() == 1);
@@ -47,7 +47,7 @@ void test_singlecolumn() {
     assert(updated_table[0].get_active_allele_positions()[0] == 0);
 
     sampler = nullptr;
-    sampler = new HaplotypeSampler(read_set, &variant_info_table, 6, 1.0, 1.0, nullptr, true, 10);
+    sampler = new HaplotypeSampler(read_set, &variant_info_table, 6, 1.0, 1.0, nullptr, 10);
     updated_table = sampler->get_updated_variant_table(2);
     assert(updated_table.size() == 1);
     assert(updated_table[0].count_active_alleles() == 2);
@@ -55,7 +55,7 @@ void test_singlecolumn() {
     assert(updated_table[0].get_active_allele_positions()[1] == 1);
 
     sampler = nullptr;
-    sampler = new HaplotypeSampler(read_set, &variant_info_table, 8, 1.0, 1.0, nullptr, true, 10);
+    sampler = new HaplotypeSampler(read_set, &variant_info_table, 8, 1.0, 1.0, nullptr, 10);
     updated_table = sampler->get_updated_variant_table(2);
     assert(updated_table.size() == 1);
     assert(updated_table[0].count_active_alleles() == 3);
@@ -134,7 +134,7 @@ void test_multiplecolumns() {
     }
 
     std::vector<uint32_t>* best_scores = new std::vector<uint32_t>();
-    HaplotypeSampler* sampler = new HaplotypeSampler(read_set, &variant_info_table, 4, 1.0, 25000.0F, best_scores, true, 10);
+    HaplotypeSampler* sampler = new HaplotypeSampler(read_set, &variant_info_table, 4, 1.0, 25000.0F, best_scores, 10);
     
     std::vector<variant_information_t> updated_table = sampler->get_updated_variant_table(2);
 

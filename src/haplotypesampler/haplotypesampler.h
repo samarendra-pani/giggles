@@ -72,7 +72,6 @@ class HaplotypeSampler {
 		* @param recombrate recombination rate
 		* @param effective_N effective population size
 		* @param best_scores vector in which DP score of each iteration is stored (mainly used for testing purposes)
-		* @param remove_reference not consider reference sequence as an additional sampled path
 		* @param path_output output paths of sampled path_ids to file
 		* @param chromosome name of the chromosome (only used when writing path_output)
 		* @param allele_penalty penality to penalize already covered alleles
@@ -84,7 +83,6 @@ class HaplotypeSampler {
 			const float recombrate = 1.26, 
 			const float effective_N = 25000.0, 
 			std::vector<uint32_t>* best_scores = nullptr, 
-			const bool remove_reference = false, 
 			const uint32_t allele_penalty = 10
 		);
 

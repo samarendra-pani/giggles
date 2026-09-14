@@ -43,7 +43,6 @@ def genotype_chromosome(variant_table,
         recombrate,
         eff_pop_size,
         num_sampled_haplotypes,
-        remove_reference_path,
         sampling_eff_pop_size,
         allele_penalty,
         n_haplotypes,
@@ -118,7 +117,6 @@ def genotype_chromosome(variant_table,
             recombrate,
             eff_pop_size,
             num_sampled_haplotypes,
-            remove_reference_path,
             sampling_eff_pop_size,
             allele_penalty,
             positions_list,
@@ -167,7 +165,6 @@ def run_genotype(
     recombrate=1.26,
     eff_pop_size=10.0,
     num_sampled_haplotypes=15,
-    remove_reference_path=False,
     sampling_eff_pop_size=1.0,
     allele_penalty=10
 ):
@@ -229,7 +226,6 @@ def run_genotype(
             recombrate=recombrate,
             eff_pop_size=eff_pop_size,
             num_sampled_haplotypes=num_sampled_haplotypes,
-            remove_reference_path=remove_reference_path,
             sampling_eff_pop_size=sampling_eff_pop_size,
             allele_penalty=allele_penalty,
             n_haplotypes=n_haplotypes,
@@ -322,8 +318,6 @@ def add_arguments(parser):
     arg = parser.add_argument_group('Haplotype sampling parameters').add_argument
     arg('--num-sampled-haplotypes', metavar='NUM_SAMPLED_HAPLOTYPES', default = 15, type = int,
         help="How many haplotypes to select (default: %(default)s)")
-    arg('--remove-reference-path',action='store_true',
-        help="Remove the reference path as a sampled haplotpe.")
     arg('--sampling-eff-pop-size', metavar='SAMPLING_EFF_POP_SIZE', default = 25000.0, type = float,
         help="Parameter for transition probability computing for haplotype sampling (default: %(default)s)")
     arg('--allele-penalty', metavar='ALLELE_PENALTY', default = 10, type = int,

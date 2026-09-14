@@ -69,7 +69,6 @@ class GenotypingAlgorithm:
         recombrate: float,
         eff_pop_size: float,    
         num_sampled_haplotypes: int,
-        remove_reference_path: bool,
         sampling_eff_pop_size: float,
         allele_penalty: int,
         positions: Iterable[int] = ...,

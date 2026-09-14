@@ -354,7 +354,6 @@ cdef class GenotypingAlgorithm:
 			recombrate, 
 			eff_pop_size,
 			num_sampled_haplotypes,
-			remove_reference_path,
 			sampling_eff_pop_size,
 			allele_penalty,
 			positions, 
@@ -379,7 +378,6 @@ cdef class GenotypingAlgorithm:
 		cdef vector[bool]* c_is_sv_ptr = NULL
 		
 		cdef uint32_t c_num_sampled_haplotypes = num_sampled_haplotypes
-		cdef bool c_remove_reference_path = remove_reference_path
 		cdef float c_sampling_eff_pop_size = sampling_eff_pop_size
 		cdef uint32_t c_allele_penalty = allele_penalty
 		
@@ -418,7 +416,6 @@ cdef class GenotypingAlgorithm:
 			c_recombrate,
 			c_eff_pop_size,
 			c_num_sampled_haplotypes,
-			c_remove_reference_path,
 			c_sampling_eff_pop_size,
 			c_allele_penalty,
 			c_positions_ptr, 

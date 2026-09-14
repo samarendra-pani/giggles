@@ -14,7 +14,6 @@ GenotypingAlgorithm::GenotypingAlgorithm(
 	const float& recombrate,
 	const float& eff_pop_size,
 	const uint32_t& num_sampled_haplotypes,
-	const bool remove_reference_path,
 	const float& sampling_eff_pop_size,
 	const uint32_t& allele_penalty,
 	const std::vector<uint32_t>* positions,
@@ -46,12 +45,7 @@ GenotypingAlgorithm::GenotypingAlgorithm(
 	/**
 	 * Haplotype sampling algorithm
 	 */
-	std::cerr << "[Core::HaplotypeSampling] Running haplotype sampling to get " << num_sampled_haplotypes << " haplotypes";
-	if (remove_reference_path) {
-		std::cerr << " (not mandatorily keeping the reference path.)" << std::endl;
-	} else {
-		std::cerr << " (mandatorily keeping the reference path.)" << std::endl;
-	}
+	std::cerr << "[Core::HaplotypeSampling] Running haplotype sampling to get " << num_sampled_haplotypes << " haplotypes" << std::endl;
 	HaplotypeSampler haplotype_sampler = HaplotypeSampler(
 		read_set, 
 		&variant_info_table, 
@@ -59,7 +53,6 @@ GenotypingAlgorithm::GenotypingAlgorithm(
 		recombrate, 
 		sampling_eff_pop_size, 
 		nullptr, 
-		remove_reference_path, 
 		allele_penalty);
 
 	std::cerr << "[Core::HaplotypeSampling] Creating updated variant table." << std::endl;

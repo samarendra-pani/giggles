@@ -28,7 +28,6 @@ HaplotypeSampler::HaplotypeSampler(
 	const float recombrate, 
 	const float effective_N, 
 	vector<uint32_t>* best_scores, 
-	const bool remove_reference, 
 	const uint32_t allele_penalty)
 	: read_set(read_set),
 	variant_info_table(variant_info_table),
@@ -46,7 +45,6 @@ HaplotypeSampler::HaplotypeSampler(
 		compute_viterbi_path(best_scores);
 	}
 
-	if (!remove_reference) this->sampled_paths.sampled_paths.push_back(vector<uint32_t>(variant_info_table->size(), 0));	
 	// print the sampled paths if requested
 	/*
 	if (path_output != "") {
