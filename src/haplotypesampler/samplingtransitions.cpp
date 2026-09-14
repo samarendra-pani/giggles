@@ -12,7 +12,12 @@ SamplingTransitions::SamplingTransitions(size_t from_variant, size_t to_variant,
 	// using same formula as in WhatsHap
 	long double distance = (to_variant - from_variant) * 0.000004L * ((long double) recomb_rate) * effective_N;
 	// use Li-Stephans pair HMM transitions TODO: correct?
-	long double recomb_prob = (1.0L - exp(-distance / (long double) nr_paths) )* (1.0L / (long double) nr_paths);
+	long double exponent = -distance / (long double) nr_paths;
+	long double recomb_prob = -std::expm1(exponent) * (1.0L / (long double) nr_paths);
+	// Safety net: strictly prevent log10(0) if distance is exactly 0
+	if (recomb_prob <= 0.0L) {
+		recomb_prob = 1e-300L; 
+	}
 	this->cost = -10.0 * log10(recomb_prob);
 	// std::cout << "[" << from_variant << "-" << to_variant << "] TP: " << this->cost << std::endl;
 }
