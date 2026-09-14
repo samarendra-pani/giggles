@@ -335,6 +335,10 @@ class GafParser:
         """
         Fetch GafAlignment from specified contig
         """
+        count_mapq_skipped = 0
+        count_nonprimary_skipped = 0
+        count_inv_skipped = 0
+        count_total = 0
         for source_id, alignment_file in enumerate(self._files):
             try:
                 # Contains offset of first line of alignment and last line of alignment for a particular contig
@@ -352,12 +356,15 @@ class GafParser:
                 if alignment_file.tell() == offsets[1]:
                     iterator = False
                 a = GafAlignment(line, source_id, self._fastas[source_id])
+                count_total += 1
                 logger.trace(f'Processed {a.read_id}')
                 if a.mapping_quality < self._mapq:
                     logger.trace(f'Skipping {a.read_id} due to low mapq.')
+                    count_mapq_skipped += 1
                     continue
                 if a.tags['tp'] != "P":
                     logger.trace(f'Skipping {a.read_id}. Not a primary alignment.')
+                    count_nonprimary_skipped += 1
                     continue
                 if a.tags['sn'] != self._contig_iter:
                     assert a.tags['sn'] == 'unknown', "GAF is not properly sorted."
@@ -366,8 +373,10 @@ class GafParser:
                 # TODO: What to do with this inversion case?
                 if a.tags['iv'] == 1:
                     logger.trace(f'Skipping {a.read_id} due to having inversion.')
+                    count_inv_skipped += 1
                     continue
                 yield a
+        logger.info(f'From a total of {count_total} alignments, we skipped {count_mapq_skipped} low mapq, {count_nonprimary_skipped} non-primary, and {count_inv_skipped} inversion alignments.')
 
     def __exit__(self):
         self.close()
