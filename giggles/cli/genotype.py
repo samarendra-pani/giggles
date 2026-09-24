@@ -23,9 +23,7 @@ from giggles.core import (
     Genotype
 )
 from giggles.utils import (
-    UniformRecombinationCostComputer,
     update_haplotypesampling_output,
-    concatenate_haplotypesampling_outputs,
     write_haplotypesampling_header
 )
 from giggles.gaf import rGFA
