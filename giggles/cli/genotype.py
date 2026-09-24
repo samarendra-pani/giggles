@@ -7,6 +7,7 @@ forward backward algorithm.
 
 # Code modified from WhatsHap (https://github.com/whatshap/whatshap)
 
+import os
 import sys
 import platform
 import tempfile
@@ -53,10 +54,7 @@ def genotype_chromosome(variant_table,
     ):
 
     chromosome = variant_table.chromosome
-    if path_output != "":
-        chromosome_path_output = tempfile.TemporaryFile()
-    else:
-        chromosome_path_output = ""
+    
     # create a mapping of genome positions to indices
     var_pos_to_ind = dict()
     positions_list = []
@@ -115,43 +113,55 @@ def genotype_chromosome(variant_table,
 
     # Run genotyping algorithm
     with timers("genotyping-phasing"):
-        result = GenotypingAlgorithm(
-            readset, 
-            n_haplotypes,
-            ploidy,
-            temperature,
-            recombrate,
-            eff_pop_size,
-            num_sampled_haplotypes,
-            sampling_eff_pop_size,
-            allele_penalty,
-            chromosome_path_output,
-            positions_list,
-            n_allele_list,
-            allele_references_list,
-            is_sv_list
-        )
-    
-        # store results
-        likelihood_list = variant_table.query_genotype_likelihoods_of()
-        genotypes_list = variant_table.query_genotypes_of()
+        
+        if path_output != "":
+            tmp_dir = tempfile.TemporaryDirectory()
+            # FIX 1: Use tmp_dir.name
+            chromosome_path_output = os.path.join(tmp_dir.name, "hap-sampling.tmp")
+        else:
+            tmp_dir = None
+            chromosome_path_output = ""
 
-        for index, pos in enumerate(positions_list):
-            likelihoods = result.get_genotype_likelihoods(index, n_allele_list[index], ploidy)
-            # compute genotypes from likelihoods and store information
-            geno = determine_genotype(likelihoods, gt_prob, n_allele_list[index], ploidy)
-            assert isinstance(geno, Genotype)
-            index_in_var_table = var_pos_to_ind[pos]
-            genotypes_list[index_in_var_table] = geno
-            likelihood_list[index_in_var_table] = likelihoods
+        try:
+            result = GenotypingAlgorithm(
+                readset, 
+                n_haplotypes,
+                ploidy,
+                temperature,
+                recombrate,
+                eff_pop_size,
+                num_sampled_haplotypes,
+                sampling_eff_pop_size,
+                allele_penalty,
+                chromosome_path_output,
+                positions_list,
+                n_allele_list,
+                allele_references_list,
+                is_sv_list
+            )
+        
+            # store results
+            likelihood_list = variant_table.query_genotype_likelihoods_of()
+            genotypes_list = variant_table.query_genotypes_of()
 
-        variant_table.query_set_genotypes_of(genotypes_list)
-        variant_table.query_set_genotype_likelihoods_of(likelihood_list)
+            for index, pos in enumerate(positions_list):
+                likelihoods = result.get_genotype_likelihoods(index, n_allele_list[index], ploidy)
+                # compute genotypes from likelihoods and store information
+                geno = determine_genotype(likelihoods, gt_prob, n_allele_list[index], ploidy)
+                assert isinstance(geno, Genotype)
+                index_in_var_table = var_pos_to_ind[pos]
+                genotypes_list[index_in_var_table] = geno
+                likelihood_list[index_in_var_table] = likelihoods
 
-    # updating the positions in the file along with the chromosome name
-    if chromosome_path_output != "":
-        update_haplotypesampling_output(path_output, chromosome_path_output, chromosome)
-        chromosome_path_output.close()
+            variant_table.query_set_genotypes_of(genotypes_list)
+            variant_table.query_set_genotype_likelihoods_of(likelihood_list)
+            
+            # updating the positions in the file along with the chromosome name
+            if chromosome_path_output != "":
+                update_haplotypesampling_output(path_output, chromosome_path_output, chromosome)
+                        
+        finally:
+            if path_output != "": tmp_dir.cleanup()
 
     return (variant_table, chromosome)
 
@@ -260,10 +270,6 @@ def run_genotype(
                 logger.info(f"======== Writing {chromosome} records")
                 vcf_writer.write_genotypes(chromosome, variant_table, indels=True)
                 logger.info(f"======== Finished writing {chromosome} records")
-
-    # concatenate the haplotype sampling output files
-    # TODO: For future me.
-    concatenate_haplotypesampling_outputs(path_output, processed_chromosomes)
 
     logger.info("\n== SUMMARY ==")
     total_time = timers.total()
