@@ -16,6 +16,7 @@ GenotypingAlgorithm::GenotypingAlgorithm(
 	const uint32_t& num_sampled_haplotypes,
 	const float& sampling_eff_pop_size,
 	const uint32_t& allele_penalty,
+	const std::string& path_output,
 	const std::vector<uint32_t>* positions,
 	const std::vector<uint32_t>* n_allele_positions,
 	const std::vector<std::vector<int> >* allele_references,
@@ -53,7 +54,8 @@ GenotypingAlgorithm::GenotypingAlgorithm(
 		recombrate, 
 		sampling_eff_pop_size, 
 		nullptr, 
-		allele_penalty);
+		allele_penalty,
+		path_output);
 
 	std::cerr << "[Core::HaplotypeSampling] Creating updated variant table." << std::endl;
 	variant_info_table = haplotype_sampler.get_updated_variant_table(ploidy);

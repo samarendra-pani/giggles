@@ -9,7 +9,7 @@ forward backward algorithm.
 
 import sys
 import platform
-import math
+import tempfile
 # from multiprocessing import Pool
 from functools import partial
 from contextlib import ExitStack
@@ -24,6 +24,9 @@ from giggles.core import (
 )
 from giggles.utils import (
     UniformRecombinationCostComputer,
+    update_haplotypesampling_output,
+    concatenate_haplotypesampling_outputs,
+    write_haplotypesampling_header
 )
 from giggles.gaf import rGFA
 from giggles.timer import StageTimer
@@ -45,12 +48,17 @@ def genotype_chromosome(variant_table,
         num_sampled_haplotypes,
         sampling_eff_pop_size,
         allele_penalty,
+        path_output,
         n_haplotypes,
         ploidy,
         temperature
     ):
 
     chromosome = variant_table.chromosome
+    if path_output != "":
+        chromosome_path_output = tempfile.TemporaryFile()
+    else:
+        chromosome_path_output = ""
     # create a mapping of genome positions to indices
     var_pos_to_ind = dict()
     positions_list = []
@@ -119,6 +127,7 @@ def genotype_chromosome(variant_table,
             num_sampled_haplotypes,
             sampling_eff_pop_size,
             allele_penalty,
+            chromosome_path_output,
             positions_list,
             n_allele_list,
             allele_references_list,
@@ -140,6 +149,11 @@ def genotype_chromosome(variant_table,
 
         variant_table.query_set_genotypes_of(genotypes_list)
         variant_table.query_set_genotype_likelihoods_of(likelihood_list)
+
+    # updating the positions in the file along with the chromosome name
+    if chromosome_path_output != "":
+        update_haplotypesampling_output(path_output, chromosome_path_output, chromosome)
+        chromosome_path_output.close()
 
     return (variant_table, chromosome)
 
@@ -166,7 +180,8 @@ def run_genotype(
     eff_pop_size=10.0,
     num_sampled_haplotypes=15,
     sampling_eff_pop_size=1.0,
-    allele_penalty=10
+    allele_penalty=10,
+    path_output=""
 ):
     logger.info(f"This is Giggles (genotyping) {__version__} running under Python {platform.python_version()}.\n")
     logger.info('== Working Files ==')
@@ -228,21 +243,29 @@ def run_genotype(
             num_sampled_haplotypes=num_sampled_haplotypes,
             sampling_eff_pop_size=sampling_eff_pop_size,
             allele_penalty=allele_penalty,
+            path_output=path_output,
             n_haplotypes=n_haplotypes,
             ploidy=ploidy,
             temperature=temperature)
-        
+
+        processed_chromosomes = []
+        write_haplotypesampling_header(path_output, num_sampled_haplotypes)
         # No parallel processing
         for variant_table in timers.iterate("parse_vcf", vcf_reader):
             result = partial_genotype_chromosome(variant_table=variant_table)
             if result == None:
                 continue
             variant_table, chromosome = result
+            processed_chromosomes.append(chromosome)
             # writing VCF outside of parallel processing
             with timers("write_vcf"):
                 logger.info(f"======== Writing {chromosome} records")
                 vcf_writer.write_genotypes(chromosome, variant_table, indels=True)
                 logger.info(f"======== Finished writing {chromosome} records")
+
+    # concatenate the haplotype sampling output files
+    # TODO: For future me.
+    concatenate_haplotypesampling_outputs(path_output, processed_chromosomes)
 
     logger.info("\n== SUMMARY ==")
     total_time = timers.total()
@@ -322,6 +345,8 @@ def add_arguments(parser):
         help="Parameter for transition probability computing for haplotype sampling (default: %(default)s)")
     arg('--allele-penalty', metavar='ALLELE_PENALTY', default = 10, type = int,
         help="Penalty for an allele already selected in one of sample haplotype paths (default: %(default)s)")
+    arg('--path-output', metavar='PATH_OUTPUT', default = "", type = str,
+            help="File path to print the sampled haplotypes (default: %(default)s)")
 # fmt: on
 
 

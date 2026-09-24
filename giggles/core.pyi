@@ -71,6 +71,7 @@ class GenotypingAlgorithm:
         num_sampled_haplotypes: int,
         sampling_eff_pop_size: float,
         allele_penalty: int,
+        path_output: str,
         positions: Iterable[int] = ...,
         n_allele_positions: Iterable[int] = ...,
         allele_references: Iterable[Iterable[int]] = ...,

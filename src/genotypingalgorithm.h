@@ -10,6 +10,7 @@ This code controls the alternating phasing-genotyping algorithm.
 #include "variantinfo.h"
 #include "readset.h"
 
+#include <string>
 #include <cassert>
 
 class GenotypeHMM;
@@ -29,6 +30,7 @@ class GenotypingAlgorithm {
 			const uint32_t& num_sampled_haplotypes,
 			const float& sampling_eff_pop_size,
 			const uint32_t& allele_penalty,
+			const std::string& path_output,
 			const std::vector<uint32_t>* positions, 
 			const std::vector<uint32_t>* n_allele_positions, 
 			const std::vector<std::vector<int> >* allele_references, 

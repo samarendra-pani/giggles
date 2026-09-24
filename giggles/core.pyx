@@ -356,6 +356,7 @@ cdef class GenotypingAlgorithm:
 			num_sampled_haplotypes,
 			sampling_eff_pop_size,
 			allele_penalty,
+			path_output,
 			positions, 
 			n_allele_positions, 
 			allele_references, 
@@ -380,6 +381,7 @@ cdef class GenotypingAlgorithm:
 		cdef uint32_t c_num_sampled_haplotypes = num_sampled_haplotypes
 		cdef float c_sampling_eff_pop_size = sampling_eff_pop_size
 		cdef uint32_t c_allele_penalty = allele_penalty
+		cdef string c_path_output = path_output.encode('UTF-8')
 		
 		cdef float c_recombrate = recombrate
 		cdef float c_eff_pop_size = eff_pop_size
@@ -418,6 +420,7 @@ cdef class GenotypingAlgorithm:
 			c_num_sampled_haplotypes,
 			c_sampling_eff_pop_size,
 			c_allele_penalty,
+			c_path_output,
 			c_positions_ptr, 
 			c_n_allele_positions_ptr, 
 			c_allele_references_ptr, 

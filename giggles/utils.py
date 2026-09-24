@@ -52,7 +52,25 @@ def update_reads_with_selected(readset, max_coverage, preferred_source_ids=None)
     selected_indices = readselection(readset, max_coverage, preferred_source_ids)
     readset.assign_selection_status(selected_indices)
     logger.info(f"Selected {len(selected_indices)} reads for phasing.")
-    
+
+# adding the chromosome name to the position column
+def update_haplotypesampling_output(file, chromosome_file, chromosome):
+    if file == "":
+        return
+    writer = open(file, 'a')
+    reader = open(chromosome_file, 'r')
+    for line in reader:
+        writer.write(f'{chromosome}-{line}\n')
+
+# writing the haplotype sampling header
+def write_haplotypesampling_header(file, num_paths):
+    if file == "":
+        return
+    with open(file, 'w') as f:
+        f.write('#position')
+        for i in range(num_paths):
+            f.write(f'\tHaplotype{i}\tAllele{i}\tRecombination{i}')
+        f.write('\n')
 
 class UniformRecombinationCostComputer:
     def __init__(self, recombination_rate, eff_pop_size):

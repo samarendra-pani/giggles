@@ -75,6 +75,7 @@ class HaplotypeSampler {
 		* @param path_output output paths of sampled path_ids to file
 		* @param chromosome name of the chromosome (only used when writing path_output)
 		* @param allele_penalty penality to penalize already covered alleles
+		* @param path_output filename to print the sampled haplotypes
 		**/
 		HaplotypeSampler(
 			ReadSet* read_set,
@@ -83,7 +84,8 @@ class HaplotypeSampler {
 			const float recombrate = 1.26, 
 			const float effective_N = 25000.0, 
 			std::vector<uint32_t>* best_scores = nullptr, 
-			const uint32_t allele_penalty = 10
+			const uint32_t allele_penalty = 10,
+			const std::string& path_output = ""
 		);
 
 		// keeping it public for testing purposes ..

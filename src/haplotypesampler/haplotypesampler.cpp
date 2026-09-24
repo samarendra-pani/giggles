@@ -28,7 +28,8 @@ HaplotypeSampler::HaplotypeSampler(
 	const float recombrate, 
 	const float effective_N, 
 	vector<uint32_t>* best_scores, 
-	const uint32_t allele_penalty)
+	const uint32_t allele_penalty,
+	const string& path_output)
 	: read_set(read_set),
 	variant_info_table(variant_info_table),
 	recombrate(recombrate),
@@ -46,30 +47,23 @@ HaplotypeSampler::HaplotypeSampler(
 	}
 
 	// print the sampled paths if requested
-	/*
 	if (path_output != "") {
 		ofstream path_outfile;
 		path_outfile.open(path_output);
 
-		// print the header line
-		path_outfile << "#chromosome\tposition";
-		for (uint32_t path_id = 0; path_id < this->sampled_paths.sampled_paths.size(); ++path_id) {
-			path_outfile << "\tHaplotypeID_path" << path_id << "\tRecombination_path" << path_id;
-		}
-		path_outfile << endl;
-
 		// print stats for each position
-		for (uint32_t column_index = 0; column_index < unique_kmers->size(); ++column_index) {
-			path_outfile << chromosome << "\t" << this->unique_kmers->at(column_index)->get_variant_position();
+		for (uint32_t column_index = 0; column_index < variant_info_table->size(); ++column_index) {
+			path_outfile << this->variant_info_table->at(column_index).position;
 			for (uint32_t path_id = 0; path_id < this->sampled_paths.sampled_paths.size(); ++path_id) {
-				path_outfile << "\t" << this->sampled_paths.sampled_paths.at(path_id).at(column_index);
+				uint32_t hap_index = this->sampled_paths.sampled_paths[path_id][column_index];
+				path_outfile << "\t" << hap_index;
+				path_outfile << "\t" << this->variant_info_table->at(column_index).allele_references[hap_index];
 				path_outfile << "\t" << this->sampled_paths.recombination(column_index, path_id);
 			}
 			path_outfile << endl;
 		}
 	}
-	*/
-
+	
 	// clean up
 	init(this->viterbi_columns, 0);
 	init(this->viterbi_backtrace_columns, 0);
