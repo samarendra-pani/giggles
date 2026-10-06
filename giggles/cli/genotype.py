@@ -86,7 +86,7 @@ def genotype_chromosome(variant_table,
     # Get the reads
     with timers("read_alignment"):
         readset = readset_creator.read(
-            sample, chromosome, variant_table.variants, haplotags, keep_untagged
+            chromosome, variant_table.variants, haplotags, keep_untagged
         )
     readset_positions = readset.get_positions()
     logger.info(f"Successfully created Readset for {chromosome}. Found {len(readset)} reads covering {len(readset_positions)} variants.")
