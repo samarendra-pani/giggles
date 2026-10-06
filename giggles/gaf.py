@@ -1,31 +1,13 @@
 import os
-from abc import ABC
-from urllib.parse import urlparse
 from typing import Iterator
-from .utils import reverse_complement, reverse_cigar
+from .utils import reverse_complement, reverse_cigar, detect_gzip
 from .logger import logger, warn_once
 
 
 import re
 import pysam
 import gzip
-from dataclasses import dataclass
 import pickle as pkl
-
-
-@dataclass
-class AlignmentWithSourceID:
-    source_id: int
-    bam_alignment: pysam.AlignedSegment
-
-
-def is_local(path):
-    return urlparse(path).scheme == ""
-
-
-def detect_gzip(path):
-    with open(path, 'rb') as test_f:
-        return (test_f.read(2) == b'\x1f\x8b')
 
 
 '''

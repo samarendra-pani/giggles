@@ -16,23 +16,24 @@ def detect_file_format(path):
     Detect file format and return 'BAM', 'CRAM', 'GAF' or None. None indicates an
     unrecognized file format.
     """
-    with open(path, "rb") as f:
-        first_bytes = f.read(16)
-        if first_bytes.startswith(b"CRAM"):
-            return "CRAM"
-
-    gzip_header = b"\037\213"
-    if first_bytes.startswith(gzip_header):
-        with gzip.GzipFile(path, "rb") as f:
-            first_bytes = f.read(16)
-            if first_bytes.startswith(b"BAM\1"):
-                return "BAM"
-    
-    #TODO: Need a better way to detect GAF file
-    path = path.split(".")
-    if "gaf" in path[-2:]:
+    path_str = str(path).lower() 
+    # Check for GAF and gzipped GAF extensions first
+    if path_str.endswith((".gaf", ".gaf.gz")):
         return "GAF"
+    try:
+        with open(path, "rb") as f:
+            first_bytes = f.read(16)
+            if first_bytes.startswith(b"CRAM"):
+                return "CRAM"
 
+            gzip_header = b"\037\213"
+            if first_bytes.startswith(gzip_header):
+                with gzip.GzipFile(path, "rb") as gz:
+                    decompressed_bytes = gz.read(16)
+                    if decompressed_bytes.startswith(b"BAM\1"):
+                        return "BAM"
+    except (IOError, OSError):
+        pass
     return None
 
 
@@ -161,3 +162,10 @@ def reverse_cigar(cigar):
     for i in range(len(all_cigars), 0, -2):
         new_cigar += str(all_cigars[i - 2]) + str(all_cigars[i - 1])
     return new_cigar
+
+def detect_gzip(path):
+    try:
+        with open(path, 'rb') as test_f:
+            return test_f.read(2) == b'\x1f\x8b'
+    except (OSError, IOError):
+        return False
