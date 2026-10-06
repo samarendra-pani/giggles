@@ -4,7 +4,7 @@ import sys
 import resource
 from giggles.logger import logger
 
-from giggles.variants import GAFReader
+from giggles.variants import GAFReader, BAMReader
 from giggles.core import ReadSet
 
 
@@ -12,11 +12,36 @@ class ReadSetCreator:
     def __init__(
         self,
         alignment_files,
+        sample,
         gfa,
+        reference_fasta,
         read_fasta_files,
-        **kwargs,  # passed to GAFReader constructor
+        **kwargs,
     ):
-        self.readset_reader = GAFReader(alignment_files, gfa, read_fasta_files, **kwargs)
+        self._sample = sample
+        
+        # Check if the input is a BAM or CRAM file
+        first_file = alignment_files[0].lower()
+        if first_file.endswith(".bam") or first_file.endswith(".cram"):
+            logger.info("BAM/CRAM file detected. Initializing BAMReader.")
+            bam_kwargs = kwargs.copy()
+            bam_kwargs.pop('is_custom_graph', None)
+            assert reference_fasta is not None
+            self.readset_reader = BAMReader(
+                alignment_files=alignment_files,
+                reference_fasta=reference_fasta,
+                **bam_kwargs
+            )
+        else:
+            logger.info("GAF file detected. Initializing GAFReader.")
+            assert gfa is not None
+            assert read_fasta_files is not None
+            self.readset_reader = GAFReader(
+                alignment_files=alignment_files, 
+                reference=gfa, 
+                read_fasta_files=read_fasta_files, 
+                **kwargs
+            )
 
     def __exit__(self, *args):
         self.readset_reader.close()
@@ -28,9 +53,11 @@ class ReadSetCreator:
         """
         Returns a ReadSet object with haplotags
         """
-
         logger.info("Reading alignments and detecting alleles.")
-        readset = self.readset_reader.read(chromosome, variants)
+        
+        # Both BAMReader and GAFReader now expose the exact same .read() signature!
+        readset = self.readset_reader.read(chromosome, variants, self._sample)
+        
         if readset is None:
             readset = ReadSet()
         
@@ -66,7 +93,6 @@ class ReadSetCreator:
                 new_readset.add(read)
                 
         return new_readset
-
 
 class Haplotag:
     def __init__(self, hp, ps, chr):

@@ -4,12 +4,13 @@ Detect variants in reads.
 # Code modified from WhatsHap (https://github.com/whatshap/whatshap)
 
 import re
-from collections import defaultdict, Counter, namedtuple
+from collections import Counter, namedtuple
 from typing import Iterable, Iterator, List
 
 from giggles.logger import logger
 from giggles.core import Read, ReadSet
 from giggles.gaf import GafParser, rGFA, GafAlignment
+from giggles.bam import SampleBamReader, MultiBamReader
 from giggles.vcf import VcfVariant
 from giggles.align import edit_distance
 from giggles.ext import WFAWrapper
@@ -53,22 +54,29 @@ class Realigner:
 
 class AlignmentReader:
     """
-    Superclass for the GAF Readers (and any other alignment file readers)
+    Superclass for the GAF and BAM/CRAM readers
     """
-    def __init__(
-            self,
-            path: List[str],
-            mapq_threshold: int,
-            overhang: int):
-
-        self._path = path
+    def __init__(self, path: List[str], mapq_threshold: int, overhang: int):
+        self._paths = path
         self._mapq_threshold = mapq_threshold
         self._aligner = Realigner()
         self._overhang = overhang
-        
+
     @property
     def n_paths(self):
         return len(self._paths)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        self.close()
+
+    def close(self):
+        if hasattr(self, '_aligner') and self._aligner:
+            self._aligner.close()
+        if hasattr(self, '_reader') and self._reader:
+            self._reader.close()
 
     @staticmethod
     def split_cigar(cigar, i, consumed):
@@ -135,7 +143,9 @@ class AlignmentReader:
                     return (reference_bases, query_pos)
             elif op == 1:  # I
                 query_pos += length
-            elif op == 4 or op == 5:  # soft or hard clipping
+            elif op == 4:  # S (soft clipping)
+                query_pos += length  
+            elif op == 5:  # H (hard clipping)
                 pass
             elif op == 3:  # N
                 # Always stop at reference skips
@@ -144,6 +154,203 @@ class AlignmentReader:
                 assert False, "unknown CIGAR operator"
         assert ref_pos < reference_bases
         return (ref_pos, query_pos)
+
+
+class BAMReader(AlignmentReader):
+    """Parses BAM/CRAM files using linear CIGARs and yields new-format Read objects."""
+    def __init__(
+        self,
+        alignment_files: List[str],
+        reference_fasta: str,
+        mapq_threshold: int = 20,
+        overhang: int = 10
+    ):
+        super().__init__(alignment_files, mapq_threshold, overhang)
+        if len(alignment_files) == 1:
+            self._reader = SampleBamReader(alignment_files[0], reference=reference_fasta)
+        else:
+            self._reader = MultiBamReader(alignment_files, reference=reference_fasta)
+
+    def has_reference(self, chromosome):
+        return self._reader.has_reference(chromosome)
+
+    def read(self, chromosome: str, variants: List[VcfVariant], sample: str) -> ReadSet:
+        alignments = self._usable_alignments(chromosome, sample)
+        
+        # We assume BAMs have a reference. Fetch the whole chromosome string for quick slicing.
+        # Ensure your pyfaidx object is passed or opened here.
+        chrom_seq = self._reader._fasta[chromosome][:].seq.upper() if self._reader._fasta else None
+        
+        reads = self._alignments_to_reads(alignments, variants, chrom_seq)
+        readset = ReadSet()
+        for read in reads:
+            readset.add(read)
+            
+        logger.info(f"Created BAM ReadSet with {len(readset)} templates.")
+        return readset
+
+    def _usable_alignments(self, chromosome, sample, regions=None):
+        if regions is None:
+            regions = [(0, None)]
+        for s, e in regions:
+            for alignment in self._reader.fetch(reference=chromosome, sample=sample, start=s, end=e):
+                flags = alignment.bam_alignment.flag
+                if (flags & 2048 != 0 or 
+                    alignment.bam_alignment.mapping_quality < self._mapq_threshold or 
+                    alignment.bam_alignment.is_secondary or 
+                    alignment.bam_alignment.is_unmapped or 
+                    alignment.bam_alignment.is_duplicate):
+                    continue
+                yield alignment
+
+    def _alignments_to_reads(self, alignments, variants, chrom_seq):
+        i = 0
+        for alignment in alignments:
+            while i < len(variants) and variants[i].position_on_ref < alignment.bam_alignment.reference_start:
+                i += 1
+
+            read = Read(
+                alignment.bam_alignment.qname,
+                alignment.bam_alignment.mapping_quality,
+                alignment.source_id
+            )
+
+            cigartuples = alignment.bam_alignment.cigartuples
+            if not cigartuples:
+                continue
+
+            for index, cigar_i, consumed, query_pos in _iterate_cigar(variants, i, alignment.bam_alignment, cigartuples):
+                scores = BAMReader.realign(
+                    self._aligner,
+                    variants[index],
+                    alignment.bam_alignment,
+                    cigartuples,
+                    cigar_i,
+                    consumed,
+                    query_pos,
+                    chrom_seq,
+                    self._overhang
+                )
+                if scores is not None:
+                    read.add_variant(variants[index].position_on_ref, scores)
+            
+            if len(read) > 0:
+                yield read
+
+    @staticmethod
+    def realign(
+        aligner,
+        variant,
+        bam_read,
+        cigartuples,
+        i,
+        consumed,
+        query_pos,
+        chrom_seq,
+        overhang,
+    ):
+        """
+        Realign a read to the two alleles of a single variant.
+        i and consumed describe where to split the cigar into a part before the
+        variant position and into a part starting at the variant position, see split_cigar().
+
+        variant -- VcfVariant
+        bam_read -- the AlignedSegment
+        cigartuples -- the AlignedSegment.cigartuples property (accessing it is expensive, so re-use it)
+        i, consumed -- see split_cigar method
+        query_pos -- index of the query base that is at the variant position
+        chrom_seq -- the reference as a str-like object (full chromosome)
+        overhang -- extend alignment by this many bases to left and right
+        """        
+        if any(alt.startswith("<") for alt in variant.alternative_allele):
+            return None
+
+        left_cigar, right_cigar = AlignmentReader.split_cigar(cigartuples, i, consumed)
+        left_ref_bases, left_query_bases = AlignmentReader.cigar_prefix_length(left_cigar[::-1], overhang)
+        right_ref_bases, right_query_bases = AlignmentReader.cigar_prefix_length(right_cigar, len(variant.reference_allele) + overhang)
+
+        if variant.position_on_ref - left_ref_bases < 0 or variant.position_on_ref + right_ref_bases > len(chrom_seq):
+            return None
+        
+        state = BAMReader.determine_alignment_state(
+                    left_ref_bases=left_ref_bases,
+                    right_ref_bases=right_ref_bases,
+                    ref_allele_length=len(variant.reference_allele)
+                )
+        
+        query = bam_read.query_sequence[query_pos - left_query_bases : query_pos + right_query_bases]
+        
+        left_overhang = chrom_seq[variant.position_on_ref - left_ref_bases : variant.position_on_ref]
+        right_overhang = chrom_seq[variant.position_on_ref + len(variant.reference_allele) : variant.position_on_ref + right_ref_bases]
+        
+        ref_seq = left_overhang + variant.reference_allele + right_overhang
+        alts_seq = [left_overhang + alt + right_overhang for alt in variant.alternative_allele]
+        
+        # Use the same WFA/EditDistance normalization logic as GAF Reader
+        scores = []
+        q_len = len(query)
+        for allele in [ref_seq] + alts_seq:
+            a_len = len(allele)
+            
+            if state == 0:
+                # Global alignment: Strict lengths on both sides
+                if a_len >= 1.2 * q_len or a_len <= q_len / 1.2:
+                    scores.append(0.0)
+                    continue
+            else:
+                # Partial alignment: Allele can be longer, but cannot be radically shorter
+                if a_len <= q_len / 1.2:
+                    scores.append(0.0)
+                    continue
+                
+            # Pass the dynamically calculated state to WFAWrapper
+            dist = aligner.get_distance(query=query, allele=allele, state=state)
+            
+            # Note: For partial alignments, WFA scores against q_len, not max(q_len, a_len)
+            # because the read isn't expected to cover the whole allele.
+            f_score = 1.0
+            if state == 0:
+                if (max(q_len, a_len) - dist) != 0:
+                    f_score = 5 * dist / (max(q_len, a_len) - dist)
+            else:
+                if (q_len - dist) != 0:
+                    f_score = 5 * dist / (q_len - dist)
+                    
+            scores.append(1.0 - min(1.0, f_score))
+            
+        return scores
+
+    @staticmethod
+    def determine_alignment_state(left_ref_bases: int, right_ref_bases: int, ref_allele_length: int) -> int:
+        """
+        Determines the WFA alignment state based on how much reference sequence 
+        was consumed by the CIGAR string relative to the variant boundaries.
+
+        Args:
+            left_ref_bases: Number of reference bases consumed before the variant.
+            right_ref_bases: Number of reference bases consumed from the start of 
+                             the variant to the end of the read.
+            ref_allele_length: Length of the variant's reference sequence.
+
+        Returns:
+            int: 0 (Full), 1 (Partial Start), 2 (Partial End), or 3 (Contained)
+        """
+        # If no reference bases were consumed before the variant, 
+        # the read starts exactly at or inside the variant.
+        has_partial_start = (left_ref_bases == 0)
+        
+        # If the reference bases consumed from the variant start position onward 
+        # are less than or equal to the variant length, the read ends inside it.
+        has_partial_end = (right_ref_bases <= ref_allele_length)
+        
+        if has_partial_start and has_partial_end:
+            return 3  # Contained
+        elif has_partial_start:
+            return 1  # Partial Start
+        elif has_partial_end:
+            return 2  # Partial End
+        
+        return 0      # Full Coverage
 
 
 class GAFReader(AlignmentReader):
@@ -171,7 +378,7 @@ class GAFReader(AlignmentReader):
     def has_reference(self, chromosome):
         return self._reader.has_reference(chromosome)
 
-    def read(self, chromosome: str, variants: List[VcfVariant]) -> ReadSet:
+    def read(self, chromosome: str, variants: List[VcfVariant], sample: str = None) -> ReadSet:
         """Detect alleles and return a ReadSet object containing reads representing the given variants.
 
         Args:
@@ -1144,17 +1351,3 @@ class GAFReader(AlignmentReader):
 
             if scores is not None:
                 yield (index, scores)
-
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *args):
-        logger.debug("Closing GAFReader")
-        self.close()
-
-    def close(self):
-        logger.debug("Deallocating WavefrontAligner")
-        self._aligner.close()
-        logger.debug("Closing GAFParser")
-        self._reader.close()
