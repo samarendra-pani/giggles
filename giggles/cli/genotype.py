@@ -179,7 +179,7 @@ def run_genotype(
     output=sys.stdout,
     # cores=1,
     chromosomes=None,
-    mapping_quality=20,
+    mapq=20,
     max_coverage=15,
     gt_qual_threshold=0,
     is_custom_graph=False,
@@ -208,7 +208,7 @@ def run_genotype(
         if rgfa is not None:
             rgfa = rGFA(reference_path=rgfa)
         readset_creator_args = (alignment_files, sample_name, rgfa, reference_fasta, read_fasta)
-        readset_creator_kwargs = {'mapq_threshold': mapping_quality,
+        readset_creator_kwargs = {'mapq_threshold': mapq,
                 'is_custom_graph': is_custom_graph,
                 'overhang': overhang}
         readset_creator_arguments=[readset_creator_args, readset_creator_kwargs]
