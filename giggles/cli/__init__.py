@@ -12,13 +12,11 @@ class ReadSetCreator:
     def __init__(
         self,
         alignment_files,
-        sample,
         gfa,
         reference_fasta,
         read_fasta_files,
         **kwargs,
     ):
-        self._sample = sample
         
         # Check if the input is a BAM or CRAM file
         first_file = alignment_files[0].lower()
@@ -56,7 +54,7 @@ class ReadSetCreator:
         logger.info("Reading alignments and detecting alleles.")
         
         # Both BAMReader and GAFReader now expose the exact same .read() signature!
-        readset = self.readset_reader.read(chromosome, variants, self._sample)
+        readset = self.readset_reader.read(chromosome, variants)
         
         if readset is None:
             readset = ReadSet()

@@ -1,13 +1,9 @@
 import os
-from abc import ABC
-from urllib.parse import urlparse
 from typing import Optional, Iterable
 
 import pysam
 import heapq
-from collections import defaultdict
 from dataclasses import dataclass
-from giggles.logger import logger
 
 
 
@@ -41,8 +37,8 @@ class SampleBamReader:
 
     def __init__(self, path: str, *, source_id: int = 0, reference: Optional[str] = None):
         """
-        path -- URL or path to BAM or CRAM file
-        reference -- optional path to FASTA reference for CRAM
+        path -- path to BAM/CRAM file
+        reference -- path to FASTA reference
         """
         self.source_id: int = source_id
         if reference:
@@ -50,10 +46,7 @@ class SampleBamReader:
 
         self._samfile = pysam.AlignmentFile(path, reference_filename=reference)
         try:
-            # TODO
-            # multiple_iterators should not be necessary -
-            # perhaps a bug in pysam 0.13
-            fetcher = self._samfile.fetch(multiple_iterators=True)
+            fetcher = self._samfile.fetch()
         except ValueError:
             raise AlignmentFileNotIndexedError(path)
 
@@ -65,34 +58,11 @@ class SampleBamReader:
         except StopIteration:
             raise EmptyAlignmentFileError(path) from None
         self._references = frozenset(self._samfile.references)
-        self._initialize_sample_to_group_ids()
 
     def has_reference(self, name: str) -> bool:
         return name in self._references
 
-    def _initialize_sample_to_group_ids(self) -> None:
-        """
-        Create a dictionary that maps a sample name to a set of read group ids.
-        """
-        read_groups = self._samfile.header.to_dict().get("RG", [])  # a list of dicts
-        logger.debug("Read groups in CRAM/BAM header: %s", read_groups)
-        samples = defaultdict(list)
-        for read_group in read_groups:
-            if "SM" in read_group:
-                samples[read_group["SM"]].append(read_group["ID"])
-            else:
-                logger.warning(
-                    'Read group "%s" does not contain an SM field to assign it to a sample.'
-                    " Use --ignore-read-groups to use these alignments anyway.",
-                    read_group["ID"],
-                )
-        self._sample_to_group_ids = {id: frozenset(values) for id, values in samples.items()}
-
-    def has_sample(self, sample: str) -> bool:
-        """Return whether this file contains reads for the given sample"""
-        return sample in self._sample_to_group_ids
-
-    def fetch(self, reference: str, sample: str, start: int = 0, end: Optional[int] = None):
+    def fetch(self, reference: str, start: int = 0, end: Optional[int] = None):
         """
         Yield instances of AlignmentWithSourceID, with source_id value given
         at construction time.
@@ -103,23 +73,9 @@ class SampleBamReader:
             # fetch() (below) raises a ValueError when the reference is invalid,
             # but also on other errors.
             raise ReferenceNotFoundError(reference)
-        if sample is None:
-            for bam_read in self._samfile.fetch(reference, start=start, stop=end):
-                yield AlignmentWithSourceID(self.source_id, bam_read)
-        else:
-            try:
-                read_groups = self._sample_to_group_ids[sample]
-            except KeyError:
-                raise SampleNotFoundError()
-            # TODO
-            # The multiple_iterators shouldn’t be necessary, but CRAM files
-            # don’t work without it in pysam 0.13
-            for bam_read in self._samfile.fetch(
-                reference, multiple_iterators=True, start=start, stop=end
-            ):
-                if bam_read.get_tag("RG") in read_groups:
-                    yield AlignmentWithSourceID(self.source_id, bam_read)
-
+        for bam_read in self._samfile.fetch(reference, start=start, stop=end):
+            yield AlignmentWithSourceID(self.source_id, bam_read)
+        
     def close(self) -> None:
         self._samfile.close()
 
@@ -145,10 +101,6 @@ class ComparableAlignedSegment:
 class MultiBamReader:
     """
     Read multiple sorted CRAM/BAM files and merge them on the fly.
-
-    To avoid needing to handle renaming of duplicate read groups, this class
-    just allows to specify a desired sample name. Doing that filtering here
-    is much easier.
     """
 
     def __init__(self, paths: Iterable[str], *, reference: Optional[str] = None):
@@ -159,7 +111,6 @@ class MultiBamReader:
     def fetch(
         self,
         reference: Optional[str] = None,
-        sample: Optional[str] = None,
         start: int = 0,
         end: Optional[int] = None,
     ):
@@ -169,22 +120,16 @@ class MultiBamReader:
 
         Yields instances of AlignmentWithSourceID, where source_id corresponds to
         index of BAM file name given at construction time.
-
-        If a sample name is given, only reads that belong to that sample are
-        returned (the RG tags of each read and the RG header are used for that).
         """
         assert reference is not None
 
         def make_comparable(reader):
-            for alignment in reader.fetch(reference, sample, start, end):
+            for alignment in reader.fetch(reference, start, end):
                 yield ComparableAlignedSegment(alignment.bam_alignment, alignment.source_id)
 
         iterators = []
         for reader in self._readers:
-            if sample is None or reader.has_sample(sample):
-                iterators.append(make_comparable(reader))
-        if not iterators:
-            raise SampleNotFoundError("Sample not found in any input CRAM/BAM file")
+            iterators.append(make_comparable(reader))
         for it in heapq.merge(*iterators):
             yield AlignmentWithSourceID(it.source_id, it.segment)
 

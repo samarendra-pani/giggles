@@ -6,6 +6,7 @@ Detect variants in reads.
 import re
 from collections import Counter, namedtuple
 from typing import Iterable, Iterator, List
+import pysam
 
 from giggles.logger import logger
 from giggles.core import Read, ReadSet
@@ -170,16 +171,38 @@ class BAMReader(AlignmentReader):
             self._reader = SampleBamReader(alignment_files[0], reference=reference_fasta)
         else:
             self._reader = MultiBamReader(alignment_files, reference=reference_fasta)
+        self._fasta = pysam.FastaFile(reference_fasta)
+        # Build short-name → full-name map
+        # "CHM13#0#chr19" → "chr19", plain "chr19" → "chr19"
+        self._chrom_map = {}
+        for name in self._fasta.references:
+            self._chrom_map[name] = name          # identity
+            short = name.split('#')[-1]           # last segment
+            self._chrom_map.setdefault(short, name)
+
+    def _resolve_chrom(self, chromosome: str) -> str:
+        resolved = self._chrom_map.get(chromosome)
+        if resolved is None:
+            raise KeyError(f"Chromosome {chromosome!r} not found in reference FASTA")
+        return resolved
+
+    def close(self):
+        if self._fasta:
+            self._fasta.close()
+        super().close()
 
     def has_reference(self, chromosome):
         return self._reader.has_reference(chromosome)
 
-    def read(self, chromosome: str, variants: List[VcfVariant], sample: str) -> ReadSet:
-        alignments = self._usable_alignments(chromosome, sample)
+    def read(self, chromosome: str, variants: List[VcfVariant]) -> ReadSet:
+        alignments = self._usable_alignments(self._resolve_chrom(chromosome))
         
         # We assume BAMs have a reference. Fetch the whole chromosome string for quick slicing.
-        # Ensure your pyfaidx object is passed or opened here.
-        chrom_seq = self._reader._fasta[chromosome][:].seq.upper() if self._reader._fasta else None
+        chrom_seq = self._fasta.fetch(self._resolve_chrom(chromosome)).upper()
+
+        for variant in variants:
+            assert variant.position == None
+            variant.position = variant.position_on_ref
         
         reads = self._alignments_to_reads(alignments, variants, chrom_seq)
         readset = ReadSet()
@@ -189,11 +212,11 @@ class BAMReader(AlignmentReader):
         logger.info(f"Created BAM ReadSet with {len(readset)} templates.")
         return readset
 
-    def _usable_alignments(self, chromosome, sample, regions=None):
+    def _usable_alignments(self, chromosome, regions=None):
         if regions is None:
             regions = [(0, None)]
         for s, e in regions:
-            for alignment in self._reader.fetch(reference=chromosome, sample=sample, start=s, end=e):
+            for alignment in self._reader.fetch(reference=chromosome, start=s, end=e):
                 flags = alignment.bam_alignment.flag
                 if (flags & 2048 != 0 or 
                     alignment.bam_alignment.mapping_quality < self._mapq_threshold or 
@@ -378,7 +401,7 @@ class GAFReader(AlignmentReader):
     def has_reference(self, chromosome):
         return self._reader.has_reference(chromosome)
 
-    def read(self, chromosome: str, variants: List[VcfVariant], sample: str = None) -> ReadSet:
+    def read(self, chromosome: str, variants: List[VcfVariant]) -> ReadSet:
         """Detect alleles and return a ReadSet object containing reads representing the given variants.
 
         Args:
