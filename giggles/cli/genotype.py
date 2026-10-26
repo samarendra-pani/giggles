@@ -219,10 +219,14 @@ def run_genotype(
     sampled_haplotypes_tmpfile = None
     covered_variants_tmpfile = None
     if create_temp_files:
-        tmp_dir = os.path.join(
-            os.path.dirname(output),
-            f"{os.path.splitext(os.path.basename(output))[0]}_tmpfiles"
-        )
+        basename = os.path.basename(output)
+        # strip all extensions: something.vcf.gz -> something
+        while True:
+            base, ext = os.path.splitext(basename)
+            if not ext:
+                break
+            basename = base
+        tmp_dir = os.path.join(os.path.dirname(output), f"{basename}_tmpfiles")
         os.makedirs(tmp_dir, exist_ok=True)
         sampled_haplotypes_tmpfile = os.path.join(tmp_dir, "sampled_haplotypes.tsv")
         covered_variants_tmpfile = os.path.join(tmp_dir, "covered_variants.tsv")
