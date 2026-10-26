@@ -1,5 +1,5 @@
 from collections import namedtuple
-from typing import Dict, Iterable, Optional, Tuple, List, Iterator
+from typing import Iterable, Optional, Tuple, List, Iterator
 
 Variant = namedtuple("Variant", "position allele scores")
 
