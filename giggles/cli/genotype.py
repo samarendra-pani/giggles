@@ -112,8 +112,6 @@ def genotype_chromosome(variant_table: VariantTable,
     logger.info(f"Collating variant information from {len(readset_positions)} covered variant positions to pass into C++ core. "
         f"Out of {count_all} variants ({count_svs} SVs), {count_covered_all} variants ({count_covered_svs} SVs) are covered.")
 
-    exit()
-
     # Have to do the selection for the phasing algorithm
     with timers("select"):
         #readset = readset.subset(
