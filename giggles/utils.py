@@ -2,10 +2,11 @@
 
 import gzip
 import itertools
-from typing import Sequence
+from typing import Sequence, Iterable
 
 from giggles.logger import logger
 from giggles import __version__
+from giggles.vcf import VcfVariant
 from giggles.core import (
     readselection,
     Genotype
@@ -55,23 +56,66 @@ def update_reads_with_selected(readset, max_coverage, preferred_source_ids=None)
     logger.info(f"Selected {len(selected_indices)} reads for phasing.")
 
 # adding the chromosome name to the position column
-def update_haplotypesampling_output(file, chromosome_file, chromosome):
-    if file == "":
+def update_tempfile_output(file, chromosome_file, chromosome):
+    if file is None:
         return
     writer = open(file, 'a')
     reader = open(chromosome_file, 'r')
     for line in reader:
         writer.write(f'{chromosome}-{line}\n')
+    writer.close()
+    reader.close()
 
 # writing the haplotype sampling header
 def write_haplotypesampling_header(file, num_paths):
-    if file == "":
+    if file is None:
         return
     with open(file, 'w') as f:
         f.write('#position')
         for i in range(num_paths):
             f.write(f'\tHaplotype{i}\tAllele{i}\tRecombination{i}')
         f.write('\n')
+
+def write_coveredvariants_header(file):
+    if file is None:
+        return
+    with open(file, 'w') as f:
+        f.write('#position\tcovered\tis_sv\tlongest_allele_length\n')
+
+def write_covered_variants(file, chr, covered_positions, variants: Iterable[VcfVariant]):
+    count_svs = 0
+    count_all = 0
+    count_covered_svs = 0
+    count_covered_all = 0
+    if file is None:
+        for variant in variants:
+            pos = variant.position_on_ref
+            is_covered = 1 if pos in covered_positions else 0
+            is_sv = 1 if variant.is_sv() else 0
+            if is_sv: count_svs += 1
+            if is_sv and is_covered: count_covered_svs += 1
+            if is_covered: count_covered_all += 1
+            count_all += 1
+        assert count_all == len(variants)
+        return count_all, count_svs, count_covered_all, count_covered_svs
+    
+    covered_positions = set(covered_positions)
+    with open(file, 'a') as writer:
+        for variant in variants:
+            pos = variant.position_on_ref
+            is_covered = 1 if pos in covered_positions else 0
+            is_sv = 1 if variant.is_sv() else 0
+            if is_sv: count_svs += 1
+            if is_sv and is_covered: count_covered_svs += 1
+            if is_covered: count_covered_all += 1
+            count_all += 1
+            longest_allele = max(
+                len(variant.reference_allele),
+                max(len(alt) for alt in variant.alternative_allele)
+            )
+            writer.write(f'{chr}-{pos}\t{is_covered}\t{is_sv}\t{longest_allele}\n')
+    assert count_all == len(variants)
+    return count_all, count_svs, count_covered_all, count_covered_svs
 
 class UniformRecombinationCostComputer:
     def __init__(self, recombination_rate, eff_pop_size):

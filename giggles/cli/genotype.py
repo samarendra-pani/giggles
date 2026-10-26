@@ -24,8 +24,10 @@ from giggles.core import (
     Genotype
 )
 from giggles.utils import (
-    update_haplotypesampling_output,
-    write_haplotypesampling_header
+    update_tempfile_output,
+    write_haplotypesampling_header,
+    write_coveredvariants_header,
+    write_covered_variants
 )
 from giggles.gaf import rGFA
 from giggles.timer import StageTimer
@@ -47,12 +49,21 @@ def genotype_chromosome(variant_table: VariantTable,
         num_sampled_haplotypes,
         sampling_eff_pop_size,
         allele_penalty,
-        path_output,
         n_haplotypes,
         ploidy,
-        temperature
+        temperature,
+        sampled_haplotypes_tmpfile,
+        covered_variants_tmpfile
     ):
-
+    
+    """Setting up chromosome-wise temp files"""
+    tmp_dir = None
+    chromosome_sampled_haplotypes = ""
+    if sampled_haplotypes_tmpfile is not None:
+        assert covered_variants_tmpfile is not None
+        tmp_dir = tempfile.TemporaryDirectory()
+        chromosome_sampled_haplotypes = os.path.join(tmp_dir.name, "hap-sampling.tmp")
+    
     chromosome = variant_table.chromosome
     
     # create a mapping of genome positions to indices
@@ -90,11 +101,18 @@ def genotype_chromosome(variant_table: VariantTable,
         )
     readset_positions = readset.get_positions()
     logger.info(f"Successfully created Readset for {chromosome}. Found {len(readset)} reads covering {len(readset_positions)} variants.")
-    if len(readset) == 0:
+    if len(readset_positions) == 0:
         logger.info(f"Skipping chromosome {chromosome} because no reads were found.")
         return
 
-    logger.info(f"Collating variant information from {len(readset_positions)} covered variant positions to pass into C++ core.")
+    count_all, count_svs, count_covered_all, count_covered_svs = write_covered_variants(covered_variants_tmpfile, chromosome, readset_positions, variant_table.variants)
+    assert count_covered_all == len(readset_positions)
+    assert count_all == variant_count
+
+    logger.info(f"Collating variant information from {len(readset_positions)} covered variant positions to pass into C++ core. "
+        f"Out of {count_all} variants ({count_svs} SVs), {count_covered_all} variants ({count_covered_svs} SVs) are covered.")
+
+    exit()
 
     # Have to do the selection for the phasing algorithm
     with timers("select"):
@@ -113,14 +131,6 @@ def genotype_chromosome(variant_table: VariantTable,
 
     # Run genotyping algorithm
     with timers("genotyping-phasing"):
-        
-        if path_output != "":
-            tmp_dir = tempfile.TemporaryDirectory()
-            chromosome_path_output = os.path.join(tmp_dir.name, "hap-sampling.tmp")
-        else:
-            tmp_dir = None
-            chromosome_path_output = ""
-
         try:
             result = GenotypingAlgorithm(
                 readset, 
@@ -132,7 +142,7 @@ def genotype_chromosome(variant_table: VariantTable,
                 num_sampled_haplotypes,
                 sampling_eff_pop_size,
                 allele_penalty,
-                chromosome_path_output,
+                chromosome_sampled_haplotypes,
                 positions_list,
                 n_allele_list,
                 allele_references_list,
@@ -156,11 +166,12 @@ def genotype_chromosome(variant_table: VariantTable,
             variant_table.query_set_genotype_likelihoods_of(likelihood_list)
             
             # updating the positions in the file along with the chromosome name
-            if chromosome_path_output != "":
-                update_haplotypesampling_output(path_output, chromosome_path_output, chromosome)
+            if chromosome_sampled_haplotypes != "":
+                logger.info("Writing sampled haplotypes for chromosome.")
+                update_tempfile_output(sampled_haplotypes_tmpfile, chromosome_sampled_haplotypes, chromosome)
                         
         finally:
-            if path_output != "": tmp_dir.cleanup()
+            if sampled_haplotypes_tmpfile is not None: tmp_dir.cleanup()
 
     return (variant_table, chromosome)
 
@@ -189,7 +200,7 @@ def run_genotype(
     num_sampled_haplotypes=15,
     sampling_eff_pop_size=1.0,
     allele_penalty=10,
-    path_output=""
+    create_temp_files=False
 ):
     logger.info(f"This is Giggles (genotyping) {__version__} running under Python {platform.python_version()}.")
     if sample_name == None:
@@ -203,7 +214,23 @@ def run_genotype(
     logger.info(f"Reference FASTA file: {'None provided' if reference_fasta is None else reference_fasta}")
     logger.info(f"Haplotags for alignments: {'None provided' if haplotag_tsv is None else haplotag_tsv}")
     logger.info(f"Variant sites files: {variant_file}")
-    logger.info(f"Writing to: {'Standard output' if output is sys.stdout else output}\n")
+    logger.info(f"Writing to: {'Standard output' if output is sys.stdout else output}")
+    
+    """Creating temporary directory and files"""
+    tmp_dir = None
+    sampled_haplotypes_tmpfile = None
+    covered_variants_tmpfile = None
+    if create_temp_files:
+        tmp_dir = os.path.join(
+            os.path.dirname(output),
+            f"{os.path.splitext(os.path.basename(output))[0]}_tmpfiles"
+        )
+        os.makedirs(tmp_dir, exist_ok=True)
+        sampled_haplotypes_tmpfile = os.path.join(tmp_dir, "sampled_haplotypes.tsv")
+        covered_variants_tmpfile = os.path.join(tmp_dir, "covered_variants.tsv")
+        logger.info(f"Creating temporary files at: {tmp_dir}")
+    else:
+        logger.info("No temporary files will be created. Give --create-temp-files to create them.")
     logger.info('== Giggles Genotyping ==')
     command_line = "(giggles {}) {}".format(__version__, " ".join(sys.argv[1:]))
     with ExitStack() as stack:
@@ -260,13 +287,16 @@ def run_genotype(
             num_sampled_haplotypes=num_sampled_haplotypes,
             sampling_eff_pop_size=sampling_eff_pop_size,
             allele_penalty=allele_penalty,
-            path_output=path_output,
             n_haplotypes=n_haplotypes,
             ploidy=ploidy,
-            temperature=temperature)
+            temperature=temperature,
+            sampled_haplotypes_tmpfile=sampled_haplotypes_tmpfile,
+            covered_variants_tmpfile=covered_variants_tmpfile)
 
         processed_chromosomes = []
-        write_haplotypesampling_header(path_output, num_sampled_haplotypes)
+        """Writing headers of the tempfiles. Content will be written inside partial_genotype_chromosome()"""
+        write_haplotypesampling_header(sampled_haplotypes_tmpfile, num_sampled_haplotypes)
+        write_coveredvariants_header(covered_variants_tmpfile)
         # No parallel processing
         for variant_table in timers.iterate("parse_vcf", vcf_reader):
             result = partial_genotype_chromosome(variant_table=variant_table)
@@ -360,8 +390,11 @@ def add_arguments(parser):
         help="Parameter for transition probability computing for haplotype sampling (default: %(default)s)")
     arg('--allele-penalty', metavar='ALLELE_PENALTY', default = 10, type = int,
         help="Penalty for an allele already selected in one of sample haplotype paths (default: %(default)s)")
-    arg('--path-output', metavar='PATH_OUTPUT', default = "", type = str,
-            help="File path to print the sampled haplotypes (default: %(default)s)")
+
+    
+    arg = parser.add_argument_group('Creating temporary files').add_argument
+    arg('--create-temp-files', action='store_true',
+            help='Flag to create the intermediate temp files and store it in a directory.')
 # fmt: on
 
 

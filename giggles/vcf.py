@@ -10,7 +10,7 @@ import itertools
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
 from os import PathLike
-from typing import List, Sequence, Tuple, Iterable, Optional, Union, TextIO, Iterator
+from typing import List, Tuple, Iterable, Optional, Union, TextIO, Iterator
 
 from pysam import VariantFile, VariantHeader, VariantRecord
 
@@ -351,6 +351,7 @@ class VcfReader:
         n_other = 0
         n_multi = 0
         n_ext = 0
+        n_dup = 0
         n_skip = 0  #To count the number of records that need to be skipped since they have more alleles than can be handled by Giggles
         table = VariantTable(chromosome, self.vcf_samples)
         prev_position = None
@@ -374,12 +375,11 @@ class VcfReader:
                 allele_origin.append(call["GT"])
             if id.__contains__('EXT'):
                 n_ext += 1
-            for alt in alts:
-                if len(ref) == len(alt) == 1:
-                    n_snvs += 1
-                else:
-                    n_other += 1
-
+            # count the record once, not once per alt
+            if len(ref) == 1 and all(len(alt) == 1 for alt in alts):
+                n_snvs += 1
+            else:
+                n_other += 1
             if (prev_position is not None) and (prev_position > pos):
                 raise Exception(
                     f"VCF not ordered: {chromosome}:{prev_position + 1} appears before {chromosome}:{pos + 1}"
@@ -389,14 +389,18 @@ class VcfReader:
                 warn_once(
                     logger, "Skipping duplicated position %s on chromosome %r", pos + 1, chromosome
                 )
+                n_dup += 1
                 continue
             prev_position = pos
             
             variant = VcfVariant(id = id, position=pos, reference_allele=ref, alternative_allele=alts, allele_origin=allele_origin, max_distance=self.max_allele_distance, use_distance_matrix=self._is_custom_graph)
             table.add_variant(variant)
 
-        logger.info(f"Processed Chromosome {chromosome}. Parsed {n_snvs} SNVs, {n_other} non-SNVs and {n_multi} multi-ALTs. Identified {n_ext} external variants added to the graph variants. Also skipped {n_skip} records exceeding max allele caparacity.")
-
+        logger.info(
+            f"Processed Chromosome {chromosome}. Parsed {n_snvs} SNVs, {n_other} non-SNVs and {n_multi} multi-ALTs. "
+            f"Identified {n_ext} external variants added to the graph variants. "
+            f"Skipped {n_skip} records exceeding max allele capacity and {n_dup} duplicate positions."
+        )
         return table
 
 @dataclass
