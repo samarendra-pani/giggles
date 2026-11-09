@@ -422,7 +422,7 @@ def validate(args, parser):
         parser.error("At least one alignment file must be provided.")
     if (not is_bam) and (not args.rgfa):
         parser.error("GAF alignments require rGFA.")
-    if (not is_bam) and (len(args.alignment_files) != len(args.read_fasta_files)):
+    if (not is_bam) and (len(args.alignment_files) != len(args.read_fasta)):
         parser.error("The number of GAF files must match the number of FASTA files.")
     if (is_bam) and (not args.reference_fasta):
         parser.error("BAM/CRAM alignments require reference fasta.")
