@@ -52,8 +52,18 @@ HaplotypeSampler::HaplotypeSampler(
 		path_outfile.open(path_output);
 
 		// print stats for each position
+		SamplingTransitions* transition_cost_computer = nullptr;
 		for (uint32_t column_index = 0; column_index < variant_info_table->size(); ++column_index) {
+
 			path_outfile << this->variant_info_table->at(column_index).position;
+			if (column_index > 0) {
+				uint32_t from_variant = this->variant_info_table->at(column_index-1).position;
+				uint32_t to_variant = this->variant_info_table->at(column_index).position;
+				transition_cost_computer = new SamplingTransitions(from_variant, to_variant, this->recombrate, num_haplotypes, this->effective_N);
+				path_outfile << "\t" << transition_cost_computer->compute_transition_cost(true);
+			} else {
+				path_outfile << "\t" << 0;
+			}
 			for (uint32_t path_id = 0; path_id < this->sampled_paths.sampled_paths.size(); ++path_id) {
 				uint32_t hap_index = this->sampled_paths.sampled_paths[path_id][column_index];
 				path_outfile << "\t" << hap_index;
@@ -62,6 +72,7 @@ HaplotypeSampler::HaplotypeSampler(
 			}
 			path_outfile << endl;
 		}
+		delete transition_cost_computer;
 	}
 	
 	// clean up

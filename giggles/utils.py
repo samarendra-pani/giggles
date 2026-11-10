@@ -62,7 +62,7 @@ def update_tempfile_output(file, chromosome_file, chromosome):
     writer = open(file, 'a')
     reader = open(chromosome_file, 'r')
     for line in reader:
-        writer.write(f'{chromosome}-{line}\n')
+        writer.write(f'{chromosome}-{line}')
     writer.close()
     reader.close()
 
@@ -71,7 +71,7 @@ def write_haplotypesampling_header(file, num_paths):
     if file is None:
         return
     with open(file, 'w') as f:
-        f.write('#position')
+        f.write('#Position\tTransitionCost')
         for i in range(num_paths):
             f.write(f'\tHaplotype{i}\tAllele{i}\tRecombination{i}')
         f.write('\n')
